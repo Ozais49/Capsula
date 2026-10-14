@@ -3,9 +3,9 @@
     "short_name": "Capsula",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Universal personal bookmark and content library",
+    "background_color": "#2F6F73",
+    "theme_color": "#2F6F73",
+    "description": "Save links from anywhere, organize them, and read them in one place.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

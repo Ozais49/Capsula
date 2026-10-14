@@ -145,6 +145,23 @@ To simulate a share from the command line with a device connected:
 adb shell am start -a android.intent.action.SEND -t text/plain -n com.ygtech.capsula/.ShareActivity --es android.intent.extra.TEXT "https://www.reddit.com/r/FlutterDev/" --es android.intent.extra.SUBJECT "FlutterDev"
 ```
 
+## Web
+
+Live at **https://capsula-ygtech.web.app** (Firebase Hosting).
+
+- On Firebase Hosting the app reads the project's web config from `/__/firebase/init.json`
+  and connects without manual setup. Elsewhere, the connection screen is used, as on Android.
+- URLs are path-based (`/bookmarks/<id>`). `firebase.json` rewrites every route to `index.html`.
+- Firestore's offline cache is shared across browser tabs.
+- Keyboard: `/` focuses search and `n` adds a bookmark. Both are ignored while typing.
+
+Deploy:
+
+```
+flutter build web --release --dart-define-from-file=config/prod.json
+firebase deploy --only hosting
+```
+
 ## Reader
 
 `ReaderService` (`lib/domain/reader/`) picks a presentation per content type:

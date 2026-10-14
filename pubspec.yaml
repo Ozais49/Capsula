@@ -34,6 +34,8 @@ dependencies:
   firebase_core: ^4.15.0
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
   go_router: ^18.0.2
   html: ^0.15.7
   http: ^1.6.0

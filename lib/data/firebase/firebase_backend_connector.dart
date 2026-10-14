@@ -35,7 +35,11 @@ class FirebaseBackendConnector implements BackendConnector {
     final auth = FirebaseAuth.instance;
     final firestore = FirebaseFirestore.instance;
     // Keep a local copy so saved bookmarks survive being offline.
-    firestore.settings = const Settings(persistenceEnabled: true);
+    firestore.settings = const Settings(
+      persistenceEnabled: true,
+      // Lets several browser tabs share the offline cache.
+      webPersistentTabManager: WebPersistentMultipleTabManager(),
+    );
     if (_config.useFirebaseEmulators) {
       await auth.useAuthEmulator(_config.firebaseEmulatorHost, 9099);
       firestore.useFirestoreEmulator(_config.firebaseEmulatorHost, 8080);

@@ -279,7 +279,10 @@ class _StatusPanel extends StatelessWidget {
       BackendStatus.connected => (
         Icons.cloud_done_outlined,
         scheme.primary,
-        'Connected to ${backend.activeSettings?.projectId}.',
+        backend.usingFallbackSettings
+            ? 'Connected to ${backend.activeSettings?.projectId}, '
+                  "this site's Firebase project."
+            : 'Connected to ${backend.activeSettings?.projectId}.',
       ),
       BackendStatus.failed => (
         Icons.error_outline,

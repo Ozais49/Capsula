@@ -97,4 +97,61 @@ void main() {
     expect(backend.status, BackendStatus.notConfigured);
     expect(backend.error, isNull);
   });
+
+  group('fallback settings (Firebase Hosting)', () {
+    BackendController withFallback(FirebaseConnection? hosted) =>
+        BackendController(
+          store: store,
+          connector: connector,
+          fallbackSettings: () async => hosted,
+        );
+
+    test('connects with them when nothing is saved, without saving', () async {
+      final backend = withFallback(testConnection);
+      await backend.start();
+
+      expect(backend.status, BackendStatus.connected);
+      expect(backend.activeSettings, testConnection);
+      expect(backend.savedSettings, isNull);
+      expect(store.saved, isNull);
+      expect(backend.usingFallbackSettings, isTrue);
+      expect(backend.restartRequired, isFalse);
+    });
+
+    test('saved settings win over the fallback', () async {
+      const other = FirebaseConnection(
+        apiKey: 'k',
+        appId: '1:9:android:ff',
+        projectId: 'saved-project',
+        messagingSenderId: '9',
+      );
+      store.saved = other;
+      final backend = withFallback(testConnection);
+      await backend.start();
+
+      expect(backend.activeSettings, other);
+      expect(backend.usingFallbackSettings, isFalse);
+    });
+
+    test('saving over the fallback asks for a restart', () async {
+      final backend = withFallback(testConnection);
+      await backend.start();
+      await backend.save(testConnection);
+      expect(backend.restartRequired, isTrue);
+    });
+
+    test('a failing or empty fallback means not configured', () async {
+      final empty = withFallback(null);
+      await empty.start();
+      expect(empty.status, BackendStatus.notConfigured);
+
+      final failing = BackendController(
+        store: store,
+        connector: connector,
+        fallbackSettings: () async => throw Exception('offline'),
+      );
+      await failing.start();
+      expect(failing.status, BackendStatus.notConfigured);
+    });
+  });
 }

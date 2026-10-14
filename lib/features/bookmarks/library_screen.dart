@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/dependencies.dart';
@@ -11,6 +12,7 @@ import '../../domain/bookmarks/bookmark_repository.dart';
 import '../../domain/bookmarks/bookmark_view.dart';
 import '../../domain/bookmarks/search_tokens.dart';
 import '../../domain/organization/label.dart';
+import '../common/keyboard_shortcuts.dart';
 import '../organization/labels_builder.dart';
 import 'add_bookmark_sheet.dart';
 import 'bookmark_tile.dart';
@@ -32,6 +34,7 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
   Timer? _debounce;
   String _search = '';
   int _limit = LibraryScreen.pageSize;
@@ -56,6 +59,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -104,6 +108,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // "/" searches and "n" adds a bookmark, for keyboard users on the web.
+    return SingleKeyShortcuts(
+      bindings: {
+        LogicalKeyboardKey.slash: _searchFocus.requestFocus,
+        LogicalKeyboardKey.keyN: () => showAddBookmarkSheet(context),
+      },
+      child: _build(context),
+    );
+  }
+
+  Widget _build(BuildContext context) {
     return LabelsBuilder(
       builder: (context, labels) => LayoutBuilder(
         builder: (context, constraints) {
@@ -153,6 +168,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
           child: SearchBar(
             controller: _searchController,
+            focusNode: _searchFocus,
             hintText: 'Search ${viewTitle(widget.view, labels).toLowerCase()}',
             leading: const Icon(Icons.search),
             onChanged: _onSearchChanged,

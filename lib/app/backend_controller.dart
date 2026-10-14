@@ -7,7 +7,15 @@ enum BackendStatus { loading, notConfigured, connecting, connected, failed }
 
 /// Loads the saved connection settings and connects to the backend.
 class BackendController extends ChangeNotifier {
-  BackendController({required this._store, required this._connector});
+  BackendController({
+    required this._store,
+    required this._connector,
+    this._fallbackSettings,
+  });
+
+  /// Settings to use when none are saved, such as the config Firebase
+  /// Hosting serves for the site. Never saved to the device.
+  final Future<FirebaseConnection?> Function()? _fallbackSettings;
 
   final ConnectionSettingsStore _store;
   final BackendConnector _connector;
@@ -15,6 +23,9 @@ class BackendController extends ChangeNotifier {
   BackendStatus _status = BackendStatus.loading;
   FirebaseConnection? _saved;
   FirebaseConnection? _active;
+
+  /// What was saved when the current connection was made.
+  FirebaseConnection? _savedAtConnect;
   BackendServices? _services;
   String? _error;
 
@@ -29,15 +40,27 @@ class BackendController extends ChangeNotifier {
   /// Settings of the current connection.
   FirebaseConnection? get activeSettings => _active;
 
-  bool get restartRequired => _active != null && _saved != _active;
+  bool get restartRequired => _active != null && _saved != _savedAtConnect;
+
+  /// Connected with settings that aren't saved on this device (from the
+  /// hosting site).
+  bool get usingFallbackSettings => _active != null && _savedAtConnect == null;
 
   Future<void> start() async {
     _saved = await _store.load();
-    final saved = _saved;
-    if (saved == null) {
+    final settings = _saved ?? await _loadFallback();
+    if (settings == null) {
       _setStatus(BackendStatus.notConfigured);
     } else {
-      await _connect(saved);
+      await _connect(settings);
+    }
+  }
+
+  Future<FirebaseConnection?> _loadFallback() async {
+    try {
+      return await _fallbackSettings?.call();
+    } on Object {
+      return null;
     }
   }
 
@@ -69,6 +92,7 @@ class BackendController extends ChangeNotifier {
     try {
       _services = await _connector.connect(settings);
       _active = settings;
+      _savedAtConnect = _saved;
       _setStatus(BackendStatus.connected);
     } on Object catch (e) {
       _error = 'Could not connect: $e';
