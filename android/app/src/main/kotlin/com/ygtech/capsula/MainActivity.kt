@@ -1,4 +1,4 @@
-package com.gyawali.bookmark_app
+package com.ygtech.capsula
 
 import io.flutter.embedding.android.FlutterActivity
 

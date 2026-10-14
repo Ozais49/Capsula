@@ -1,0 +1,5 @@
+{
+  "APP_ENV": "dev",
+  "USE_FIREBASE_EMULATORS": true,
+  "FIREBASE_EMULATOR_HOST": "localhost"
+}

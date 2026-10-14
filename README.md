@@ -1,4 +1,4 @@
-# bookmark_app
+# Capsula
 
 Universal personal bookmark and content library for Android and Web.
 See [plan.md](plan.md) for the product plan and development phases.
@@ -56,10 +56,48 @@ file first). Then rerun the build.
 
 ## Running
 
+Build-time settings live in `config/<env>.json` and are passed with `--dart-define-from-file`.
+VS Code has matching launch configurations: **Capsula (dev)**, **Capsula (emulators)** and **Capsula (prod)**.
+
 ```
-flutter run -d <android-device-id>   # physical device (USB debugging enabled)
-flutter run -d edge                  # web (Chrome also works if installed)
+flutter run -d <android-device-id> --dart-define-from-file=config/dev.json
+flutter run -d edge --dart-define-from-file=config/dev.json
 ```
+
+| File | Use |
+|---|---|
+| `config/dev.json` | Development against the real Firebase project |
+| `config/emulators.json` | Local Firebase emulators (`firebase emulators:start`) |
+| `config/prod.json` | Release builds |
+
+When using the emulators from a physical Android device, set `FIREBASE_EMULATOR_HOST`
+in `config/emulators.json` to your computer's LAN IP (`10.0.2.2` from an Android emulator).
+
+## Firebase setup
+
+`lib/data/firebase/firebase_options.dart` is generated. To (re)generate it:
+
+```
+firebase login
+flutterfire configure --project=<firebase-project-id> --platforms=android,web --android-package-name=com.ygtech.capsula --out=lib/data/firebase/firebase_options.dart
+```
+
+Then enable **Email/Password** under Authentication → Sign-in method in the Firebase console.
+
+## Architecture
+
+```
+lib/
+  main.dart          Composition root: reads config, initializes Firebase, starts the app
+  app/               App shell: routing, auth session, dependency scope, theme
+  config/            Build-time configuration
+  domain/            Provider-independent models and repository interfaces
+  data/firebase/     Firebase implementations (the only code that imports Firebase SDKs)
+  features/          Screens, grouped by feature
+```
+
+UI code depends on the repository interfaces in `domain/`, never on Firebase directly.
+Tests use in-memory fakes of those interfaces (`test/fakes/`).
 
 ## Checks
 

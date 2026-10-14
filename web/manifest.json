@@ -1,6 +1,6 @@
 {
-    "name": "bookmark_app",
-    "short_name": "bookmark_app",
+    "name": "Capsula",
+    "short_name": "Capsula",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
