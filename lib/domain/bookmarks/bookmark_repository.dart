@@ -36,6 +36,13 @@ abstract interface class BookmarkRepository {
 
   Future<Bookmark?> findByCanonicalUrl(String canonicalUrl);
 
+  /// Which of [canonicalUrls] are already in the library.
+  Future<Set<String>> existingCanonicalUrls(Iterable<String> canonicalUrls);
+
+  /// Writes many bookmarks at once (at most 500). Completes when the
+  /// backend has accepted all of them; fails as a whole otherwise.
+  Future<void> createMany(List<Bookmark> bookmarks);
+
   /// Number of bookmarks in the Inbox, or null when it can't be counted
   /// (for example while offline).
   Future<int?> countInbox();

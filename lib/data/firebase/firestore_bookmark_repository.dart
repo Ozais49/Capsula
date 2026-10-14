@@ -81,6 +81,37 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
   }
 
   @override
+  Future<Set<String>> existingCanonicalUrls(
+    Iterable<String> canonicalUrls,
+  ) async {
+    final unique = canonicalUrls.toSet().toList();
+    final found = <String>{};
+    // whereIn accepts at most 30 values.
+    for (var i = 0; i < unique.length; i += 30) {
+      final chunk = unique.sublist(i, (i + 30).clamp(0, unique.length));
+      final snapshot = await _collection
+          .where('canonicalUrl', whereIn: chunk)
+          .get();
+      for (final doc in snapshot.docs) {
+        if (doc.data()['canonicalUrl'] case final String url) found.add(url);
+      }
+    }
+    return found;
+  }
+
+  @override
+  Future<void> createMany(List<Bookmark> bookmarks) async {
+    if (bookmarks.length > 500) {
+      throw ArgumentError('At most 500 bookmarks per call');
+    }
+    final batch = _db.batch();
+    for (final b in bookmarks) {
+      batch.set(_collection.doc(b.id), bookmarkToFirestore(b));
+    }
+    await batch.commit();
+  }
+
+  @override
   Future<int?> countInbox() async {
     try {
       final snapshot = await _viewQuery(BookmarkView.inbox).count().get();
@@ -119,6 +150,8 @@ Map<String, Object?> bookmarkToFirestore(Bookmark b) => {
   'inInbox': b.inInbox,
   'tagIds': b.tagIds,
   'collectionIds': b.collectionIds,
+  'importedFrom': ?b.importedFrom,
+  if (b.importedAt case final at?) 'importedAt': Timestamp.fromDate(at),
   'createdAt': Timestamp.fromDate(b.createdAt),
   'updatedAt': Timestamp.fromDate(b.updatedAt),
   'searchTokens': buildSearchTokens(b.searchableText),
@@ -143,6 +176,8 @@ Bookmark bookmarkFromFirestore(String id, Map<String, Object?> data) {
     inInbox: data['inInbox'] as bool? ?? false,
     tagIds: _strings(data['tagIds']),
     collectionIds: _strings(data['collectionIds']),
+    importedFrom: data['importedFrom'] as String?,
+    importedAt: (data['importedAt'] as Timestamp?)?.toDate(),
     createdAt: time('createdAt'),
     updatedAt: time('updatedAt'),
   );

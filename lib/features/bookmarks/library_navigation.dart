@@ -167,6 +167,12 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
             children: [
               ListTile(
                 dense: true,
+                leading: const Icon(Icons.upload_file),
+                title: const Text('Import bookmarks'),
+                onTap: () => context.push(AppRoutes.import),
+              ),
+              ListTile(
+                dense: true,
                 leading: const Icon(Icons.settings_ethernet),
                 title: const Text('Connection settings'),
                 onTap: () => context.push(AppRoutes.connection),

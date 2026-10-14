@@ -36,7 +36,8 @@ service cloud.firestore {
         && data.keys().hasOnly([
           'url', 'canonicalUrl', 'title', 'description', 'imageUrl', 'source',
           'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
-          'updatedAt', 'searchTokens', 'tagIds', 'collectionIds'
+          'updatedAt', 'searchTokens', 'tagIds', 'collectionIds',
+          'importedFrom', 'importedAt'
         ])
         && data.url is string && data.url.size() <= 4096
         && data.url.matches('^https?://.+')
@@ -55,7 +56,9 @@ service cloud.firestore {
         && data.updatedAt <= request.time + duration.value(1, 'h')
         && data.searchTokens is list && data.searchTokens.size() <= 400
         && isOptionalIdList(data, 'tagIds')
-        && isOptionalIdList(data, 'collectionIds');
+        && isOptionalIdList(data, 'collectionIds')
+        && isOptionalString(data, 'importedFrom', 50)
+        && (!('importedAt' in data) || data.importedAt is timestamp);
     }
 
     match /users/{userId}/bookmarks/{bookmarkId} {

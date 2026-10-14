@@ -235,3 +235,35 @@ describe('tags and collections', () => {
     );
   });
 });
+
+describe('import provenance', () => {
+  test('accepts importedFrom and importedAt', async () => {
+    await assertSucceeds(
+      setDoc(
+        bookmarkRef(db('alice'), 'alice'),
+        validBookmark({ importedFrom: 'Raindrop', importedAt: Timestamp.now() }),
+      ),
+    );
+  });
+
+  test('rejects malformed provenance', async () => {
+    const ref = bookmarkRef(db('alice'), 'alice');
+    await assertFails(setDoc(ref, validBookmark({ importedFrom: 'x'.repeat(51) })));
+    await assertFails(setDoc(ref, validBookmark({ importedFrom: 7 })));
+    await assertFails(setDoc(ref, validBookmark({ importedAt: '2024-01-01' })));
+  });
+
+  test('a batch of imported bookmarks writes as the owner only', async () => {
+    const { writeBatch } = await import('firebase/firestore');
+    const alice = db('alice');
+    const own = writeBatch(alice);
+    own.set(bookmarkRef(alice, 'alice', 'i1'), validBookmark({ importedFrom: 'Chrome' }));
+    own.set(bookmarkRef(alice, 'alice', 'i2'), validBookmark({ importedFrom: 'Chrome' }));
+    await assertSucceeds(own.commit());
+
+    const mixed = writeBatch(alice);
+    mixed.set(bookmarkRef(alice, 'alice', 'i3'), validBookmark());
+    mixed.set(bookmarkRef(alice, 'bob', 'i4'), validBookmark());
+    await assertFails(mixed.commit());
+  });
+});

@@ -6,6 +6,7 @@ import '../features/auth/sign_in_screen.dart';
 import '../features/connection/connection_screen.dart';
 import '../features/bookmarks/bookmark_detail_screen.dart';
 import '../features/bookmarks/library_screen.dart';
+import '../features/import/import_screen.dart';
 import '../features/loading/loading_screen.dart';
 import '../features/reader/reader_screen.dart';
 import '../features/share/share_screen.dart';
@@ -18,6 +19,7 @@ abstract final class AppRoutes {
   static const loading = '/loading';
   static const connection = '/connection';
   static const share = '/share';
+  static const import = '/import';
 
   static String bookmark(String id) => '/bookmarks/$id';
 
@@ -70,6 +72,10 @@ final _authRoutes = [
   GoRoute(
     path: AppRoutes.loading,
     builder: (context, state) => const LoadingScreen(),
+  ),
+  GoRoute(
+    path: AppRoutes.import,
+    builder: (context, state) => const ImportScreen(),
   ),
   GoRoute(
     path: AppRoutes.share,

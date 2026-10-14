@@ -33,6 +33,8 @@ class Bookmark {
     this.inInbox = true,
     this.tagIds = const [],
     this.collectionIds = const [],
+    this.importedFrom,
+    this.importedAt,
   });
 
   final String id;
@@ -56,6 +58,11 @@ class Bookmark {
   final bool inInbox;
   final List<String> tagIds;
   final List<String> collectionIds;
+
+  /// Where an imported bookmark came from (e.g. `Chrome`, `Raindrop`);
+  /// null for bookmarks saved in Capsula. Separate from [source].
+  final String? importedFrom;
+  final DateTime? importedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -99,6 +106,8 @@ class Bookmark {
     inInbox: inInbox ?? this.inInbox,
     tagIds: tagIds ?? this.tagIds,
     collectionIds: collectionIds ?? this.collectionIds,
+    importedFrom: importedFrom,
+    importedAt: importedAt,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );

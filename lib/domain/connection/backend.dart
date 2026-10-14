@@ -1,6 +1,7 @@
 import '../auth/auth_repository.dart';
 import '../bookmarks/bookmark_repository.dart';
 import '../bookmarks/bookmark_service.dart';
+import '../import/import_service.dart';
 import '../organization/label.dart';
 import 'firebase_connection.dart';
 
@@ -17,6 +18,11 @@ class BackendServices {
   final LabelRepository labelRepository;
 
   late final BookmarkService bookmarks = BookmarkService(
+    bookmarkRepository,
+    labelRepository,
+  );
+
+  late final ImportService importer = ImportService(
     bookmarkRepository,
     labelRepository,
   );

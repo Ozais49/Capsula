@@ -63,6 +63,28 @@ class InMemoryBookmarkRepository implements BookmarkRepository {
   Future<Bookmark?> findByCanonicalUrl(String canonicalUrl) async =>
       items.values.where((b) => b.canonicalUrl == canonicalUrl).firstOrNull;
 
+  /// Batches passed to [createMany], for asserting batch sizes.
+  final List<int> batchSizes = [];
+
+  /// Fails the batch with this index (0-based) in [createMany].
+  int? failBatch;
+
+  @override
+  Future<Set<String>> existingCanonicalUrls(
+    Iterable<String> canonicalUrls,
+  ) async {
+    final all = items.values.map((b) => b.canonicalUrl).toSet();
+    return canonicalUrls.where(all.contains).toSet();
+  }
+
+  @override
+  Future<void> createMany(List<Bookmark> bookmarks) async {
+    final index = batchSizes.length;
+    batchSizes.add(bookmarks.length);
+    if (index == failBatch) throw Exception('connection lost');
+    addAll(bookmarks);
+  }
+
   @override
   Future<int?> countInbox() async =>
       items.values.where((b) => bookmarkInView(b, const InboxView())).length;
