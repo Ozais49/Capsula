@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/dependencies.dart';
+import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../domain/auth/auth_repository.dart';
 
@@ -186,6 +188,14 @@ class _SignInScreenState extends State<SignInScreen> {
                               ? "Don't have an account? Create one"
                               : 'Already have an account? Sign in',
                         ),
+                      ),
+                      const SizedBox(height: Gap.lg),
+                      TextButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => context.push(AppRoutes.connection),
+                        icon: const Icon(Icons.settings_ethernet, size: 18),
+                        label: const Text('Connection settings'),
                       ),
                     ],
                   ),

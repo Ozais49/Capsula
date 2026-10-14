@@ -31,6 +31,8 @@ enum AuthErrorCode {
   userDisabled,
   tooManyRequests,
   network,
+  signInMethodDisabled,
+  invalidConnection,
   unknown,
 }
 
@@ -49,6 +51,11 @@ class AuthException implements Exception {
     AuthErrorCode.tooManyRequests =>
       'Too many attempts. Please wait and try again.',
     AuthErrorCode.network => 'No connection. Check your network and retry.',
+    AuthErrorCode.signInMethodDisabled =>
+      'Email sign-in is not enabled for this Firebase project.',
+    AuthErrorCode.invalidConnection =>
+      'The Firebase connection settings are not valid. '
+          'Check them under Connection settings.',
     AuthErrorCode.unknown => 'Something went wrong. Please try again.',
   };
 

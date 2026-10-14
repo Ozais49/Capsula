@@ -1,4 +1,5 @@
 import 'package:capsula/app/auth_session.dart';
+import 'package:capsula/app/backend_controller.dart';
 import 'package:capsula/app/router.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -70,6 +71,44 @@ void main() {
 
     test('does not redirect normal routes', () {
       expect(redirect(AuthStatus.signedIn, '/'), isNull);
+    });
+  });
+
+  group('backend connection gate', () {
+    String? app(BackendStatus backend, String location) =>
+        appRedirect(backend, AuthStatus.signedIn, Uri.parse(location));
+
+    test('waits on loading while the backend starts or connects', () {
+      expect(app(BackendStatus.loading, '/'), '/loading');
+      expect(app(BackendStatus.connecting, '/loading'), isNull);
+      expect(
+        app(BackendStatus.loading, '/settings'),
+        '/loading?from=%2Fsettings',
+      );
+    });
+
+    test('sends everything to the connection screen until configured', () {
+      expect(app(BackendStatus.notConfigured, '/'), '/connection');
+      expect(app(BackendStatus.notConfigured, '/sign-in'), '/connection');
+      expect(app(BackendStatus.failed, '/loading'), '/connection');
+    });
+
+    test('the connection screen is always reachable', () {
+      for (final status in BackendStatus.values) {
+        expect(app(status, '/connection'), isNull, reason: '$status');
+      }
+    });
+
+    test('applies auth rules once connected', () {
+      expect(
+        appRedirect(
+          BackendStatus.connected,
+          AuthStatus.signedOut,
+          Uri.parse('/'),
+        ),
+        '/sign-in',
+      );
+      expect(app(BackendStatus.connected, '/'), isNull);
     });
   });
 }

@@ -14,6 +14,11 @@ void main() {
       'user-disabled': AuthErrorCode.userDisabled,
       'too-many-requests': AuthErrorCode.tooManyRequests,
       'network-request-failed': AuthErrorCode.network,
+      'operation-not-allowed': AuthErrorCode.signInMethodDisabled,
+      'configuration-not-found': AuthErrorCode.signInMethodDisabled,
+      'invalid-api-key': AuthErrorCode.invalidConnection,
+      'api-key-not-valid.-please-pass-a-valid-api-key.':
+          AuthErrorCode.invalidConnection,
       'something-new': AuthErrorCode.unknown,
     };
     cases.forEach((code, expected) {

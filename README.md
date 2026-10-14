@@ -75,14 +75,27 @@ in `config/emulators.json` to your computer's LAN IP (`10.0.2.2` from an Android
 
 ## Firebase setup
 
-`lib/data/firebase/firebase_options.dart` is generated. To (re)generate it:
+Firebase settings are entered in the app, not compiled in. On first launch the app opens
+**Firebase connection**. It can also be opened later from the sign-in screen
+(**Connection settings**) or the home screen's app bar.
+
+- **Android:** paste the contents of `google-services.json`. It must contain the
+  `com.ygtech.capsula` app.
+- **Web:** paste the Web app's `firebaseConfig` object.
+- Or fill in the fields by hand.
+
+Settings are stored on the device (`shared_preferences`). Changing them while connected
+takes effect after restarting the app, because Firebase can be initialized only once per run.
+
+To get the configs from the CLI:
 
 ```
-firebase login
-flutterfire configure --project=<firebase-project-id> --platforms=android,web --android-package-name=com.ygtech.capsula --out=lib/data/firebase/firebase_options.dart
+firebase apps:list --project capsula-ygtech
+firebase apps:sdkconfig ANDROID <android-app-id> --project capsula-ygtech
+firebase apps:sdkconfig WEB <web-app-id> --project capsula-ygtech
 ```
 
-Then enable **Email/Password** under Authentication → Sign-in method in the Firebase console.
+In the Firebase console, enable **Email/Password** under Authentication → Sign-in method.
 
 ## Architecture
 
@@ -93,6 +106,7 @@ lib/
   config/            Build-time configuration
   domain/            Provider-independent models and repository interfaces
   data/firebase/     Firebase implementations (the only code that imports Firebase SDKs)
+  data/local/        On-device storage (saved connection settings)
   features/          Screens, grouped by feature
 ```
 

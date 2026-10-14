@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/dependencies.dart';
+import '../../app/router.dart';
 import '../../app/theme.dart';
 
 /// Placeholder until the library screens are built in later phases.
@@ -17,6 +19,11 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Capsula'),
         actions: [
+          IconButton(
+            tooltip: 'Connection settings',
+            icon: const Icon(Icons.settings_ethernet),
+            onPressed: () => context.push(AppRoutes.connection),
+          ),
           IconButton(
             tooltip: 'Sign out',
             icon: const Icon(Icons.logout),

@@ -1,0 +1,39 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+import '../../config/app_config.dart';
+import '../../domain/connection/backend.dart';
+import '../../domain/connection/firebase_connection.dart';
+import 'firebase_auth_repository.dart';
+
+class FirebaseBackendConnector implements BackendConnector {
+  FirebaseBackendConnector(this._config);
+
+  final AppConfig _config;
+
+  @override
+  Future<BackendServices> connect(FirebaseConnection connection) async {
+    final options = FirebaseOptions(
+      apiKey: connection.apiKey,
+      appId: connection.appId,
+      messagingSenderId: connection.messagingSenderId,
+      projectId: connection.projectId,
+      authDomain: connection.authDomain,
+      storageBucket: connection.storageBucket,
+    );
+
+    // The default Firebase app can only be initialized once per run.
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(options: options);
+    } else if (Firebase.app().options != options) {
+      throw StateError('Restart the app to use the new connection settings.');
+    }
+
+    final auth = FirebaseAuth.instance;
+    if (_config.useFirebaseEmulators) {
+      await auth.useAuthEmulator(_config.firebaseEmulatorHost, 9099);
+    }
+
+    return BackendServices(authRepository: FirebaseAuthRepository(auth));
+  }
+}

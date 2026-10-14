@@ -7,15 +7,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../fakes/fake_auth_repository.dart';
+import '../../fakes/fake_backend.dart';
 
-Widget _wrap(FakeAuthRepository auth) => AppDependencies(
+Future<Widget> _wrap(FakeAuthRepository auth) async => AppDependencies(
   config: const AppConfig(
     environment: AppEnvironment.dev,
     useFirebaseEmulators: false,
     firebaseEmulatorHost: 'localhost',
   ),
-  authRepository: auth,
-  authSession: AuthSession(auth),
+  backend: await startedBackend(auth),
+  authSession: AuthSession()..attach(auth),
   child: const MaterialApp(home: SignInScreen()),
 );
 
@@ -24,7 +25,7 @@ Finder get _password => find.widgetWithText(TextFormField, 'Password');
 
 void main() {
   testWidgets('requires email and password', (tester) async {
-    await tester.pumpWidget(_wrap(FakeAuthRepository()));
+    await tester.pumpWidget(await _wrap(FakeAuthRepository()));
 
     await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pump();
@@ -34,7 +35,7 @@ void main() {
   });
 
   testWidgets('rejects a malformed email', (tester) async {
-    await tester.pumpWidget(_wrap(FakeAuthRepository()));
+    await tester.pumpWidget(await _wrap(FakeAuthRepository()));
 
     await tester.enterText(_email, 'not-an-email');
     await tester.enterText(_password, 'secret1');
@@ -46,7 +47,7 @@ void main() {
 
   testWidgets('shows an error for wrong credentials', (tester) async {
     final auth = FakeAuthRepository()..accounts['a@example.com'] = 'secret1';
-    await tester.pumpWidget(_wrap(auth));
+    await tester.pumpWidget(await _wrap(auth));
 
     await tester.enterText(_email, 'a@example.com');
     await tester.enterText(_password, 'wrong-password');
@@ -59,7 +60,7 @@ void main() {
 
   testWidgets('creates an account in register mode', (tester) async {
     final auth = FakeAuthRepository();
-    await tester.pumpWidget(_wrap(auth));
+    await tester.pumpWidget(await _wrap(auth));
 
     await tester.tap(find.text("Don't have an account? Create one"));
     await tester.pump();
@@ -73,7 +74,7 @@ void main() {
   });
 
   testWidgets('register mode enforces minimum password length', (tester) async {
-    await tester.pumpWidget(_wrap(FakeAuthRepository()));
+    await tester.pumpWidget(await _wrap(FakeAuthRepository()));
 
     await tester.tap(find.text("Don't have an account? Create one"));
     await tester.pump();
@@ -92,7 +93,7 @@ void main() {
     final auth = FakeAuthRepository()
       ..accounts['a@example.com'] = 'secret1'
       ..nextError = const AuthException(AuthErrorCode.network);
-    await tester.pumpWidget(_wrap(auth));
+    await tester.pumpWidget(await _wrap(auth));
 
     await tester.enterText(_email, 'a@example.com');
     await tester.enterText(_password, 'secret1');
@@ -107,7 +108,7 @@ void main() {
 
   testWidgets('sends a password reset for the entered email', (tester) async {
     final auth = FakeAuthRepository();
-    await tester.pumpWidget(_wrap(auth));
+    await tester.pumpWidget(await _wrap(auth));
 
     await tester.enterText(_email, 'a@example.com');
     await tester.tap(find.text('Forgot password?'));
@@ -122,7 +123,7 @@ void main() {
 
   testWidgets('password reset asks for an email first', (tester) async {
     final auth = FakeAuthRepository();
-    await tester.pumpWidget(_wrap(auth));
+    await tester.pumpWidget(await _wrap(auth));
 
     await tester.tap(find.text('Forgot password?'));
     await tester.pump();

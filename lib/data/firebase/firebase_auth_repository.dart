@@ -63,5 +63,11 @@ AuthErrorCode mapFirebaseAuthCode(String code) => switch (code) {
   'user-disabled' => AuthErrorCode.userDisabled,
   'too-many-requests' => AuthErrorCode.tooManyRequests,
   'network-request-failed' => AuthErrorCode.network,
+  'operation-not-allowed' ||
+  'configuration-not-found' => AuthErrorCode.signInMethodDisabled,
+  'invalid-api-key' ||
+  'api-key-not-valid.-please-pass-a-valid-api-key.' ||
+  'app-not-authorized' ||
+  'invalid-app-id' => AuthErrorCode.invalidConnection,
   _ => AuthErrorCode.unknown,
 };

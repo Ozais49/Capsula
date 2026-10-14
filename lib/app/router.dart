@@ -1,35 +1,71 @@
 import 'package:go_router/go_router.dart';
 
+import 'package:flutter/foundation.dart';
+
 import '../features/auth/sign_in_screen.dart';
+import '../features/connection/connection_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/loading/loading_screen.dart';
 import 'auth_session.dart';
+import 'backend_controller.dart';
 
 abstract final class AppRoutes {
   static const home = '/';
   static const signIn = '/sign-in';
   static const loading = '/loading';
+  static const connection = '/connection';
 }
 
-GoRouter createRouter(AuthSession session) => GoRouter(
-  initialLocation: AppRoutes.home,
-  refreshListenable: session,
-  redirect: (context, state) => authRedirect(session.status, state.uri),
-  routes: [
-    GoRoute(
-      path: AppRoutes.home,
-      builder: (context, state) => const HomeScreen(),
-    ),
-    GoRoute(
-      path: AppRoutes.signIn,
-      builder: (context, state) => const SignInScreen(),
-    ),
-    GoRoute(
-      path: AppRoutes.loading,
-      builder: (context, state) => const LoadingScreen(),
-    ),
-  ],
-);
+GoRouter createRouter(BackendController backend, AuthSession session) =>
+    GoRouter(
+      initialLocation: AppRoutes.home,
+      refreshListenable: Listenable.merge([backend, session]),
+      redirect: (context, state) =>
+          appRedirect(backend.status, session.status, state.uri),
+      routes: [
+        GoRoute(
+          path: AppRoutes.connection,
+          builder: (context, state) => const ConnectionScreen(),
+        ),
+        ..._authRoutes,
+      ],
+    );
+
+final _authRoutes = [
+  GoRoute(
+    path: AppRoutes.home,
+    builder: (context, state) => const HomeScreen(),
+  ),
+  GoRoute(
+    path: AppRoutes.signIn,
+    builder: (context, state) => const SignInScreen(),
+  ),
+  GoRoute(
+    path: AppRoutes.loading,
+    builder: (context, state) => const LoadingScreen(),
+  ),
+];
+
+/// Sends the user to the connection screen until a backend is connected,
+/// then applies [authRedirect]. The connection screen stays reachable
+/// at all times so settings can be corrected.
+String? appRedirect(BackendStatus backend, AuthStatus auth, Uri uri) {
+  final path = uri.path;
+  if (path == AppRoutes.connection) return null;
+
+  switch (backend) {
+    case BackendStatus.loading:
+    case BackendStatus.connecting:
+      return path == AppRoutes.loading
+          ? null
+          : _withFrom(AppRoutes.loading, _safeDestination(uri.toString()));
+    case BackendStatus.notConfigured:
+    case BackendStatus.failed:
+      return AppRoutes.connection;
+    case BackendStatus.connected:
+      return authRedirect(auth, uri);
+  }
+}
 
 /// Keeps signed-out users on the sign-in screen and returns them to the
 /// page they originally requested (`?from=`) after signing in.

@@ -22,6 +22,9 @@ class AppConfig {
     );
   }
 
+  /// Must match `applicationId` in android/app/build.gradle.kts.
+  static const androidPackageName = 'com.ygtech.capsula';
+
   final AppEnvironment environment;
 
   /// When true, Firebase services connect to the local emulator suite
