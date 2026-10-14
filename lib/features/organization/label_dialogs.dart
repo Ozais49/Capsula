@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/dependencies.dart';
 import '../../domain/organization/label.dart';
+import '../common/text_prompt.dart';
 
 /// Asks for a label name. Returns null when cancelled.
 Future<String?> promptLabelName(
@@ -9,60 +10,14 @@ Future<String?> promptLabelName(
   required String title,
   String initial = '',
   String action = 'Save',
-}) => showDialog<String>(
-  context: context,
-  builder: (_) => _NameDialog(title: title, initial: initial, action: action),
+}) => promptText(
+  context,
+  title: title,
+  label: 'Name',
+  initial: initial,
+  action: action,
+  maxLength: maxLabelNameLength,
 );
-
-/// Owns its text controller so it outlives the dialog's closing animation.
-class _NameDialog extends StatefulWidget {
-  const _NameDialog({
-    required this.title,
-    required this.initial,
-    required this.action,
-  });
-
-  final String title;
-  final String initial;
-  final String action;
-
-  @override
-  State<_NameDialog> createState() => _NameDialogState();
-}
-
-class _NameDialogState extends State<_NameDialog> {
-  late final _controller = TextEditingController(text: widget.initial);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.title),
-    content: TextField(
-      controller: _controller,
-      autofocus: true,
-      maxLength: maxLabelNameLength,
-      decoration: const InputDecoration(labelText: 'Name'),
-      onSubmitted: (value) => Navigator.pop(context, value),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        style: FilledButton.styleFrom(minimumSize: const Size(88, 40)),
-        onPressed: () => Navigator.pop(context, _controller.text),
-        child: Text(widget.action),
-      ),
-    ],
-  );
-}
-
 Future<Label?> createLabelWithPrompt(
   BuildContext context,
   LabelKind kind,

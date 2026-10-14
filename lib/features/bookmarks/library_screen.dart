@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,6 +25,8 @@ class LibraryScreen extends StatefulWidget {
   final BookmarkView view;
 
   static const pageSize = 30;
+
+  static const searchFieldKey = Key('library-search');
 
   /// Width from which navigation is shown beside the list.
   static const wideLayout = 1000.0;
@@ -166,14 +169,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
-          child: SearchBar(
+          // A TextField rather than SearchBar: its tap target covers the
+          // whole box, not just the line of text.
+          child: TextField(
+            key: LibraryScreen.searchFieldKey,
             controller: _searchController,
             focusNode: _searchFocus,
-            hintText: 'Search ${viewTitle(widget.view, labels).toLowerCase()}',
-            leading: const Icon(Icons.search),
             onChanged: _onSearchChanged,
-            trailing: [
-              ListenableBuilder(
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText:
+                  'Search ${viewTitle(widget.view, labels).toLowerCase()}',
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(28),
+                borderSide: BorderSide.none,
+              ),
+              suffixIcon: ListenableBuilder(
                 listenable: _searchController,
                 builder: (context, _) => _searchController.text.isEmpty
                     ? const SizedBox.shrink()
@@ -186,7 +199,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         },
                       ),
               ),
-            ],
+            ),
           ),
         ),
         if (matchingLabels.isNotEmpty)
@@ -261,7 +274,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     key: ValueKey(bookmark.id),
                     background: const _SwipeBackground(),
                     onDismissed: (_) => _removeFromInbox(bookmark),
-                    child: tile,
+                    // Swiping isn't available to screen reader users.
+                    child: Semantics(
+                      customSemanticsActions: {
+                        const CustomSemanticsAction(
+                          label: 'Remove from Inbox',
+                        ): () =>
+                            _removeFromInbox(bookmark),
+                      },
+                      child: tile,
+                    ),
                   );
                 },
               );

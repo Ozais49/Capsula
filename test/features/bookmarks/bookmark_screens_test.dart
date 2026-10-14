@@ -106,14 +106,14 @@ void main() {
       _bookmark('b', 'Cooking rice'),
     ]);
 
-    await tester.enterText(find.byType(SearchBar), 'flut');
+    await tester.enterText(find.byKey(LibraryScreen.searchFieldKey), 'flut');
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
     expect(find.text('Flutter layout guide'), findsOneWidget);
     expect(find.text('Cooking rice'), findsNothing);
 
-    await tester.enterText(find.byType(SearchBar), 'python');
+    await tester.enterText(find.byKey(LibraryScreen.searchFieldKey), 'python');
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
     expect(find.textContaining('No bookmarks match'), findsOneWidget);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/dependencies.dart';
@@ -9,6 +10,7 @@ import '../../domain/bookmarks/bookmark_service.dart';
 import '../../domain/bookmarks/bookmark_view.dart';
 import '../../domain/organization/label.dart';
 import '../common/open_link.dart';
+import '../common/text_prompt.dart';
 import '../organization/label_picker_sheet.dart';
 import '../organization/labels_builder.dart';
 import 'bookmark_display.dart';
@@ -55,6 +57,18 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
     );
     if (chosen == null || !mounted) return;
     await _run(() => _service.setLabels(bookmark, kind, chosen));
+  }
+
+  Future<void> _editTitle(Bookmark bookmark) async {
+    final title = await promptText(
+      context,
+      title: 'Edit title',
+      label: 'Title',
+      initial: bookmark.title,
+      maxLength: 1000,
+    );
+    if (title == null || title.trim().isEmpty || !mounted) return;
+    await _run(() => _service.rename(bookmark, title));
   }
 
   Future<void> _confirmDelete(Bookmark bookmark) async {
@@ -114,6 +128,11 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
           appBar: AppBar(
             actions: [
               if (bookmark != null) ...[
+                IconButton(
+                  tooltip: 'Edit title',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => _editTitle(bookmark),
+                ),
                 IconButton(
                   tooltip: bookmark.archived ? 'Unarchive' : 'Archive',
                   icon: Icon(
@@ -277,8 +296,27 @@ class _Details extends StatelessWidget {
         ),
         const SizedBox(height: Gap.lg),
         Text('Link', style: labelStyle),
-        const SizedBox(height: Gap.xs),
-        SelectableText(bookmark.url, style: theme.textTheme.bodySmall),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                bookmark.url,
+                style: theme.textTheme.bodySmall,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            IconButton(
+              tooltip: 'Copy link',
+              icon: const Icon(Icons.copy_outlined),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: bookmark.url));
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(const SnackBar(content: Text('Link copied')));
+              },
+            ),
+          ],
+        ),
         const SizedBox(height: Gap.xl),
         FilledButton.icon(
           onPressed: onRead,

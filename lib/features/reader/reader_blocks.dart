@@ -114,6 +114,8 @@ class ReaderImage extends StatelessWidget {
           child: Image.network(
             url.toString(),
             fit: BoxFit.contain,
+            semanticLabel: caption,
+            excludeFromSemantics: caption == null,
             // Use an <img> element on the web when the server doesn't allow
             // cross-origin image reads.
             webHtmlElementStrategy: WebHtmlElementStrategy.fallback,

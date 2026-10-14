@@ -19,17 +19,12 @@ class BookmarkTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final status = bookmark.readingStatus;
     final tags = labels.resolve(LabelKind.tag, bookmark.tagIds);
 
     return ListTile(
       onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor: theme.colorScheme.secondaryContainer,
-        foregroundColor: theme.colorScheme.onSecondaryContainer,
-        child: Icon(sourceIcon(bookmark.source), size: 20),
-      ),
+      leading: _Leading(bookmark),
       title: Text(
         bookmark.displayTitle,
         maxLines: 2,
@@ -44,6 +39,47 @@ class BookmarkTile extends StatelessWidget {
         ].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+/// The page's image when known, otherwise the source icon. Screen readers
+/// hear the source name either way.
+class _Leading extends StatelessWidget {
+  const _Leading(this.bookmark);
+
+  final Bookmark bookmark;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final icon = CircleAvatar(
+      backgroundColor: scheme.secondaryContainer,
+      foregroundColor: scheme.onSecondaryContainer,
+      child: Icon(
+        sourceIcon(bookmark.source),
+        size: 20,
+        semanticLabel: bookmark.source.label,
+      ),
+    );
+    final image = bookmark.imageUrl;
+    if (image == null) return icon;
+
+    return Semantics(
+      label: bookmark.source.label,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox.square(
+          dimension: 40,
+          child: Image.network(
+            image,
+            fit: BoxFit.cover,
+            excludeFromSemantics: true,
+            webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+            errorBuilder: (_, _, _) => icon,
+          ),
+        ),
       ),
     );
   }

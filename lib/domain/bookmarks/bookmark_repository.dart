@@ -43,6 +43,9 @@ abstract interface class BookmarkRepository {
   /// backend has accepted all of them; fails as a whole otherwise.
   Future<void> createMany(List<Bookmark> bookmarks);
 
+  /// Every bookmark, newest first, read in pages (for export).
+  Future<List<Bookmark>> fetchAll();
+
   /// Number of bookmarks in the Inbox, or null when it can't be counted
   /// (for example while offline).
   Future<int?> countInbox();

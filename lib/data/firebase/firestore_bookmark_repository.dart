@@ -112,6 +112,20 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
   }
 
   @override
+  Future<List<Bookmark>> fetchAll() async {
+    final all = <Bookmark>[];
+    DocumentSnapshot<Map<String, Object?>>? last;
+    while (true) {
+      var q = _collection.orderBy('createdAt', descending: true);
+      if (last != null) q = q.startAfterDocument(last);
+      final page = await q.limit(500).get();
+      all.addAll(page.docs.map((d) => bookmarkFromFirestore(d.id, d.data())));
+      if (page.docs.length < 500) return all;
+      last = page.docs.last;
+    }
+  }
+
+  @override
   Future<int?> countInbox() async {
     try {
       final snapshot = await _viewQuery(BookmarkView.inbox).count().get();

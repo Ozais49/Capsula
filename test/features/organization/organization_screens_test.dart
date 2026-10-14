@@ -4,6 +4,7 @@ import 'package:capsula/domain/auth/app_user.dart';
 import 'package:capsula/domain/bookmarks/bookmark.dart';
 import 'package:capsula/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula/domain/organization/label.dart';
+import 'package:capsula/features/bookmarks/library_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -208,7 +209,7 @@ void main() {
       ],
     );
 
-    await tester.enterText(find.byType(SearchBar), 'resea');
+    await tester.enterText(find.byKey(LibraryScreen.searchFieldKey), 'resea');
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 

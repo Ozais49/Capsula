@@ -1,6 +1,7 @@
 import 'package:capsula/app/app.dart';
 import 'package:capsula/config/app_config.dart';
 import 'package:capsula/domain/auth/app_user.dart';
+import 'package:capsula/features/bookmarks/library_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,7 +32,7 @@ Future<void> _pump(WidgetTester tester) async {
 
 EditableText _searchField(WidgetTester tester) => tester.widget<EditableText>(
   find.descendant(
-    of: find.byType(SearchBar),
+    of: find.byKey(LibraryScreen.searchFieldKey),
     matching: find.byType(EditableText),
   ),
 );
@@ -60,7 +61,7 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    await tester.tap(find.byType(SearchBar));
+    await tester.tap(find.byKey(LibraryScreen.searchFieldKey));
     await tester.pump();
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyN);

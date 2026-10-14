@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../domain/bookmarks/bookmark_source.dart';
 import '../../domain/bookmarks/bookmark_view.dart';
 import '../../domain/organization/label.dart';
+import '../export/export_dialog.dart';
 import '../organization/label_dialogs.dart';
 import '../organization/labels_builder.dart';
 import 'bookmark_display.dart';
@@ -170,6 +171,12 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
                 leading: const Icon(Icons.upload_file),
                 title: const Text('Import bookmarks'),
                 onTap: () => context.push(AppRoutes.import),
+              ),
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.download_outlined),
+                title: const Text('Export library'),
+                onTap: () => showExportDialog(context),
               ),
               ListTile(
                 dense: true,

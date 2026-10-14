@@ -86,6 +86,10 @@ class InMemoryBookmarkRepository implements BookmarkRepository {
   }
 
   @override
+  Future<List<Bookmark>> fetchAll() async =>
+      items.values.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  @override
   Future<int?> countInbox() async =>
       items.values.where((b) => bookmarkInView(b, const InboxView())).length;
 

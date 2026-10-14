@@ -182,6 +182,29 @@ URL, the page's real title, description and image are saved to it.
 On the web, many sites block cross-origin requests. The reader then explains this and offers
 Open in browser. Android has no such restriction.
 
+## Privacy and security
+
+- Every user's data lives under `users/{uid}` in Firestore. `firestore.rules` grants access
+  only to the signed-in owner and validates every write: allowed fields, types, sizes,
+  `http(s)` URLs only, and no changes to `createdAt`, `url` or `canonicalUrl`. Every other
+  path is denied. `rules_test/` attempts cross-user reads, writes and deletes against the
+  emulator, and all of them must fail.
+- The app doesn't log URLs or bookmark contents.
+- Firebase settings entered in the app are identifiers, not secrets. Access is enforced by
+  Auth and the rules.
+- **Backup:** Export library (navigation menu) saves a full JSON backup, or a browser HTML
+  file that any browser or bookmark app can import. Capsula re-imports its own HTML export.
+
+### Known limitations
+
+- **Offline cache after sign-out.** Firestore's offline cache stays on the device after
+  sign-out. The app only ever queries the signed-in user's path, but on a shared computer,
+  clear site data (web) or app storage (Android) to remove it.
+- **Firestore region.** The database is in `nam5` (US). Moving it means deleting and
+  recreating it, which is only practical while it's empty.
+- **Not yet implemented** (listed in the plan as future work): account deletion,
+  delete-all-data, email verification, App Check, an Android release signing key and app icon.
+
 ## Data
 
 ```

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../config/app_config.dart';
 import '../data/http/http_content_fetcher.dart';
 import '../domain/reader/reader_service.dart';
+import '../platform/file_saver.dart';
 import '../platform/import_file_picker.dart';
 import '../platform/share_intake.dart';
 import 'auth_session.dart';
@@ -20,6 +21,7 @@ class CapsulaApp extends StatefulWidget {
     this.shareIntake = const MethodChannelShareIntake(),
     this.reader,
     this.importFilePicker = const FileSelectorImportPicker(),
+    this.fileSaver = const PlatformFileSaver(),
   });
 
   final AppConfig config;
@@ -29,6 +31,7 @@ class CapsulaApp extends StatefulWidget {
   /// Defaults to reading pages over HTTP.
   final ReaderService? reader;
   final ImportFilePicker importFilePicker;
+  final FileSaver fileSaver;
 
   @override
   State<CapsulaApp> createState() => _CapsulaAppState();
@@ -71,6 +74,7 @@ class _CapsulaAppState extends State<CapsulaApp> {
       shareIntake: widget.shareIntake,
       reader: _reader,
       importFilePicker: widget.importFilePicker,
+      fileSaver: widget.fileSaver,
       child: MaterialApp.router(
         title: 'Capsula',
         theme: AppTheme.light(),

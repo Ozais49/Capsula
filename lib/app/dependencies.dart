@@ -5,6 +5,7 @@ import '../domain/auth/auth_repository.dart';
 import '../domain/bookmarks/bookmark_service.dart';
 import '../domain/import/import_service.dart';
 import '../domain/reader/reader_service.dart';
+import '../platform/file_saver.dart';
 import '../platform/import_file_picker.dart';
 import '../platform/share_intake.dart';
 import 'auth_session.dart';
@@ -20,6 +21,7 @@ class AppDependencies extends InheritedWidget {
     required this.shareIntake,
     required this.reader,
     this.importFilePicker = const FileSelectorImportPicker(),
+    this.fileSaver = const PlatformFileSaver(),
     required super.child,
   });
 
@@ -29,6 +31,7 @@ class AppDependencies extends InheritedWidget {
   final ShareIntake shareIntake;
   final ReaderService reader;
   final ImportFilePicker importFilePicker;
+  final FileSaver fileSaver;
 
   /// Only available once the backend is connected; the router keeps
   /// screens that need it unreachable until then.
@@ -51,5 +54,6 @@ class AppDependencies extends InheritedWidget {
       authSession != oldWidget.authSession ||
       shareIntake != oldWidget.shareIntake ||
       reader != oldWidget.reader ||
-      importFilePicker != oldWidget.importFilePicker;
+      importFilePicker != oldWidget.importFilePicker ||
+      fileSaver != oldWidget.fileSaver;
 }
