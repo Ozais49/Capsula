@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
@@ -5,6 +6,7 @@ import '../../config/app_config.dart';
 import '../../domain/connection/backend.dart';
 import '../../domain/connection/firebase_connection.dart';
 import 'firebase_auth_repository.dart';
+import 'firestore_bookmark_repository.dart';
 
 class FirebaseBackendConnector implements BackendConnector {
   FirebaseBackendConnector(this._config);
@@ -30,10 +32,20 @@ class FirebaseBackendConnector implements BackendConnector {
     }
 
     final auth = FirebaseAuth.instance;
+    final firestore = FirebaseFirestore.instance;
+    // Keep a local copy so saved bookmarks survive being offline.
+    firestore.settings = const Settings(persistenceEnabled: true);
     if (_config.useFirebaseEmulators) {
       await auth.useAuthEmulator(_config.firebaseEmulatorHost, 9099);
+      firestore.useFirestoreEmulator(_config.firebaseEmulatorHost, 8080);
     }
 
-    return BackendServices(authRepository: FirebaseAuthRepository(auth));
+    return BackendServices(
+      authRepository: FirebaseAuthRepository(auth),
+      bookmarkRepository: FirestoreBookmarkRepository(
+        firestore,
+        () => auth.currentUser?.uid,
+      ),
+    );
   }
 }

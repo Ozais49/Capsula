@@ -1,10 +1,10 @@
-import 'package:go_router/go_router.dart';
-
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 
 import '../features/auth/sign_in_screen.dart';
 import '../features/connection/connection_screen.dart';
-import '../features/home/home_screen.dart';
+import '../features/bookmarks/bookmark_detail_screen.dart';
+import '../features/bookmarks/library_screen.dart';
 import '../features/loading/loading_screen.dart';
 import 'auth_session.dart';
 import 'backend_controller.dart';
@@ -14,6 +14,8 @@ abstract final class AppRoutes {
   static const signIn = '/sign-in';
   static const loading = '/loading';
   static const connection = '/connection';
+
+  static String bookmark(String id) => '/bookmarks/$id';
 }
 
 GoRouter createRouter(BackendController backend, AuthSession session) =>
@@ -34,7 +36,14 @@ GoRouter createRouter(BackendController backend, AuthSession session) =>
 final _authRoutes = [
   GoRoute(
     path: AppRoutes.home,
-    builder: (context, state) => const HomeScreen(),
+    builder: (context, state) => const LibraryScreen(),
+    routes: [
+      GoRoute(
+        path: 'bookmarks/:id',
+        builder: (context, state) =>
+            BookmarkDetailScreen(bookmarkId: state.pathParameters['id']!),
+      ),
+    ],
   ),
   GoRoute(
     path: AppRoutes.signIn,

@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// Each user's data lives under users/{uid}. Only that signed-in user can
+// read or write it; everything else is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isOptionalString(data, field, maxSize) {
+      return !(field in data)
+        || (data[field] is string && data[field].size() <= maxSize);
+    }
+
+    function isValidBookmark(data) {
+      return data.keys().hasAll([
+          'url', 'canonicalUrl', 'title', 'source', 'sourceDomain',
+          'readingStatus', 'archived', 'inInbox', 'createdAt', 'updatedAt',
+          'searchTokens'
+        ])
+        && data.keys().hasOnly([
+          'url', 'canonicalUrl', 'title', 'description', 'imageUrl', 'source',
+          'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
+          'updatedAt', 'searchTokens'
+        ])
+        && data.url is string && data.url.size() <= 4096
+        && data.url.matches('^https?://.+')
+        && data.canonicalUrl is string && data.canonicalUrl.size() <= 4096
+        && data.title is string && data.title.size() <= 1000
+        && isOptionalString(data, 'description', 5000)
+        && isOptionalString(data, 'imageUrl', 4096)
+        && data.source is string && data.source.size() <= 50
+        && data.sourceDomain is string && data.sourceDomain.size() <= 255
+        && data.readingStatus in ['saved', 'readLater', 'reading', 'read']
+        && data.archived is bool
+        && data.inInbox is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        // Allow for client clock skew, but not dates far in the future.
+        && data.updatedAt <= request.time + duration.value(1, 'h')
+        && data.searchTokens is list && data.searchTokens.size() <= 400;
+    }
+
+    match /users/{userId}/bookmarks/{bookmarkId} {
+      allow read, delete: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+        && isValidBookmark(request.resource.data)
+        && request.resource.data.createdAt <= request.time + duration.value(1, 'h');
+
+      allow update: if isOwner(userId)
+        && isValidBookmark(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.url == resource.data.url
+        && request.resource.data.canonicalUrl == resource.data.canonicalUrl;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

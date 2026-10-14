@@ -4,7 +4,7 @@ import 'package:capsula/config/app_config.dart';
 import 'package:capsula/domain/auth/app_user.dart';
 import 'package:capsula/features/auth/sign_in_screen.dart';
 import 'package:capsula/features/connection/connection_screen.dart';
-import 'package:capsula/features/home/home_screen.dart';
+import 'package:capsula/features/bookmarks/library_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -65,17 +65,16 @@ void main() {
     await _pumpApp(tester, await startedBackend(FakeAuthRepository()));
 
     expect(find.byType(SignInScreen), findsOneWidget);
-    expect(find.byType(HomeScreen), findsNothing);
+    expect(find.byType(LibraryScreen), findsNothing);
   });
 
-  testWidgets('signed-in user lands on home', (tester) async {
+  testWidgets('signed-in user lands on the library', (tester) async {
     final auth = FakeAuthRepository(
       initialUser: const AppUser(id: 'u1', email: 'a@example.com'),
     );
     await _pumpApp(tester, await startedBackend(auth));
 
-    expect(find.byType(HomeScreen), findsOneWidget);
-    expect(find.text('Signed in as a@example.com'), findsOneWidget);
+    expect(find.byType(LibraryScreen), findsOneWidget);
   });
 
   testWidgets('sign in, then sign out', (tester) async {
@@ -93,9 +92,11 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(find.byType(LibraryScreen), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Sign out'));
+    await tester.tap(find.byTooltip('Menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();
 
     expect(find.byType(SignInScreen), findsOneWidget);

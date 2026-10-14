@@ -49,3 +49,8 @@ app.*.map.json
 
 # Local tool settings
 .claude/
+
+# Rules test dependencies
+rules_test/node_modules/
+firebase-debug.log
+firestore-debug.log

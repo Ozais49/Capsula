@@ -9,7 +9,8 @@ See [plan.md](plan.md) for the product plan and development phases.
 |---|---|---|
 | Git | 2.56 | system install |
 | Flutter (stable) | 3.47.7 / Dart 3.13.5 | `C:\src\flutter` (git clone, `stable` branch) |
-| JDK | Microsoft OpenJDK 17 | `C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot` |
+| JDK | Microsoft OpenJDK 21 | `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot` |
+| Node.js + Firebase CLI | Node 24, firebase-tools 15 | `npm install -g firebase-tools` |
 | Android SDK | platform 36, build-tools 36.0.0, platform-tools | `%LOCALAPPDATA%\Android\Sdk` |
 | IDE | VS Code + Dart/Flutter extensions | |
 
@@ -18,7 +19,7 @@ Android Studio is not required.
 ### Setup steps
 
 1. Install Git and VS Code.
-2. Install the JDK: `winget install Microsoft.OpenJDK.17`
+2. Install the JDK: `winget install Microsoft.OpenJDK.21` (the Firebase emulator requires 21+)
 3. Clone Flutter: `git clone https://github.com/flutter/flutter.git -b stable C:\src\flutter`
 4. Download the Android command-line tools zip from
    <https://developer.android.com/studio#command-line-tools-only> and extract it so that
@@ -121,3 +122,26 @@ flutter test
 flutter build web
 flutter build apk --debug
 ```
+
+Firestore security rules tests. These start the emulator and attempt cross-user reads and
+writes, which must all fail:
+
+```
+cd rules_test
+npm install
+npm test
+```
+
+## Data
+
+```
+users/{uid}/bookmarks/{bookmarkId}
+  url, canonicalUrl, title, description?, imageUrl?, source, sourceDomain,
+  readingStatus, archived, inInbox, createdAt, updatedAt, searchTokens
+```
+
+- `firestore.rules` allows each signed-in user to access only their own `users/{uid}` data,
+  and validates every bookmark write.
+- `firestore.indexes.json` holds the composite indexes for listing and search.
+- Deploy both with `firebase deploy --only firestore`.
+- `canonicalUrl` is used for duplicate detection. `searchTokens` holds word prefixes for search.
