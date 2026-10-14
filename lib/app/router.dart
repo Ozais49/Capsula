@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
+import '../domain/bookmarks/bookmark_view.dart';
 import '../features/auth/sign_in_screen.dart';
 import '../features/connection/connection_screen.dart';
 import '../features/bookmarks/bookmark_detail_screen.dart';
@@ -18,6 +19,10 @@ abstract final class AppRoutes {
   static const share = '/share';
 
   static String bookmark(String id) => '/bookmarks/$id';
+
+  static String library(BookmarkView view) => view is InboxView
+      ? home
+      : '$home?view=${Uri.encodeQueryComponent(view.key)}';
 }
 
 GoRouter createRouter(BackendController backend, AuthSession session) =>
@@ -37,7 +42,9 @@ GoRouter createRouter(BackendController backend, AuthSession session) =>
 final _authRoutes = [
   GoRoute(
     path: AppRoutes.home,
-    builder: (context, state) => const LibraryScreen(),
+    builder: (context, state) => LibraryScreen(
+      view: BookmarkView.parse(state.uri.queryParameters['view']),
+    ),
     routes: [
       GoRoute(
         path: 'bookmarks/:id',

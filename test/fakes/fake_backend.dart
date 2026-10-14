@@ -4,6 +4,7 @@ import 'package:capsula/domain/connection/firebase_connection.dart';
 
 import 'fake_auth_repository.dart';
 import 'in_memory_bookmark_repository.dart';
+import 'in_memory_label_repository.dart';
 
 const testConnection = FirebaseConnection(
   apiKey: 'test-api-key',
@@ -29,10 +30,13 @@ class FakeConnectionStore implements ConnectionSettingsStore {
 
 class FakeBackendConnector implements BackendConnector {
   FakeBackendConnector(this.auth, {InMemoryBookmarkRepository? bookmarks})
-    : bookmarks = bookmarks ?? InMemoryBookmarkRepository();
+    : bookmarks = bookmarks ?? InMemoryBookmarkRepository() {
+    labels = InMemoryLabelRepository(this.bookmarks);
+  }
 
   final FakeAuthRepository auth;
   final InMemoryBookmarkRepository bookmarks;
+  late final InMemoryLabelRepository labels;
   final List<FirebaseConnection> attempts = [];
 
   /// When set, the next connect attempt throws this.
@@ -44,7 +48,11 @@ class FakeBackendConnector implements BackendConnector {
     final error = nextError;
     nextError = null;
     if (error != null) throw error;
-    return BackendServices(authRepository: auth, bookmarkRepository: bookmarks);
+    return BackendServices(
+      authRepository: auth,
+      bookmarkRepository: bookmarks,
+      labelRepository: labels,
+    );
   }
 }
 
@@ -57,6 +65,18 @@ Future<BackendController> startedBackend(
   final backend = BackendController(
     store: FakeConnectionStore(connected ? testConnection : null),
     connector: FakeBackendConnector(auth, bookmarks: bookmarks),
+  );
+  await backend.start();
+  return backend;
+}
+
+/// A controller started and connected through [connector].
+Future<BackendController> startedBackendWith(
+  FakeBackendConnector connector,
+) async {
+  final backend = BackendController(
+    store: FakeConnectionStore(testConnection),
+    connector: connector,
   );
   await backend.start();
   return backend;

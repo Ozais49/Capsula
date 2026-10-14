@@ -4,15 +4,18 @@ import 'package:capsula/domain/bookmarks/bookmark_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/in_memory_bookmark_repository.dart';
+import '../fakes/in_memory_label_repository.dart';
 
 void main() {
   final now = DateTime.utc(2026, 10, 14, 12);
   late InMemoryBookmarkRepository repo;
+  late InMemoryLabelRepository labels;
   late BookmarkService service;
 
   setUp(() {
     repo = InMemoryBookmarkRepository();
-    service = BookmarkService(repo, now: () => now);
+    labels = InMemoryLabelRepository(repo);
+    service = BookmarkService(repo, labels, now: () => now);
   });
 
   test('saves a new link into the Inbox with detected source', () async {
@@ -80,6 +83,7 @@ void main() {
     final b = ((await service.save('https://example.com/a')) as Saved).bookmark;
     final later = BookmarkService(
       repo,
+      labels,
       now: () => now.add(const Duration(hours: 1)),
     );
 

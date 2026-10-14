@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/bookmarks/bookmark.dart';
 import '../../domain/bookmarks/bookmark_repository.dart';
 import '../../domain/bookmarks/bookmark_source.dart';
+import '../../domain/bookmarks/bookmark_view.dart';
+import '../../domain/organization/label.dart';
 import '../../domain/bookmarks/search_tokens.dart';
 
 /// Stores bookmarks at `users/{uid}/bookmarks/{id}`. Security rules enforce
@@ -43,24 +45,49 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
 
   @override
   Stream<List<Bookmark>> watchList(BookmarkQuery query, {required int limit}) {
-    Query<Map<String, Object?>> q = _collection.where(
-      'archived',
-      isEqualTo: query.archived,
-    );
-    final token = primarySearchToken(query.search);
+    final view = query.view;
+    var q = _viewQuery(view);
+    // Firestore allows one array-contains per query, so label views
+    // search on the client instead.
+    final token = view is LabelView ? null : primarySearchToken(query.search);
     if (token != null) q = q.where('searchTokens', arrayContains: token);
     q = q.orderBy('createdAt', descending: true).limit(limit);
 
+    final searching = searchWords(query.search).isNotEmpty;
     return q.snapshots().map((snapshot) {
       final bookmarks = snapshot.docs.map(
         (d) => bookmarkFromFirestore(d.id, d.data()),
       );
-      return token == null
-          ? bookmarks.toList()
-          : bookmarks
+      return searching
+          ? bookmarks
                 .where((b) => matchesSearch(b.searchableText, query.search))
-                .toList();
+                .toList()
+          : bookmarks.toList();
     });
+  }
+
+  Query<Map<String, Object?>> _viewQuery(BookmarkView view) {
+    final active = _collection.where('archived', isEqualTo: false);
+    return switch (view) {
+      InboxView() => active.where('inInbox', isEqualTo: true),
+      AllView() => active,
+      ArchivedView() => _collection.where('archived', isEqualTo: true),
+      SourceView(:final source) => active.where('source', isEqualTo: source.id),
+      LabelView(:final kind, :final labelId) => active.where(
+        labelField(kind),
+        arrayContains: labelId,
+      ),
+    };
+  }
+
+  @override
+  Future<int?> countInbox() async {
+    try {
+      final snapshot = await _viewQuery(BookmarkView.inbox).count().get();
+      return snapshot.count;
+    } on Object {
+      return null;
+    }
   }
 
   @override
@@ -90,6 +117,8 @@ Map<String, Object?> bookmarkToFirestore(Bookmark b) => {
   'readingStatus': b.readingStatus.name,
   'archived': b.archived,
   'inInbox': b.inInbox,
+  'tagIds': b.tagIds,
+  'collectionIds': b.collectionIds,
   'createdAt': Timestamp.fromDate(b.createdAt),
   'updatedAt': Timestamp.fromDate(b.updatedAt),
   'searchTokens': buildSearchTokens(b.searchableText),
@@ -112,7 +141,18 @@ Bookmark bookmarkFromFirestore(String id, Map<String, Object?> data) {
     readingStatus: ReadingStatus.fromName(data['readingStatus'] as String?),
     archived: data['archived'] as bool? ?? false,
     inInbox: data['inInbox'] as bool? ?? false,
+    tagIds: _strings(data['tagIds']),
+    collectionIds: _strings(data['collectionIds']),
     createdAt: time('createdAt'),
     updatedAt: time('updatedAt'),
   );
 }
+
+List<String> _strings(Object? value) =>
+    value is List ? value.whereType<String>().toList() : const [];
+
+/// Bookmark field holding the IDs of labels of [kind].
+String labelField(LabelKind kind) => switch (kind) {
+  LabelKind.tag => 'tagIds',
+  LabelKind.collection => 'collectionIds',
+};

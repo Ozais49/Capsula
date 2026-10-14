@@ -186,3 +186,52 @@ describe('immutable fields', () => {
     await assertFails(updateDoc(ref, { canonicalUrl: 'https://other.example.com' }));
   });
 });
+
+describe('tags and collections', () => {
+  const labelRef = (firestore, owner, kind = 'tags', id = 'l1') =>
+    doc(firestore, `users/${owner}/${kind}/${id}`);
+  const validLabel = (overrides = {}) => ({
+    name: 'AI',
+    createdAt: Timestamp.now(),
+    ...overrides,
+  });
+
+  test('owner can create, rename, list and delete', async () => {
+    const alice = db('alice');
+    for (const kind of ['tags', 'collections']) {
+      await assertSucceeds(setDoc(labelRef(alice, 'alice', kind), validLabel()));
+      await assertSucceeds(updateDoc(labelRef(alice, 'alice', kind), { name: 'ML' }));
+      await assertSucceeds(getDocs(collection(alice, `users/alice/${kind}`)));
+      await assertSucceeds(deleteDoc(labelRef(alice, 'alice', kind)));
+    }
+  });
+
+  test('User A cannot read, change or delete User B\'s labels', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(labelRef(ctx.firestore(), 'bob'), validLabel()),
+    );
+    const alice = db('alice');
+    await assertFails(getDoc(labelRef(alice, 'bob')));
+    await assertFails(getDocs(collection(alice, 'users/bob/tags')));
+    await assertFails(updateDoc(labelRef(alice, 'bob'), { name: 'x' }));
+    await assertFails(deleteDoc(labelRef(alice, 'bob')));
+    await assertFails(setDoc(labelRef(alice, 'bob', 'tags', 'new'), validLabel()));
+  });
+
+  test('rejects invalid labels and unknown subcollections', async () => {
+    const alice = db('alice');
+    await assertFails(setDoc(labelRef(alice, 'alice'), validLabel({ name: '' })));
+    await assertFails(setDoc(labelRef(alice, 'alice'), validLabel({ name: 'x'.repeat(51) })));
+    await assertFails(setDoc(labelRef(alice, 'alice'), validLabel({ color: 'red' })));
+    await assertFails(setDoc(labelRef(alice, 'alice', 'secrets'), validLabel()));
+  });
+
+  test('bookmarks accept tag and collection IDs within limits', async () => {
+    const ref = bookmarkRef(db('alice'), 'alice');
+    await assertSucceeds(setDoc(ref, validBookmark({ tagIds: ['t1'], collectionIds: ['c1'] })));
+    await assertFails(setDoc(ref, validBookmark({ tagIds: 'not-a-list' })));
+    await assertFails(
+      setDoc(ref, validBookmark({ tagIds: Array.from({ length: 101 }, (_, i) => `t${i}`) })),
+    );
+  });
+});

@@ -2,6 +2,7 @@ import 'package:capsula/data/firebase/firestore_bookmark_repository.dart';
 import 'package:capsula/domain/bookmarks/bookmark.dart';
 import 'package:capsula/domain/bookmarks/bookmark_repository.dart';
 import 'package:capsula/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula/domain/bookmarks/bookmark_view.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -95,7 +96,7 @@ void main() {
     expect(list.map((b) => b.id), ['b4', 'b3', 'b2']);
 
     final archived = await repo
-        .watchList(const BookmarkQuery(archived: true), limit: 10)
+        .watchList(const BookmarkQuery(view: BookmarkView.archived), limit: 10)
         .first;
     expect(archived.map((b) => b.id), ['old']);
   });

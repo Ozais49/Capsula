@@ -1,3 +1,4 @@
+import '../organization/label.dart';
 import 'bookmark_source.dart';
 
 /// Reading progress, independent of source, tags and collections.
@@ -30,6 +31,8 @@ class Bookmark {
     this.readingStatus = ReadingStatus.saved,
     this.archived = false,
     this.inInbox = true,
+    this.tagIds = const [],
+    this.collectionIds = const [],
   });
 
   final String id;
@@ -51,8 +54,15 @@ class Bookmark {
 
   /// Newly captured items awaiting organization.
   final bool inInbox;
+  final List<String> tagIds;
+  final List<String> collectionIds;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  List<String> labelIds(LabelKind kind) => switch (kind) {
+    LabelKind.tag => tagIds,
+    LabelKind.collection => collectionIds,
+  };
 
   String get displayTitle => title.trim().isEmpty ? sourceDomain : title;
 
@@ -62,6 +72,7 @@ class Bookmark {
     sourceDomain,
     source.label,
     ?description,
+    ...?Uri.tryParse(url)?.pathSegments.take(6),
   ];
 
   Bookmark copyWith({
@@ -71,6 +82,8 @@ class Bookmark {
     ReadingStatus? readingStatus,
     bool? archived,
     bool? inInbox,
+    List<String>? tagIds,
+    List<String>? collectionIds,
     DateTime? updatedAt,
   }) => Bookmark(
     id: id,
@@ -84,6 +97,8 @@ class Bookmark {
     readingStatus: readingStatus ?? this.readingStatus,
     archived: archived ?? this.archived,
     inInbox: inInbox ?? this.inInbox,
+    tagIds: tagIds ?? this.tagIds,
+    collectionIds: collectionIds ?? this.collectionIds,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );

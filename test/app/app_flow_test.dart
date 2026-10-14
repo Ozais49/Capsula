@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_auth_repository.dart';
 import '../fakes/fake_backend.dart';
+import '../fakes/navigation.dart';
 
 const _config = AppConfig(
   environment: AppEnvironment.dev,
@@ -94,8 +95,7 @@ void main() {
 
     expect(find.byType(LibraryScreen), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Menu'));
-    await tester.pumpAndSettle();
+    await openNavigation(tester);
     await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();
 

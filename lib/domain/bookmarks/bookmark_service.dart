@@ -1,3 +1,4 @@
+import '../organization/label.dart';
 import 'bookmark.dart';
 import 'bookmark_repository.dart';
 import 'bookmark_source.dart';
@@ -29,13 +30,15 @@ class InvalidUrl extends SaveResult {
 
 /// Bookmark use cases. Saving never waits on metadata or the network.
 class BookmarkService {
-  BookmarkService(this._repository, {DateTime Function()? now})
+  BookmarkService(this._repository, this._labels, {DateTime Function()? now})
     : _now = now ?? DateTime.now;
 
   final BookmarkRepository _repository;
+  final LabelRepository _labels;
   final DateTime Function() _now;
 
   BookmarkRepository get repository => _repository;
+  LabelRepository get labels => _labels;
 
   Future<SaveResult> save(String input, {String? title}) async {
     final uri = parseWebUrl(input);
@@ -83,5 +86,61 @@ class BookmarkService {
     bookmark.copyWith(title: title.trim(), updatedAt: _now()),
   );
 
+  /// Takes the bookmark out of the Inbox ("done organizing"), or puts it back.
+  Future<void> setInInbox(Bookmark bookmark, bool inInbox) => _repository
+      .update(bookmark.copyWith(inInbox: inInbox, updatedAt: _now()));
+
+  Future<void> setLabels(
+    Bookmark bookmark,
+    LabelKind kind,
+    Iterable<String> labelIds,
+  ) {
+    final ids = labelIds.toSet().toList();
+    return _repository.update(switch (kind) {
+      LabelKind.tag => bookmark.copyWith(tagIds: ids, updatedAt: _now()),
+      LabelKind.collection => bookmark.copyWith(
+        collectionIds: ids,
+        updatedAt: _now(),
+      ),
+    });
+  }
+
   Future<void> delete(Bookmark bookmark) => _repository.delete(bookmark.id);
+
+  /// Creates a label, or returns the existing one with the same name
+  /// (ignoring case). Returns null for a blank name. The label is usable
+  /// immediately; the write syncs in the background.
+  Label? createLabel(LabelKind kind, String name, List<Label> existing) {
+    final normalized = normalizeLabelName(name);
+    if (normalized == null) return null;
+    final match = existing.where(
+      (l) => l.kind == kind && l.name.toLowerCase() == normalized.toLowerCase(),
+    );
+    if (match.isNotEmpty) return match.first;
+
+    final label = Label(id: _labels.newId(kind), kind: kind, name: normalized);
+    _labels.create(label).ignore();
+    return label;
+  }
+
+  /// Returns false when [name] is blank or already used by another label.
+  Future<bool> renameLabel(
+    Label label,
+    String name,
+    List<Label> existing,
+  ) async {
+    final normalized = normalizeLabelName(name);
+    if (normalized == null) return false;
+    final clash = existing.any(
+      (l) =>
+          l.kind == label.kind &&
+          l.id != label.id &&
+          l.name.toLowerCase() == normalized.toLowerCase(),
+    );
+    if (clash) return false;
+    await _labels.rename(label, normalized);
+    return true;
+  }
+
+  Future<void> deleteLabel(Label label) => _labels.delete(label);
 }

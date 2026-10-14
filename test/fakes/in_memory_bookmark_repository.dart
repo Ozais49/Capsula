@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:capsula/domain/bookmarks/bookmark.dart';
 import 'package:capsula/domain/bookmarks/bookmark_repository.dart';
+import 'package:capsula/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula/domain/bookmarks/search_tokens.dart';
 
 /// In-memory [BookmarkRepository] for tests.
@@ -62,9 +63,13 @@ class InMemoryBookmarkRepository implements BookmarkRepository {
   Future<Bookmark?> findByCanonicalUrl(String canonicalUrl) async =>
       items.values.where((b) => b.canonicalUrl == canonicalUrl).firstOrNull;
 
+  @override
+  Future<int?> countInbox() async =>
+      items.values.where((b) => bookmarkInView(b, const InboxView())).length;
+
   List<Bookmark> _query(BookmarkQuery query, int limit) =>
       (items.values
-              .where((b) => b.archived == query.archived)
+              .where((b) => bookmarkInView(b, query.view))
               .where((b) => matchesSearch(b.searchableText, query.search))
               .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt)))

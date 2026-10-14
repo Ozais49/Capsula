@@ -14,6 +14,19 @@ service cloud.firestore {
         || (data[field] is string && data[field].size() <= maxSize);
     }
 
+    function isOptionalIdList(data, field) {
+      return !(field in data)
+        || (data[field] is list && data[field].size() <= 100);
+    }
+
+    function isValidLabel(data) {
+      return data.keys().hasAll(['name', 'createdAt'])
+        && data.keys().hasOnly(['name', 'createdAt'])
+        && data.name is string
+        && data.name.size() > 0 && data.name.size() <= 50
+        && data.createdAt is timestamp;
+    }
+
     function isValidBookmark(data) {
       return data.keys().hasAll([
           'url', 'canonicalUrl', 'title', 'source', 'sourceDomain',
@@ -23,7 +36,7 @@ service cloud.firestore {
         && data.keys().hasOnly([
           'url', 'canonicalUrl', 'title', 'description', 'imageUrl', 'source',
           'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
-          'updatedAt', 'searchTokens'
+          'updatedAt', 'searchTokens', 'tagIds', 'collectionIds'
         ])
         && data.url is string && data.url.size() <= 4096
         && data.url.matches('^https?://.+')
@@ -40,7 +53,9 @@ service cloud.firestore {
         && data.updatedAt is timestamp
         // Allow for client clock skew, but not dates far in the future.
         && data.updatedAt <= request.time + duration.value(1, 'h')
-        && data.searchTokens is list && data.searchTokens.size() <= 400;
+        && data.searchTokens is list && data.searchTokens.size() <= 400
+        && isOptionalIdList(data, 'tagIds')
+        && isOptionalIdList(data, 'collectionIds');
     }
 
     match /users/{userId}/bookmarks/{bookmarkId} {
@@ -55,6 +70,21 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.url == resource.data.url
         && request.resource.data.canonicalUrl == resource.data.canonicalUrl;
+    }
+
+    // Tags and collections.
+    match /users/{userId}/{labelKind}/{labelId} {
+      allow read, delete: if isOwner(userId)
+        && labelKind in ['tags', 'collections'];
+
+      allow create: if isOwner(userId)
+        && labelKind in ['tags', 'collections']
+        && isValidLabel(request.resource.data);
+
+      allow update: if isOwner(userId)
+        && labelKind in ['tags', 'collections']
+        && isValidLabel(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
 
     match /{document=**} {

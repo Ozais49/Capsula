@@ -7,6 +7,7 @@ import '../../domain/connection/backend.dart';
 import '../../domain/connection/firebase_connection.dart';
 import 'firebase_auth_repository.dart';
 import 'firestore_bookmark_repository.dart';
+import 'firestore_label_repository.dart';
 
 class FirebaseBackendConnector implements BackendConnector {
   FirebaseBackendConnector(this._config);
@@ -43,6 +44,10 @@ class FirebaseBackendConnector implements BackendConnector {
     return BackendServices(
       authRepository: FirebaseAuthRepository(auth),
       bookmarkRepository: FirestoreBookmarkRepository(
+        firestore,
+        () => auth.currentUser?.uid,
+      ),
+      labelRepository: FirestoreLabelRepository(
         firestore,
         () => auth.currentUser?.uid,
       ),

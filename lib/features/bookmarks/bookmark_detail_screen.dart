@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/dependencies.dart';
+import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../domain/bookmarks/bookmark.dart';
 import '../../domain/bookmarks/bookmark_service.dart';
+import '../../domain/bookmarks/bookmark_view.dart';
+import '../../domain/organization/label.dart';
+import '../organization/label_picker_sheet.dart';
+import '../organization/labels_builder.dart';
 import 'bookmark_display.dart';
 
 class BookmarkDetailScreen extends StatefulWidget {
@@ -47,6 +53,21 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
         const SnackBar(content: Text('No app found to open this link.')),
       );
     }
+  }
+
+  Future<void> _editLabels(
+    Bookmark bookmark,
+    LabelKind kind,
+    List<Label> available,
+  ) async {
+    final chosen = await showLabelPicker(
+      context,
+      kind: kind,
+      available: available,
+      selected: bookmark.labelIds(kind),
+    );
+    if (chosen == null || !mounted) return;
+    await _run(() => _service.setLabels(bookmark, kind, chosen));
   }
 
   Future<void> _confirmDelete(Bookmark bookmark) async {
@@ -95,6 +116,9 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
             bookmark: bookmark,
             onOpen: () => _openInBrowser(bookmark),
             onStatus: (s) => _run(() => _service.setReadingStatus(bookmark, s)),
+            onInbox: (inInbox) =>
+                _run(() => _service.setInInbox(bookmark, inInbox)),
+            onEditLabels: (kind, labels) => _editLabels(bookmark, kind, labels),
           );
         }
 
@@ -133,14 +157,61 @@ class _Details extends StatelessWidget {
     required this.bookmark,
     required this.onOpen,
     required this.onStatus,
+    required this.onInbox,
+    required this.onEditLabels,
   });
 
   final Bookmark bookmark;
   final VoidCallback onOpen;
   final ValueChanged<ReadingStatus> onStatus;
+  final ValueChanged<bool> onInbox;
+  final void Function(LabelKind kind, List<Label> available) onEditLabels;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      LabelsBuilder(builder: (context, labels) => _build(context, labels));
+
+  Widget _labelSection(
+    BuildContext context,
+    Labels labels,
+    LabelKind kind,
+    IconData icon,
+    TextStyle? labelStyle,
+  ) {
+    final assigned = labels.resolve(kind, bookmark.labelIds(kind));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: Gap.lg),
+        Text(kind.plural, style: labelStyle),
+        const SizedBox(height: Gap.sm),
+        Wrap(
+          spacing: Gap.sm,
+          runSpacing: Gap.sm,
+          children: [
+            for (final label in assigned)
+              ActionChip(
+                avatar: Icon(icon, size: 18),
+                label: Text(label.name),
+                onPressed: () =>
+                    context.go(AppRoutes.library(LabelView(kind, label.id))),
+              ),
+            ActionChip(
+              avatar: const Icon(Icons.edit_outlined, size: 18),
+              label: Text(
+                assigned.isEmpty
+                    ? 'Add ${kind.singular.toLowerCase()}'
+                    : 'Edit',
+              ),
+              onPressed: () => onEditLabels(kind, labels.of(kind)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _build(BuildContext context, Labels labels) {
     final theme = Theme.of(context);
     final labelStyle = theme.textTheme.labelLarge?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
@@ -160,10 +231,23 @@ class _Details extends StatelessWidget {
               label: Text(bookmark.source.label),
             ),
             Chip(label: Text(bookmark.sourceDomain)),
-            if (bookmark.inInbox) const Chip(label: Text('Inbox')),
             if (bookmark.archived) const Chip(label: Text('Archived')),
           ],
         ),
+        if (!bookmark.archived) ...[
+          const SizedBox(height: Gap.md),
+          bookmark.inInbox
+              ? OutlinedButton.icon(
+                  onPressed: () => onInbox(false),
+                  icon: const Icon(Icons.done),
+                  label: const Text('Done, remove from Inbox'),
+                )
+              : TextButton.icon(
+                  onPressed: () => onInbox(true),
+                  icon: const Icon(Icons.move_to_inbox_outlined),
+                  label: const Text('Move back to Inbox'),
+                ),
+        ],
         const SizedBox(height: Gap.sm),
         Text(
           'Saved ${formatSavedDate(bookmark.createdAt).toLowerCase()}',
@@ -186,6 +270,20 @@ class _Details extends StatelessWidget {
             selected: {bookmark.readingStatus},
             onSelectionChanged: (s) => onStatus(s.single),
           ),
+        ),
+        _labelSection(
+          context,
+          labels,
+          LabelKind.collection,
+          Icons.folder_outlined,
+          labelStyle,
+        ),
+        _labelSection(
+          context,
+          labels,
+          LabelKind.tag,
+          Icons.label_outline,
+          labelStyle,
         ),
         const SizedBox(height: Gap.lg),
         Text('Link', style: labelStyle),

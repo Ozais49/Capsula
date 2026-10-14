@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/bookmarks/bookmark.dart';
+import '../../domain/organization/label.dart';
+import '../organization/labels_builder.dart';
 import 'bookmark_display.dart';
 
 class BookmarkTile extends StatelessWidget {
-  const BookmarkTile({super.key, required this.bookmark, required this.onTap});
+  const BookmarkTile({
+    super.key,
+    required this.bookmark,
+    required this.onTap,
+    this.labels = const Labels(),
+  });
 
   final Bookmark bookmark;
   final VoidCallback onTap;
+  final Labels labels;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final status = bookmark.readingStatus;
+    final tags = labels.resolve(LabelKind.tag, bookmark.tagIds);
 
     return ListTile(
       onTap: onTap,
@@ -31,6 +40,7 @@ class BookmarkTile extends StatelessWidget {
           bookmark.sourceDomain,
           formatSavedDate(bookmark.createdAt),
           if (status != ReadingStatus.saved) status.label,
+          ...tags.map((t) => '#${t.name}'),
         ].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

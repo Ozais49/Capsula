@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
 import '../../fakes/in_memory_bookmark_repository.dart';
+import '../../fakes/navigation.dart';
 
 Bookmark _bookmark(
   String id,
@@ -75,7 +76,7 @@ void main() {
     await _pumpSignedIn(tester);
 
     expect(find.byType(LibraryScreen), findsOneWidget);
-    expect(find.textContaining('No bookmarks yet'), findsOneWidget);
+    expect(find.textContaining('Inbox is empty'), findsOneWidget);
   });
 
   testWidgets('lists bookmarks newest first and hides archived', (
@@ -92,6 +93,7 @@ void main() {
     expect(newer, lessThan(older));
     expect(find.text('Put away'), findsNothing);
 
+    await openNavigation(tester);
     await tester.tap(find.text('Archived'));
     await tester.pumpAndSettle();
     expect(find.text('Put away'), findsOneWidget);

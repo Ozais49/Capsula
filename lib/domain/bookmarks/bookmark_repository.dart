@@ -1,19 +1,18 @@
 import 'bookmark.dart';
+import 'bookmark_view.dart';
 
 class BookmarkQuery {
-  const BookmarkQuery({this.archived = false, this.search = ''});
+  const BookmarkQuery({this.view = BookmarkView.inbox, this.search = ''});
 
-  final bool archived;
+  final BookmarkView view;
   final String search;
 
   @override
   bool operator ==(Object other) =>
-      other is BookmarkQuery &&
-      other.archived == archived &&
-      other.search == search;
+      other is BookmarkQuery && other.view == view && other.search == search;
 
   @override
-  int get hashCode => Object.hash(archived, search);
+  int get hashCode => Object.hash(view, search);
 }
 
 /// Persistence for the signed-in user's bookmarks. Implementations scope
@@ -36,4 +35,19 @@ abstract interface class BookmarkRepository {
   Stream<List<Bookmark>> watchList(BookmarkQuery query, {required int limit});
 
   Future<Bookmark?> findByCanonicalUrl(String canonicalUrl);
+
+  /// Number of bookmarks in the Inbox, or null when it can't be counted
+  /// (for example while offline).
+  Future<int?> countInbox();
 }
+
+/// Whether [bookmark] belongs in [view]. Shared by implementations that
+/// filter in memory.
+bool bookmarkInView(Bookmark bookmark, BookmarkView view) => switch (view) {
+  InboxView() => !bookmark.archived && bookmark.inInbox,
+  AllView() => !bookmark.archived,
+  ArchivedView() => bookmark.archived,
+  SourceView(:final source) => !bookmark.archived && bookmark.source == source,
+  LabelView(:final kind, :final labelId) =>
+    !bookmark.archived && bookmark.labelIds(kind).contains(labelId),
+};
