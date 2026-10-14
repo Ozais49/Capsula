@@ -7,6 +7,7 @@ import '../features/connection/connection_screen.dart';
 import '../features/bookmarks/bookmark_detail_screen.dart';
 import '../features/bookmarks/library_screen.dart';
 import '../features/loading/loading_screen.dart';
+import '../features/reader/reader_screen.dart';
 import '../features/share/share_screen.dart';
 import 'auth_session.dart';
 import 'backend_controller.dart';
@@ -19,6 +20,8 @@ abstract final class AppRoutes {
   static const share = '/share';
 
   static String bookmark(String id) => '/bookmarks/$id';
+
+  static String reader(String id) => '/bookmarks/$id/read';
 
   static String library(BookmarkView view) => view is InboxView
       ? home
@@ -50,6 +53,13 @@ final _authRoutes = [
         path: 'bookmarks/:id',
         builder: (context, state) =>
             BookmarkDetailScreen(bookmarkId: state.pathParameters['id']!),
+        routes: [
+          GoRoute(
+            path: 'read',
+            builder: (context, state) =>
+                ReaderScreen(bookmarkId: state.pathParameters['id']!),
+          ),
+        ],
       ),
     ],
   ),

@@ -2,6 +2,7 @@ import 'package:capsula/app/auth_session.dart';
 import 'package:capsula/app/backend_controller.dart';
 import 'package:capsula/app/dependencies.dart';
 import 'package:capsula/config/app_config.dart';
+import 'package:capsula/domain/reader/reader_service.dart';
 import 'package:capsula/domain/connection/firebase_connection.dart';
 import 'package:capsula/features/connection/connection_screen.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
+import '../../fakes/fake_content_fetcher.dart';
 import '../../fakes/fake_share_intake.dart';
 
 Future<void> _pump(
@@ -29,6 +31,7 @@ Future<void> _pump(
       backend: backend,
       authSession: AuthSession(),
       shareIntake: FakeShareIntake(),
+      reader: ReaderService(FakeContentFetcher()),
       child: MaterialApp(home: ConnectionScreen(platform: platform)),
     ),
   );

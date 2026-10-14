@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../config/app_config.dart';
 import '../domain/auth/auth_repository.dart';
 import '../domain/bookmarks/bookmark_service.dart';
+import '../domain/reader/reader_service.dart';
 import '../platform/share_intake.dart';
 import 'auth_session.dart';
 import 'backend_controller.dart';
@@ -15,6 +16,7 @@ class AppDependencies extends InheritedWidget {
     required this.backend,
     required this.authSession,
     required this.shareIntake,
+    required this.reader,
     required super.child,
   });
 
@@ -22,6 +24,7 @@ class AppDependencies extends InheritedWidget {
   final BackendController backend;
   final AuthSession authSession;
   final ShareIntake shareIntake;
+  final ReaderService reader;
 
   /// Only available once the backend is connected; the router keeps
   /// screens that need it unreachable until then.
@@ -40,5 +43,6 @@ class AppDependencies extends InheritedWidget {
       config != oldWidget.config ||
       backend != oldWidget.backend ||
       authSession != oldWidget.authSession ||
-      shareIntake != oldWidget.shareIntake;
+      shareIntake != oldWidget.shareIntake ||
+      reader != oldWidget.reader;
 }

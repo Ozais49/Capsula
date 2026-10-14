@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/dependencies.dart';
 import '../../app/router.dart';
@@ -9,6 +8,7 @@ import '../../domain/bookmarks/bookmark.dart';
 import '../../domain/bookmarks/bookmark_service.dart';
 import '../../domain/bookmarks/bookmark_view.dart';
 import '../../domain/organization/label.dart';
+import '../common/open_link.dart';
 import '../organization/label_picker_sheet.dart';
 import '../organization/labels_builder.dart';
 import 'bookmark_display.dart';
@@ -39,19 +39,6 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
       await action();
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not update: $e')));
-    }
-  }
-
-  Future<void> _openInBrowser(Bookmark bookmark) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final opened = await launchUrl(
-      Uri.parse(bookmark.url),
-      mode: LaunchMode.externalApplication,
-    );
-    if (!opened) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('No app found to open this link.')),
-      );
     }
   }
 
@@ -114,7 +101,8 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
         } else {
           body = _Details(
             bookmark: bookmark,
-            onOpen: () => _openInBrowser(bookmark),
+            onOpen: () => openExternal(context, Uri.parse(bookmark.url)),
+            onRead: () => context.push(AppRoutes.reader(bookmark.id)),
             onStatus: (s) => _run(() => _service.setReadingStatus(bookmark, s)),
             onInbox: (inInbox) =>
                 _run(() => _service.setInInbox(bookmark, inInbox)),
@@ -156,6 +144,7 @@ class _Details extends StatelessWidget {
   const _Details({
     required this.bookmark,
     required this.onOpen,
+    required this.onRead,
     required this.onStatus,
     required this.onInbox,
     required this.onEditLabels,
@@ -163,6 +152,7 @@ class _Details extends StatelessWidget {
 
   final Bookmark bookmark;
   final VoidCallback onOpen;
+  final VoidCallback onRead;
   final ValueChanged<ReadingStatus> onStatus;
   final ValueChanged<bool> onInbox;
   final void Function(LabelKind kind, List<Label> available) onEditLabels;
@@ -291,6 +281,12 @@ class _Details extends StatelessWidget {
         SelectableText(bookmark.url, style: theme.textTheme.bodySmall),
         const SizedBox(height: Gap.xl),
         FilledButton.icon(
+          onPressed: onRead,
+          icon: const Icon(Icons.chrome_reader_mode_outlined),
+          label: const Text('Read'),
+        ),
+        const SizedBox(height: Gap.sm),
+        OutlinedButton.icon(
           onPressed: onOpen,
           icon: const Icon(Icons.open_in_new),
           label: const Text('Open in browser'),

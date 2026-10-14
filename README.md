@@ -145,6 +145,26 @@ To simulate a share from the command line with a device connected:
 adb shell am start -a android.intent.action.SEND -t text/plain -n com.ygtech.capsula/.ShareActivity --es android.intent.extra.TEXT "https://www.reddit.com/r/FlutterDev/" --es android.intent.extra.SUBJECT "FlutterDev"
 ```
 
+## Reader
+
+`ReaderService` (`lib/domain/reader/`) picks a presentation per content type:
+
+| Content | Reader shows |
+|---|---|
+| Websites, blogs, docs | Article extracted from the page (`article_extractor.dart`) |
+| YouTube | Video card (thumbnail, title from oEmbed) |
+| Reddit posts | Post body from Reddit's public JSON |
+| GitHub repositories | README from the GitHub API |
+| Instagram, Facebook, TikTok, X, Amazon | Preview from page metadata |
+| Short pages | Preview from page metadata |
+| Login pages, 404s, PDFs, network errors | Explanation, plus Open in browser |
+
+Reading never changes or removes a bookmark. When the bookmark's title was derived from the
+URL, the page's real title, description and image are saved to it.
+
+On the web, many sites block cross-origin requests. The reader then explains this and offers
+Open in browser. Android has no such restriction.
+
 ## Data
 
 ```

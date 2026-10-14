@@ -1,4 +1,5 @@
 import '../organization/label.dart';
+import '../reader/reader_content.dart';
 import 'bookmark.dart';
 import 'bookmark_repository.dart';
 import 'bookmark_source.dart';
@@ -106,6 +107,51 @@ class BookmarkService {
   }
 
   Future<void> delete(Bookmark bookmark) => _repository.delete(bookmark.id);
+
+  /// Fills in details found on the page: replaces a title Capsula derived
+  /// from the URL (never one the user gave), and adds a missing description
+  /// or image. Returns false when nothing changed.
+  Future<bool> applyMetadata(Bookmark bookmark, PageMetadata metadata) async {
+    final uri = Uri.tryParse(bookmark.url);
+    final autoTitle =
+        bookmark.title.trim().isEmpty ||
+        bookmark.title == bookmark.sourceDomain ||
+        (uri != null && bookmark.title == titleFromUrl(uri));
+
+    final title = autoTitle ? _clip(metadata.title, 300) : null;
+    final description = bookmark.description == null
+        ? _clip(metadata.description, 500)
+        : null;
+    final image = metadata.image;
+    final imageUrl =
+        bookmark.imageUrl == null &&
+            image != null &&
+            (image.scheme == 'https' || image.scheme == 'http') &&
+            image.toString().length <= 2000
+        ? image.toString()
+        : null;
+
+    if ((title == null || title == bookmark.title) &&
+        description == null &&
+        imageUrl == null) {
+      return false;
+    }
+    await _repository.update(
+      bookmark.copyWith(
+        title: title,
+        description: description,
+        imageUrl: imageUrl,
+        updatedAt: _now(),
+      ),
+    );
+    return true;
+  }
+
+  static String? _clip(String? text, int max) {
+    final t = text?.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (t == null || t.isEmpty) return null;
+    return t.length <= max ? t : '${t.substring(0, max - 1)}…';
+  }
 
   /// Creates a label, or returns the existing one with the same name
   /// (ignoring case). Returns null for a blank name. The label is usable
