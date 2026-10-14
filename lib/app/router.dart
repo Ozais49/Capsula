@@ -6,6 +6,7 @@ import '../features/connection/connection_screen.dart';
 import '../features/bookmarks/bookmark_detail_screen.dart';
 import '../features/bookmarks/library_screen.dart';
 import '../features/loading/loading_screen.dart';
+import '../features/share/share_screen.dart';
 import 'auth_session.dart';
 import 'backend_controller.dart';
 
@@ -14,13 +15,13 @@ abstract final class AppRoutes {
   static const signIn = '/sign-in';
   static const loading = '/loading';
   static const connection = '/connection';
+  static const share = '/share';
 
   static String bookmark(String id) => '/bookmarks/$id';
 }
 
 GoRouter createRouter(BackendController backend, AuthSession session) =>
     GoRouter(
-      initialLocation: AppRoutes.home,
       refreshListenable: Listenable.merge([backend, session]),
       redirect: (context, state) =>
           appRedirect(backend.status, session.status, state.uri),
@@ -52,6 +53,10 @@ final _authRoutes = [
   GoRoute(
     path: AppRoutes.loading,
     builder: (context, state) => const LoadingScreen(),
+  ),
+  GoRoute(
+    path: AppRoutes.share,
+    builder: (context, state) => const ShareScreen(),
   ),
 ];
 

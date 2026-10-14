@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../config/app_config.dart';
 import '../domain/auth/auth_repository.dart';
 import '../domain/bookmarks/bookmark_service.dart';
+import '../platform/share_intake.dart';
 import 'auth_session.dart';
 import 'backend_controller.dart';
 
@@ -13,12 +14,14 @@ class AppDependencies extends InheritedWidget {
     required this.config,
     required this.backend,
     required this.authSession,
+    required this.shareIntake,
     required super.child,
   });
 
   final AppConfig config;
   final BackendController backend;
   final AuthSession authSession;
+  final ShareIntake shareIntake;
 
   /// Only available once the backend is connected; the router keeps
   /// screens that need it unreachable until then.
@@ -36,5 +39,6 @@ class AppDependencies extends InheritedWidget {
   bool updateShouldNotify(AppDependencies oldWidget) =>
       config != oldWidget.config ||
       backend != oldWidget.backend ||
-      authSession != oldWidget.authSession;
+      authSession != oldWidget.authSession ||
+      shareIntake != oldWidget.shareIntake;
 }

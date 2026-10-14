@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
+import '../platform/share_intake.dart';
 import 'auth_session.dart';
 import 'backend_controller.dart';
 import 'dependencies.dart';
@@ -9,10 +10,16 @@ import 'router.dart';
 import 'theme.dart';
 
 class CapsulaApp extends StatefulWidget {
-  const CapsulaApp({super.key, required this.config, required this.backend});
+  const CapsulaApp({
+    super.key,
+    required this.config,
+    required this.backend,
+    this.shareIntake = const MethodChannelShareIntake(),
+  });
 
   final AppConfig config;
   final BackendController backend;
+  final ShareIntake shareIntake;
 
   @override
   State<CapsulaApp> createState() => _CapsulaAppState();
@@ -50,6 +57,7 @@ class _CapsulaAppState extends State<CapsulaApp> {
       config: widget.config,
       backend: widget.backend,
       authSession: _session,
+      shareIntake: widget.shareIntake,
       child: MaterialApp.router(
         title: 'Capsula',
         theme: AppTheme.light(),

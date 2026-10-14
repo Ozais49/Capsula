@@ -132,6 +132,19 @@ npm install
 npm test
 ```
 
+## Android share target
+
+`ShareActivity` (Kotlin) receives `ACTION_SEND` `text/plain` shares, shows a transparent
+window over the sharing app, and passes the text to Flutter at `/share` over the
+`capsula/share` method channel. Flutter extracts the links, saves them to the Inbox,
+then closes.
+
+To simulate a share from the command line with a device connected:
+
+```
+adb shell am start -a android.intent.action.SEND -t text/plain -n com.ygtech.capsula/.ShareActivity --es android.intent.extra.TEXT "https://www.reddit.com/r/FlutterDev/" --es android.intent.extra.SUBJECT "FlutterDev"
+```
+
 ## Data
 
 ```

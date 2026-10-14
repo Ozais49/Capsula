@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
+import '../../fakes/fake_share_intake.dart';
 
 Future<Widget> _wrap(FakeAuthRepository auth) async => AppDependencies(
   config: const AppConfig(
@@ -17,6 +18,7 @@ Future<Widget> _wrap(FakeAuthRepository auth) async => AppDependencies(
   ),
   backend: await startedBackend(auth),
   authSession: AuthSession()..attach(auth),
+  shareIntake: FakeShareIntake(),
   child: const MaterialApp(home: SignInScreen()),
 );
 
