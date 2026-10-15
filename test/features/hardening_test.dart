@@ -15,7 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 import '../fakes/fake_auth_repository.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_share_intake.dart';
-import '../fakes/in_memory_bookmark_repository.dart';
+
+import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
+
 import '../fakes/navigation.dart';
 
 class _FakeSaver implements FileSaver {

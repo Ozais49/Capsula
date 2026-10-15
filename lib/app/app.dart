@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
-import '../data/http/http_content_fetcher.dart';
+
+import 'package:capsula_core/net/http_content_fetcher.dart';
 
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
@@ -33,10 +35,10 @@ class CapsulaApp extends StatefulWidget {
   final ShareIntake shareIntake;
 
   /// Defaults to reading pages over HTTP.
-  final ReaderService? reader;
+  final ReaderSource? reader;
 
   /// Defaults to looking up titles over HTTP.
-  final PageInfoService? pageInfo;
+  final PageInfoSource? pageInfo;
   final ImportFilePicker importFilePicker;
   final FileSaver fileSaver;
 
@@ -46,9 +48,9 @@ class CapsulaApp extends StatefulWidget {
 
 class _CapsulaAppState extends State<CapsulaApp> {
   final _session = AuthSession();
-  late final _fetcher = HttpContentFetcher();
-  late final ReaderService _reader = widget.reader ?? ReaderService(_fetcher);
-  late final PageInfoService _pageInfo =
+  late final _fetcher = HttpContentFetcher(inBrowser: kIsWeb);
+  late final ReaderSource _reader = widget.reader ?? ReaderService(_fetcher);
+  late final PageInfoSource _pageInfo =
       widget.pageInfo ?? PageInfoService(_fetcher);
   bool _backfilled = false;
   late final GoRouter _router = createRouter(widget.backend, _session);

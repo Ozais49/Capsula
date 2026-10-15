@@ -4,8 +4,9 @@ import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_content_fetcher.dart';
-import '../fakes/in_memory_bookmark_repository.dart';
-import '../fakes/in_memory_label_repository.dart';
+
+import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
+import 'package:capsula_core/testing/in_memory_label_repository.dart';
 
 void main() {
   late InMemoryBookmarkRepository repo;

@@ -11,7 +11,9 @@ import '../../domain/import_parsers_test.dart' show chromeExport;
 import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
 import '../../fakes/fake_share_intake.dart';
-import '../../fakes/in_memory_bookmark_repository.dart';
+
+import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
+
 import '../../fakes/navigation.dart';
 
 class _FakePicker implements ImportFilePicker {

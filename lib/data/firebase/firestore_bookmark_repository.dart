@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_codec.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
-import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
-import 'package:capsula_core/domain/organization/label.dart';
 import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
 
 /// Stores bookmarks at `users/{uid}/bookmarks/{id}`. Security rules enforce
@@ -151,57 +150,8 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
   }
 }
 
-Map<String, Object?> bookmarkToFirestore(Bookmark b) => {
-  'url': b.url,
-  'canonicalUrl': b.canonicalUrl,
-  'title': b.title,
-  'description': ?b.description,
-  'imageUrl': ?b.imageUrl,
-  'source': b.source.id,
-  'sourceDomain': b.sourceDomain,
-  'readingStatus': b.readingStatus.name,
-  'archived': b.archived,
-  'inInbox': b.inInbox,
-  'tagIds': b.tagIds,
-  'collectionIds': b.collectionIds,
-  'importedFrom': ?b.importedFrom,
-  if (b.importedAt case final at?) 'importedAt': Timestamp.fromDate(at),
-  'createdAt': Timestamp.fromDate(b.createdAt),
-  'updatedAt': Timestamp.fromDate(b.updatedAt),
-  'searchTokens': buildSearchTokens(b.searchableText),
-};
+Map<String, Object?> bookmarkToFirestore(Bookmark b) =>
+    encodeBookmark(b, Timestamp.fromDate);
 
-Bookmark bookmarkFromFirestore(String id, Map<String, Object?> data) {
-  DateTime time(String field) =>
-      (data[field] as Timestamp?)?.toDate() ??
-      DateTime.fromMillisecondsSinceEpoch(0);
-
-  return Bookmark(
-    id: id,
-    url: data['url'] as String? ?? '',
-    canonicalUrl: data['canonicalUrl'] as String? ?? '',
-    title: data['title'] as String? ?? '',
-    description: data['description'] as String?,
-    imageUrl: data['imageUrl'] as String?,
-    source: BookmarkSource.fromId(data['source'] as String?),
-    sourceDomain: data['sourceDomain'] as String? ?? '',
-    readingStatus: ReadingStatus.fromName(data['readingStatus'] as String?),
-    archived: data['archived'] as bool? ?? false,
-    inInbox: data['inInbox'] as bool? ?? false,
-    tagIds: _strings(data['tagIds']),
-    collectionIds: _strings(data['collectionIds']),
-    importedFrom: data['importedFrom'] as String?,
-    importedAt: (data['importedAt'] as Timestamp?)?.toDate(),
-    createdAt: time('createdAt'),
-    updatedAt: time('updatedAt'),
-  );
-}
-
-List<String> _strings(Object? value) =>
-    value is List ? value.whereType<String>().toList() : const [];
-
-/// Bookmark field holding the IDs of labels of [kind].
-String labelField(LabelKind kind) => switch (kind) {
-  LabelKind.tag => 'tagIds',
-  LabelKind.collection => 'collectionIds',
-};
+Bookmark bookmarkFromFirestore(String id, Map<String, Object?> data) =>
+    decodeBookmark(id, data, (v) => (v as Timestamp?)?.toDate());

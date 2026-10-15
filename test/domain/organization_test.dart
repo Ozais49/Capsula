@@ -6,8 +6,8 @@ import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../fakes/in_memory_bookmark_repository.dart';
-import '../fakes/in_memory_label_repository.dart';
+import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
+import 'package:capsula_core/testing/in_memory_label_repository.dart';
 
 Bookmark _b({
   bool archived = false,

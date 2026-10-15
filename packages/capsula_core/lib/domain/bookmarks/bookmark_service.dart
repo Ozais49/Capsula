@@ -164,7 +164,7 @@ class BookmarkService {
   /// Looks up the link's real title and details and saves them.
   Future<Bookmark?> fetchDetails(
     Bookmark bookmark,
-    PageInfoService pageInfo, {
+    PageInfoSource pageInfo, {
     String? fallbackTitle,
   }) async {
     final uri = Uri.tryParse(bookmark.url);
@@ -175,10 +175,7 @@ class BookmarkService {
 
   /// Fetches details for recent Inbox bookmarks that still have a title
   /// made up from the URL, e.g. ones saved while offline.
-  Future<int> backfillDetails(
-    PageInfoService pageInfo, {
-    int limit = 25,
-  }) async {
+  Future<int> backfillDetails(PageInfoSource pageInfo, {int limit = 25}) async {
     final recent = await _repository
         .watchList(const BookmarkQuery(view: BookmarkView.inbox), limit: limit)
         .first;

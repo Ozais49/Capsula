@@ -8,9 +8,16 @@ import 'article_extractor.dart';
 import 'content_fetcher.dart';
 import 'reader_content.dart';
 
+/// Looks up a link's title and details: locally ([PageInfoService]) or
+/// through the Capsula API.
+abstract interface class PageInfoSource {
+  /// Returns null when nothing useful could be found. Never throws.
+  Future<PageMetadata?> lookup(Uri url);
+}
+
 /// Looks up a link's real title, description and image from the source:
 /// official oEmbed endpoints where they exist, otherwise the page metadata.
-class PageInfoService {
+class PageInfoService implements PageInfoSource {
   PageInfoService(this._fetcher);
 
   final ContentFetcher _fetcher;
@@ -20,7 +27,7 @@ class PageInfoService {
   static const _previewAgent =
       'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)';
 
-  /// Returns null when nothing useful could be found. Never throws.
+  @override
   Future<PageMetadata?> lookup(Uri url) async {
     final source = BookmarkSource.fromHost(displayHost(url));
     try {

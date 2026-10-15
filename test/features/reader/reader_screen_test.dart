@@ -12,7 +12,8 @@ import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
 import '../../fakes/fake_content_fetcher.dart';
 import '../../fakes/fake_share_intake.dart';
-import '../../fakes/in_memory_bookmark_repository.dart';
+
+import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
 
 Bookmark _bookmark(String url, String title, BookmarkSource source) {
   final t = DateTime(2026);

@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:capsula_core/domain/reader/content_fetcher.dart';
 
 class HttpContentFetcher implements ContentFetcher {
-  HttpContentFetcher([http.Client? client]) : _client = client ?? http.Client();
+  HttpContentFetcher({http.Client? client, this.inBrowser = false})
+    : _client = client ?? http.Client();
+
+  /// Running in a web browser, which follows redirects itself, forbids a
+  /// custom user agent and reports blocked cross-origin requests as errors.
+  final bool inBrowser;
 
   final http.Client _client;
 
@@ -23,7 +27,7 @@ class HttpContentFetcher implements ContentFetcher {
   }) async {
     final allHeaders = {
       // Browsers don't allow setting the user agent.
-      if (!kIsWeb)
+      if (!inBrowser)
         'User-Agent':
             'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 '
             '(KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36',
@@ -32,7 +36,7 @@ class HttpContentFetcher implements ContentFetcher {
       ...headers,
     };
     // Browsers refuse a custom user agent.
-    if (kIsWeb) allHeaders.remove('User-Agent');
+    if (inBrowser) allHeaders.remove('User-Agent');
 
     try {
       // Follow redirects ourselves so the final URL is known (e.g. to spot a
@@ -40,11 +44,11 @@ class HttpContentFetcher implements ContentFetcher {
       var current = url;
       for (var hop = 0; ; hop++) {
         final request = http.Request('GET', current)
-          ..followRedirects = kIsWeb
+          ..followRedirects = inBrowser
           ..headers.addAll(allHeaders);
         final response = await _client.send(request).timeout(_timeout);
         final location = response.headers['location'];
-        if (!kIsWeb &&
+        if (!inBrowser &&
             _redirectStatuses.contains(response.statusCode) &&
             location != null &&
             hop < _maxRedirects) {
@@ -68,7 +72,7 @@ class HttpContentFetcher implements ContentFetcher {
       // On the web, a CORS refusal surfaces as a ClientException with no
       // further detail, indistinguishable from being offline.
       throw FetchException(
-        kIsWeb ? FetchFailure.blocked : FetchFailure.network,
+        inBrowser ? FetchFailure.blocked : FetchFailure.network,
         e,
       );
     }

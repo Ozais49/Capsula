@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:capsula_core/domain/organization/label.dart';
 
-import 'firestore_bookmark_repository.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_codec.dart';
 
 /// Stores tags at `users/{uid}/tags` and collections at
 /// `users/{uid}/collections`.

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:capsula/data/http/http_content_fetcher.dart';
+import 'package:capsula_core/net/http_content_fetcher.dart';
 import 'package:capsula_core/domain/reader/content_fetcher.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -9,7 +9,7 @@ import 'package:http/testing.dart';
 void main() {
   test('follows redirects and reports the final URL', () async {
     final fetcher = HttpContentFetcher(
-      MockClient((request) async {
+      client: MockClient((request) async {
         if (request.url.path == '/private') {
           return http.Response(
             '',
@@ -34,7 +34,7 @@ void main() {
   test('stops after too many redirects', () async {
     var calls = 0;
     final fetcher = HttpContentFetcher(
-      MockClient((request) async {
+      client: MockClient((request) async {
         calls++;
         return http.Response('', 301, headers: {'location': '/loop'});
       }),
@@ -48,7 +48,7 @@ void main() {
     'decodes UTF-8 when no charset is given, and honors a charset',
     () async {
       final fetcher = HttpContentFetcher(
-        MockClient((request) async {
+        client: MockClient((request) async {
           if (request.url.path == '/latin') {
             return http.Response.bytes(
               latin1.encode('café'),
@@ -77,7 +77,7 @@ void main() {
   test('sends a browser user agent and caller headers', () async {
     late http.BaseRequest seen;
     final fetcher = HttpContentFetcher(
-      MockClient((request) async {
+      client: MockClient((request) async {
         seen = request;
         return http.Response('{}', 200);
       }),
@@ -92,7 +92,7 @@ void main() {
 
   test('connection errors become network failures', () async {
     final fetcher = HttpContentFetcher(
-      MockClient((_) async => throw http.ClientException('offline')),
+      client: MockClient((_) async => throw http.ClientException('offline')),
     );
     await expectLater(
       fetcher.fetch(Uri.parse('https://example.com')),

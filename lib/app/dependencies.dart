@@ -33,8 +33,8 @@ class AppDependencies extends InheritedWidget {
   final BackendController backend;
   final AuthSession authSession;
   final ShareIntake shareIntake;
-  final ReaderService reader;
-  final PageInfoService pageInfo;
+  final ReaderSource reader;
+  final PageInfoSource pageInfo;
   final ImportFilePicker importFilePicker;
   final FileSaver fileSaver;
 

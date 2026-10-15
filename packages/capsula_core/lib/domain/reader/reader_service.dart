@@ -8,10 +8,17 @@ import 'article_extractor.dart';
 import 'content_fetcher.dart';
 import 'reader_content.dart';
 
+/// Produces the reader view of a bookmark: locally ([ReaderService]) or
+/// through the Capsula API.
+abstract interface class ReaderSource {
+  /// Never throws; failures become [Unavailable].
+  Future<ReaderContent> load(Bookmark bookmark);
+}
+
 /// Decides how to present a bookmark in the reader, by content type.
 /// Never throws: failures become [Unavailable], and the bookmark itself is
 /// never touched.
-class ReaderService {
+class ReaderService implements ReaderSource {
   ReaderService(this._fetcher);
 
   final ContentFetcher _fetcher;
@@ -19,6 +26,7 @@ class ReaderService {
   static const _socialNote =
       'Full content is only available on the site or in its app.';
 
+  @override
   Future<ReaderContent> load(Bookmark bookmark) async {
     final uri = Uri.tryParse(bookmark.url);
     if (uri == null) return const Unavailable(UnavailableReason.failed);

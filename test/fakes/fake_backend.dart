@@ -3,8 +3,9 @@ import 'package:capsula_core/domain/connection/backend.dart';
 import 'package:capsula_core/domain/connection/firebase_connection.dart';
 
 import 'fake_auth_repository.dart';
-import 'in_memory_bookmark_repository.dart';
-import 'in_memory_label_repository.dart';
+
+import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
+import 'package:capsula_core/testing/in_memory_label_repository.dart';
 
 const testConnection = FirebaseConnection(
   apiKey: 'test-api-key',

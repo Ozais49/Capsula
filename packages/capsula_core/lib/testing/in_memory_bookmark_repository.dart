@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:capsula_core/domain/bookmarks/bookmark.dart';
-import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
-import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
-import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
+import '../domain/bookmarks/bookmark.dart';
+import '../domain/bookmarks/bookmark_repository.dart';
+import '../domain/bookmarks/bookmark_view.dart';
+import '../domain/bookmarks/search_tokens.dart';
 
 /// In-memory [BookmarkRepository] for tests.
 class InMemoryBookmarkRepository implements BookmarkRepository {

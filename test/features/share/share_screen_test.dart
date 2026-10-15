@@ -15,7 +15,8 @@ import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
 import '../../fakes/fake_content_fetcher.dart';
 import '../../fakes/fake_share_intake.dart';
-import '../../fakes/in_memory_bookmark_repository.dart';
+
+import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
 
 class _Harness {
   _Harness(this.repo, this.intake, this.auth);
