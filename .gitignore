@@ -54,3 +54,10 @@ app.*.map.json
 rules_test/node_modules/
 firebase-debug.log
 firestore-debug.log
+
+# Secrets: service account keys must never be committed
+*service-account*.json
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+api/secrets/
+ui-debug.log
