@@ -18,7 +18,10 @@ Future<void> main() async {
   final backend = BackendController(
     store: SharedPrefsConnectionStore(),
     connector: FirebaseBackendConnector(config),
-    fallbackSettings: kIsWeb ? () => loadHostedFirebaseConfig(Uri.base) : null,
+    // Web: the hosting site's project. Android: the project built in.
+    fallbackSettings: kIsWeb
+        ? () => loadHostedFirebaseConfig(Uri.base)
+        : () async => config.defaultAndroidConnection,
   );
   runApp(CapsulaApp(config: config, backend: backend));
   await backend.start();

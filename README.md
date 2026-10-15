@@ -200,15 +200,13 @@ Open in browser. Android has no such restriction.
 - **Offline cache after sign-out.** Firestore's offline cache stays on the device after
   sign-out. The app only ever queries the signed-in user's path, but on a shared computer,
   clear site data (web) or app storage (Android) to remove it.
-- **Firestore region.** The database is in `nam5` (US). Moving it means deleting and
-  recreating it, which is only practical while it's empty.
 - **Not yet implemented** (listed in the plan as future work): account deletion,
   delete-all-data, email verification, App Check, an Android release signing key and app icon.
 
 ## Data
 
 ```
-users/{uid}/bookmarks/{bookmarkId}
+users/{uid}/bookmarks/{bookmarkId}       (Firestore, asia-south1 / Mumbai)
   url, canonicalUrl, title, description?, imageUrl?, source, sourceDomain,
   readingStatus, archived, inInbox, createdAt, updatedAt, searchTokens
 ```
