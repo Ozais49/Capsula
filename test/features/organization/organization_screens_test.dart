@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
 import '../../fakes/fake_share_intake.dart';
+import '../../fakes/navigation.dart';
 
 import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
 import 'package:capsula_core/testing/in_memory_label_repository.dart';
@@ -84,13 +85,8 @@ Future<void> _openDrawer(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _openView(WidgetTester tester, String name) async {
-  await _openDrawer(tester);
-  await tester.ensureVisible(find.text(name).last);
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(name).last);
-  await tester.pumpAndSettle();
-}
+Future<void> _openView(WidgetTester tester, String name) =>
+    tapNavigationItem(tester, name);
 
 const _ai = Label(id: 't-ai', kind: LabelKind.tag, name: 'AI');
 const _research = Label(

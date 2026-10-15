@@ -65,13 +65,8 @@ Future<_App> _pump(
   return _App(connector.bookmarks, connector.labels, display);
 }
 
-Future<void> _openView(WidgetTester tester, String name) async {
-  await openNavigation(tester);
-  await tester.ensureVisible(find.text(name).last);
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(name).last);
-  await tester.pumpAndSettle();
-}
+Future<void> _openView(WidgetTester tester, String name) =>
+    tapNavigationItem(tester, name);
 
 void main() {
   testWidgets('star from detail and see it under Favorites', (tester) async {
