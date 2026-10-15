@@ -4,6 +4,7 @@ import '../config/app_config.dart';
 import '../domain/auth/auth_repository.dart';
 import '../domain/bookmarks/bookmark_service.dart';
 import '../domain/import/import_service.dart';
+import '../domain/reader/page_info_service.dart';
 import '../domain/reader/reader_service.dart';
 import '../platform/file_saver.dart';
 import '../platform/import_file_picker.dart';
@@ -20,6 +21,7 @@ class AppDependencies extends InheritedWidget {
     required this.authSession,
     required this.shareIntake,
     required this.reader,
+    required this.pageInfo,
     this.importFilePicker = const FileSelectorImportPicker(),
     this.fileSaver = const PlatformFileSaver(),
     required super.child,
@@ -30,6 +32,7 @@ class AppDependencies extends InheritedWidget {
   final AuthSession authSession;
   final ShareIntake shareIntake;
   final ReaderService reader;
+  final PageInfoService pageInfo;
   final ImportFilePicker importFilePicker;
   final FileSaver fileSaver;
 
@@ -54,6 +57,7 @@ class AppDependencies extends InheritedWidget {
       authSession != oldWidget.authSession ||
       shareIntake != oldWidget.shareIntake ||
       reader != oldWidget.reader ||
+      pageInfo != oldWidget.pageInfo ||
       importFilePicker != oldWidget.importFilePicker ||
       fileSaver != oldWidget.fileSaver;
 }

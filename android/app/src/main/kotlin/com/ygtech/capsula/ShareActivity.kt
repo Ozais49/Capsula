@@ -18,6 +18,8 @@ class ShareActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         pendingShare = readShare(intent)
         super.onCreate(savedInstanceState)
+        ShareShortcuts.publish(this)
+        if (pendingShare != null) ShareShortcuts.reportUsed(this)
     }
 
     override fun getInitialRoute(): String = "/share"

@@ -39,6 +39,7 @@ class _AddBookmarkSheetState extends State<_AddBookmarkSheet> {
 
   Future<void> _save() async {
     final service = AppDependencies.of(context).bookmarks;
+    final pageInfo = AppDependencies.of(context).pageInfo;
     final messenger = ScaffoldMessenger.of(context);
     setState(() {
       _saving = true;
@@ -71,7 +72,8 @@ class _AddBookmarkSheetState extends State<_AddBookmarkSheet> {
           _saving = false;
           _duplicate = existing;
         });
-      case Saved(:final committed):
+      case Saved(:final bookmark, :final committed):
+        service.fetchDetails(bookmark, pageInfo).ignore();
         Navigator.of(context).pop();
         messenger.showSnackBar(const SnackBar(content: Text('Saved to Inbox')));
         committed.catchError((Object e) {

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Direct Share: lets "Save to Capsula" appear in the top row of the
+     Android / Samsung share sheet. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <share-target android:targetClass="com.ygtech.capsula.ShareActivity">
+        <data android:mimeType="text/plain" />
+        <category android:name="com.ygtech.capsula.category.SAVE_LINK" />
+    </share-target>
+</shortcuts>

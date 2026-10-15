@@ -1,6 +1,7 @@
 package com.ygtech.capsula
 
 import android.content.Intent
+import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -9,6 +10,11 @@ import java.io.IOException
 class MainActivity : FlutterActivity() {
     /** Bytes waiting for the user to pick where to save them. */
     private var pendingSave: Pair<ByteArray, MethodChannel.Result>? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        ShareShortcuts.publish(this)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

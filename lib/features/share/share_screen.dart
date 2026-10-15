@@ -18,6 +18,10 @@ class ShareScreen extends StatefulWidget {
   /// How long the confirmation stays before closing on its own.
   static const autoCloseDelay = Duration(milliseconds: 1200);
 
+  /// How long to wait for a link's title before closing anyway; the title
+  /// is fetched again the next time Capsula opens.
+  static const titleTimeout = Duration(seconds: 6);
+
   @override
   State<ShareScreen> createState() => _ShareScreenState();
 }
@@ -27,7 +31,8 @@ sealed class _State {
 }
 
 class _Working extends _State {
-  const _Working();
+  const _Working([this.message = 'Saving to Capsula…']);
+  final String message;
 }
 
 class _NothingToSave extends _State {
@@ -36,8 +41,11 @@ class _NothingToSave extends _State {
 }
 
 class _Finished extends _State {
-  const _Finished(this.results);
+  const _Finished(this.results, this.titles);
   final List<SaveResult> results;
+
+  /// Titles of newly saved bookmarks, after looking them up.
+  final List<String> titles;
 }
 
 class _Failed extends _State {
@@ -78,11 +86,27 @@ class _ShareScreenState extends State<ShareScreen> {
 
       final results = <SaveResult>[];
       for (final url in links.urls) {
-        results.add(
-          await deps.bookmarks.save(url.toString(), title: links.title),
-        );
+        results.add(await deps.bookmarks.save(url.toString()));
       }
-      _show(_Finished(results));
+
+      // Saved already; now get each link's real title from its source.
+      // Text shared along with a single link is the fallback.
+      final saved = results.whereType<Saved>().map((s) => s.bookmark).toList();
+      var titles = saved.map((b) => b.displayTitle).toList();
+      if (saved.isNotEmpty) {
+        _show(const _Working('Saved. Getting the title…'));
+        titles = await Future.wait([
+          for (final b in saved)
+            deps.bookmarks
+                .fetchDetails(b, deps.pageInfo, fallbackTitle: links.title)
+                .then((updated) => (updated ?? b).displayTitle)
+                .timeout(
+                  ShareScreen.titleTimeout,
+                  onTimeout: () => b.displayTitle,
+                ),
+        ]);
+      }
+      _show(_Finished(results, titles));
 
       if (results.every((r) => r is Saved)) {
         _autoClose = Timer(ShareScreen.autoCloseDelay, _close);
@@ -122,12 +146,12 @@ class _ShareScreenState extends State<ShareScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(Gap.lg),
                     child: switch (_state) {
-                      _Working() => const _Row(
+                      _Working(:final message) => _Row(
                         leading: SizedBox.square(
                           dimension: 24,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                        text: 'Saving to Capsula…',
+                        text: message,
                       ),
                       _NothingToSave(:final message) => _Summary(
                         icon: Icons.link_off,
@@ -142,7 +166,11 @@ class _ShareScreenState extends State<ShareScreen> {
                         detail: '$error',
                         onDone: _close,
                       ),
-                      _Finished(:final results) => _finished(results, theme),
+                      _Finished(:final results, :final titles) => _finished(
+                        results,
+                        titles,
+                        theme,
+                      ),
                     },
                   ),
                 ),
@@ -154,7 +182,11 @@ class _ShareScreenState extends State<ShareScreen> {
     );
   }
 
-  Widget _finished(List<SaveResult> results, ThemeData theme) {
+  Widget _finished(
+    List<SaveResult> results,
+    List<String> titles,
+    ThemeData theme,
+  ) {
     final saved = results.whereType<Saved>().length;
     final duplicates = results.whereType<AlreadySaved>().toList();
     final invalid = results.whereType<InvalidUrl>().length;
@@ -190,6 +222,7 @@ class _ShareScreenState extends State<ShareScreen> {
       icon: saved > 0 ? Icons.check_circle_outline : Icons.bookmark_added,
       iconColor: theme.colorScheme.primary,
       title: parts.join(' · '),
+      detail: titles.isEmpty ? null : titles.join('\n'),
       onDone: _close,
     );
   }

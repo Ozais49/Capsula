@@ -31,6 +31,8 @@ class HttpContentFetcher implements ContentFetcher {
           'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
       ...headers,
     };
+    // Browsers refuse a custom user agent.
+    if (kIsWeb) allHeaders.remove('User-Agent');
 
     try {
       // Follow redirects ourselves so the final URL is known (e.g. to spot a

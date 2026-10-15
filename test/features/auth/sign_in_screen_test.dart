@@ -1,6 +1,7 @@
 import 'package:capsula/app/auth_session.dart';
 import 'package:capsula/app/dependencies.dart';
 import 'package:capsula/config/app_config.dart';
+import 'package:capsula/domain/reader/page_info_service.dart';
 import 'package:capsula/domain/reader/reader_service.dart';
 import 'package:capsula/domain/auth/auth_repository.dart';
 import 'package:capsula/features/auth/sign_in_screen.dart';
@@ -22,6 +23,7 @@ Future<Widget> _wrap(FakeAuthRepository auth) async => AppDependencies(
   authSession: AuthSession()..attach(auth),
   shareIntake: FakeShareIntake(),
   reader: ReaderService(FakeContentFetcher()),
+  pageInfo: PageInfoService(FakeContentFetcher()),
   child: const MaterialApp(home: SignInScreen()),
 );
 

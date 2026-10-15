@@ -4,6 +4,7 @@ import 'package:capsula/domain/auth/app_user.dart';
 import 'package:capsula/domain/bookmarks/bookmark.dart';
 import 'package:capsula/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula/domain/bookmarks/shared_content.dart';
+import 'package:capsula/domain/reader/page_info_service.dart';
 import 'package:capsula/features/auth/sign_in_screen.dart';
 import 'package:capsula/features/bookmarks/bookmark_detail_screen.dart';
 import 'package:capsula/features/share/share_screen.dart';
@@ -12,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
+import '../../fakes/fake_content_fetcher.dart';
 import '../../fakes/fake_share_intake.dart';
 import '../../fakes/in_memory_bookmark_repository.dart';
 
@@ -29,6 +31,7 @@ Future<_Harness> _share(
   SharedContent content, {
   bool signedIn = true,
   List<Bookmark> existing = const [],
+  FakeContentFetcher? fetcher,
 }) async {
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 1;
@@ -53,6 +56,7 @@ Future<_Harness> _share(
       ),
       backend: await startedBackend(auth, bookmarks: repo),
       shareIntake: intake,
+      pageInfo: PageInfoService(fetcher ?? FakeContentFetcher()),
     ),
   );
   await tester.pumpAndSettle();
@@ -165,5 +169,26 @@ void main() {
     expect(find.text('Saved to Inbox'), findsOneWidget);
     expect(h.repo.items.values.single.url, 'https://example.com/later');
     await tester.pump(ShareScreen.autoCloseDelay);
+  });
+
+  testWidgets('shows the title fetched from the source, not the URL', (
+    tester,
+  ) async {
+    final fetcher = FakeContentFetcher()
+      ..json(
+        'https://www.youtube.com/oembed',
+        '{"title": "Flutter in 100 Seconds", "author_name": "Fireship"}',
+      );
+    final h = await _share(
+      tester,
+      const SharedContent(text: 'https://youtu.be/lHhRhPV--G0?si=abc'),
+      fetcher: fetcher,
+    );
+
+    expect(find.text('Saved to Inbox'), findsOneWidget);
+    expect(find.text('Flutter in 100 Seconds'), findsOneWidget);
+    expect(h.repo.items.values.single.title, 'Flutter in 100 Seconds');
+    await tester.pump(ShareScreen.autoCloseDelay);
+    expect(h.intake.finishCalls, 1);
   });
 }

@@ -45,7 +45,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final metadata = metadataFrom(content);
     if (metadata != null) {
       // Best effort; the reader works the same if this fails.
-      deps.bookmarks.applyMetadata(bookmark, metadata).ignore();
+      deps.bookmarks.applyMetadata(bookmark, metadata);
     }
     return content;
   }

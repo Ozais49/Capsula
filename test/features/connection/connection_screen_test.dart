@@ -2,6 +2,7 @@ import 'package:capsula/app/auth_session.dart';
 import 'package:capsula/app/backend_controller.dart';
 import 'package:capsula/app/dependencies.dart';
 import 'package:capsula/config/app_config.dart';
+import 'package:capsula/domain/reader/page_info_service.dart';
 import 'package:capsula/domain/reader/reader_service.dart';
 import 'package:capsula/domain/connection/firebase_connection.dart';
 import 'package:capsula/features/connection/connection_screen.dart';
@@ -32,6 +33,7 @@ Future<void> _pump(
       authSession: AuthSession(),
       shareIntake: FakeShareIntake(),
       reader: ReaderService(FakeContentFetcher()),
+      pageInfo: PageInfoService(FakeContentFetcher()),
       child: MaterialApp(home: ConnectionScreen(platform: platform)),
     ),
   );
