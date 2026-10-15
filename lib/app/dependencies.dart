@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../config/app_config.dart';
 import '../data/api/api_client.dart';
 import 'api_settings.dart';
+import 'display_preferences.dart';
 
 import 'package:capsula_core/domain/auth/auth_repository.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
@@ -28,6 +29,7 @@ class AppDependencies extends InheritedWidget {
     required this.pageInfo,
     required this.apiSettings,
     required this.apiClient,
+    required this.display,
     this.importFilePicker = const FileSelectorImportPicker(),
     this.fileSaver = const PlatformFileSaver(),
     required super.child,
@@ -44,6 +46,7 @@ class AppDependencies extends InheritedWidget {
   /// A client for the configured API server, or null when none is set or
   /// nobody is signed in.
   final CapsulaApiClient? Function() apiClient;
+  final DisplayPreferences display;
   final ImportFilePicker importFilePicker;
   final FileSaver fileSaver;
 

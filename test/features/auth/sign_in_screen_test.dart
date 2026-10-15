@@ -1,9 +1,4 @@
-import 'package:capsula/app/api_settings.dart';
 import 'package:capsula/app/auth_session.dart';
-import 'package:capsula/app/dependencies.dart';
-import 'package:capsula/config/app_config.dart';
-import 'package:capsula_core/domain/reader/page_info_service.dart';
-import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:capsula_core/domain/auth/auth_repository.dart';
 import 'package:capsula/features/auth/sign_in_screen.dart';
 import 'package:flutter/material.dart';
@@ -11,23 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
-import '../../fakes/fake_content_fetcher.dart';
-import '../../fakes/fake_share_intake.dart';
-import '../../fakes/memory_api_settings_store.dart';
+import '../../fakes/test_dependencies.dart';
 
-Future<Widget> _wrap(FakeAuthRepository auth) async => AppDependencies(
-  config: const AppConfig(
-    environment: AppEnvironment.dev,
-    useFirebaseEmulators: false,
-    firebaseEmulatorHost: 'localhost',
-  ),
+Future<Widget> _wrap(FakeAuthRepository auth) async => testDependencies(
   backend: await startedBackend(auth),
-  authSession: AuthSession()..attach(auth),
-  shareIntake: FakeShareIntake(),
-  reader: ReaderService(FakeContentFetcher()),
-  pageInfo: PageInfoService(FakeContentFetcher()),
-  apiSettings: ApiSettings(MemoryApiSettingsStore()),
-  apiClient: () => null,
+  session: AuthSession()..attach(auth),
   child: const MaterialApp(home: SignInScreen()),
 );
 

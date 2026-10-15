@@ -267,3 +267,19 @@ describe('import provenance', () => {
     await assertFails(mixed.commit());
   });
 });
+
+describe('favorites and nested collections', () => {
+  test('favorite must be a boolean', async () => {
+    const ref = bookmarkRef(db('alice'), 'alice');
+    await assertSucceeds(setDoc(ref, validBookmark({ favorite: true })));
+    await assertFails(setDoc(ref, validBookmark({ favorite: 'yes' })));
+  });
+
+  test('collections may name a parent', async () => {
+    const alice = db('alice');
+    const ref = doc(alice, 'users/alice/collections/child');
+    await assertSucceeds(setDoc(ref, { name: 'Child', parentId: 'parent', createdAt: Timestamp.now() }));
+    await assertSucceeds(updateDoc(ref, { parentId: 'other' }));
+    await assertFails(setDoc(ref, { name: 'Child', parentId: 42, createdAt: Timestamp.now() }));
+  });
+});

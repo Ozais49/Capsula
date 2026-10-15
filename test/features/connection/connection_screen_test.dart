@@ -1,10 +1,5 @@
-import 'package:capsula/app/api_settings.dart';
 import 'package:capsula/app/auth_session.dart';
 import 'package:capsula/app/backend_controller.dart';
-import 'package:capsula/app/dependencies.dart';
-import 'package:capsula/config/app_config.dart';
-import 'package:capsula_core/domain/reader/page_info_service.dart';
-import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:capsula_core/domain/connection/firebase_connection.dart';
 import 'package:capsula/features/connection/connection_screen.dart';
 import 'package:flutter/material.dart';
@@ -12,9 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
-import '../../fakes/fake_content_fetcher.dart';
-import '../../fakes/fake_share_intake.dart';
-import '../../fakes/memory_api_settings_store.dart';
+import '../../fakes/test_dependencies.dart';
 
 Future<void> _pump(
   WidgetTester tester,
@@ -25,19 +18,9 @@ Future<void> _pump(
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    AppDependencies(
-      config: const AppConfig(
-        environment: AppEnvironment.dev,
-        useFirebaseEmulators: false,
-        firebaseEmulatorHost: 'localhost',
-      ),
+    testDependencies(
       backend: backend,
-      authSession: AuthSession(),
-      shareIntake: FakeShareIntake(),
-      reader: ReaderService(FakeContentFetcher()),
-      pageInfo: PageInfoService(FakeContentFetcher()),
-      apiSettings: ApiSettings(MemoryApiSettingsStore()),
-      apiClient: () => null,
+      session: AuthSession(),
       child: MaterialApp(home: ConnectionScreen(platform: platform)),
     ),
   );

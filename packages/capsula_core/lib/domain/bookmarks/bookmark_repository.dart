@@ -1,18 +1,35 @@
 import 'bookmark.dart';
 import 'bookmark_view.dart';
 
+enum BookmarkSort {
+  newest('Newest first'),
+  oldest('Oldest first');
+
+  const BookmarkSort(this.label);
+
+  final String label;
+}
+
 class BookmarkQuery {
-  const BookmarkQuery({this.view = BookmarkView.inbox, this.search = ''});
+  const BookmarkQuery({
+    this.view = BookmarkView.inbox,
+    this.search = '',
+    this.sort = BookmarkSort.newest,
+  });
 
   final BookmarkView view;
   final String search;
+  final BookmarkSort sort;
 
   @override
   bool operator ==(Object other) =>
-      other is BookmarkQuery && other.view == view && other.search == search;
+      other is BookmarkQuery &&
+      other.view == view &&
+      other.search == search &&
+      other.sort == sort;
 
   @override
-  int get hashCode => Object.hash(view, search);
+  int get hashCode => Object.hash(view, search, sort);
 }
 
 /// Persistence for the signed-in user's bookmarks. Implementations scope
@@ -56,6 +73,7 @@ abstract interface class BookmarkRepository {
 bool bookmarkInView(Bookmark bookmark, BookmarkView view) => switch (view) {
   InboxView() => !bookmark.archived && bookmark.inInbox,
   AllView() => !bookmark.archived,
+  FavoritesView() => !bookmark.archived && bookmark.favorite,
   ArchivedView() => bookmark.archived,
   SourceView(:final source) => !bookmark.archived && bookmark.source == source,
   LabelView(:final kind, :final labelId) =>

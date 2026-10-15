@@ -254,6 +254,10 @@ class CapsulaApi {
       next = next.copyWith(readingStatus: match.single);
       changed = true;
     }
+    if (body['favorite'] case final Object favorite) {
+      next = next.copyWith(favorite: _bool(favorite, 'favorite'));
+      changed = true;
+    }
     if (body['inInbox'] case final Object inbox) {
       next = next.copyWith(inInbox: _bool(inbox, 'inInbox'));
       changed = true;
@@ -315,15 +319,23 @@ class CapsulaApi {
     LabelRepository labels,
     LabelKind kind,
     String rawName,
-    List<Label> existing,
-  ) async {
+    List<Label> existing, {
+    String? parentId,
+  }) async {
     final name = normalizeLabelName(rawName);
     if (name == null) throw ApiError.badRequest('Label names can\'t be empty');
+    // Names are unique among siblings, as in the app.
     final match = existing.where(
-      (l) => l.name.toLowerCase() == name.toLowerCase(),
+      (l) =>
+          l.parentId == parentId && l.name.toLowerCase() == name.toLowerCase(),
     );
     if (match.isNotEmpty) return match.first;
-    final label = Label(id: labels.newId(kind), kind: kind, name: name);
+    final label = Label(
+      id: labels.newId(kind),
+      kind: kind,
+      name: name,
+      parentId: parentId,
+    );
     await labels.create(label);
     existing.add(label);
     return label;
@@ -361,8 +373,23 @@ class CapsulaApi {
     if (name is! String) throw const ApiError.badRequest('"name" is required');
     final labels = userData(p.uid).labels;
     final existing = await labels.watch(kind).first;
+    final parentId = _optionalString(body, 'parentId', 100);
+    if (parentId != null) {
+      if (kind != LabelKind.collection) {
+        throw const ApiError.badRequest('Only collections can be nested');
+      }
+      if (!existing.any((l) => l.id == parentId)) {
+        throw const ApiError.badRequest('Unknown "parentId"');
+      }
+    }
     final before = existing.length;
-    final label = await _ensureLabel(labels, kind, name, existing);
+    final label = await _ensureLabel(
+      labels,
+      kind,
+      name,
+      existing,
+      parentId: parentId,
+    );
     return jsonResponse(
       labelToJson(label),
       status: existing.length > before ? 201 : 200,
@@ -376,17 +403,38 @@ class CapsulaApi {
     String id,
   ) async {
     final body = await readJson(req);
-    final name = body['name'];
-    if (name is! String) throw const ApiError.badRequest('"name" is required');
     final labels = userData(p.uid).labels;
     final all = await labels.watch(kind).first;
-    final label = all.where((l) => l.id == id).firstOrNull;
+    var label = all.where((l) => l.id == id).firstOrNull;
     if (label == null) throw const ApiError.notFound();
-    final renamed = await _service(p).renameLabel(label, name, all);
-    if (!renamed) {
-      throw const ApiError(409, 'name_taken', 'Name is empty or already used');
+    final service = _service(p);
+
+    if (body.containsKey('parentId')) {
+      final parentId = _optionalString(body, 'parentId', 100);
+      if (parentId != null && !all.any((l) => l.id == parentId)) {
+        throw const ApiError.badRequest('Unknown "parentId"');
+      }
+      if (!await service.moveCollection(label, parentId, all)) {
+        throw const ApiError.badRequest(
+          'Can\'t move a collection into itself or a tag into anything',
+        );
+      }
+      label = label.moveTo(parentId);
     }
-    return jsonResponse(labelToJson(label.rename(normalizeLabelName(name)!)));
+    if (body['name'] case final Object name) {
+      if (name is! String) {
+        throw const ApiError.badRequest('"name" must be a string');
+      }
+      if (!await service.renameLabel(label, name, all)) {
+        throw const ApiError(
+          409,
+          'name_taken',
+          'Name is empty or already used',
+        );
+      }
+      label = label.rename(normalizeLabelName(name)!);
+    }
+    return jsonResponse(labelToJson(label));
   }
 
   Future<Response> _deleteLabel(Principal p, LabelKind kind, String id) async {

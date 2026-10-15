@@ -17,6 +17,7 @@ Map<String, Object?> bookmarkToJson(Bookmark b) => {
   'readingStatus': b.readingStatus.name,
   'archived': b.archived,
   'inInbox': b.inInbox,
+  'favorite': b.favorite,
   'tagIds': b.tagIds,
   'collectionIds': b.collectionIds,
   'importedFrom': ?b.importedFrom,
@@ -29,6 +30,7 @@ Map<String, Object?> labelToJson(Label l) => {
   'id': l.id,
   'kind': l.kind.name,
   'name': l.name,
+  'parentId': ?l.parentId,
 };
 
 String _iso(DateTime d) => d.toUtc().toIso8601String();

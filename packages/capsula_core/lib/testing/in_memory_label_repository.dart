@@ -48,8 +48,18 @@ class InMemoryLabelRepository implements LabelRepository {
   }
 
   @override
+  Future<void> setParent(Label label, String? parentId) async {
+    items[label.id] = items[label.id]!.moveTo(parentId);
+    _changes.add(null);
+  }
+
+  @override
   Future<void> delete(Label label) async {
     items.remove(label.id);
+    for (final child
+        in items.values.where((l) => l.parentId == label.id).toList()) {
+      items[child.id] = child.moveTo(label.parentId);
+    }
     final updated = bookmarks.items.values
         .where((b) => b.labelIds(label.kind).contains(label.id))
         .map(

@@ -31,6 +31,7 @@ class Bookmark {
     this.readingStatus = ReadingStatus.saved,
     this.archived = false,
     this.inInbox = true,
+    this.favorite = false,
     this.tagIds = const [],
     this.collectionIds = const [],
     this.importedFrom,
@@ -56,6 +57,7 @@ class Bookmark {
 
   /// Newly captured items awaiting organization.
   final bool inInbox;
+  final bool favorite;
   final List<String> tagIds;
   final List<String> collectionIds;
 
@@ -89,6 +91,7 @@ class Bookmark {
     ReadingStatus? readingStatus,
     bool? archived,
     bool? inInbox,
+    bool? favorite,
     List<String>? tagIds,
     List<String>? collectionIds,
     DateTime? updatedAt,
@@ -104,6 +107,7 @@ class Bookmark {
     readingStatus: readingStatus ?? this.readingStatus,
     archived: archived ?? this.archived,
     inInbox: inInbox ?? this.inInbox,
+    favorite: favorite ?? this.favorite,
     tagIds: tagIds ?? this.tagIds,
     collectionIds: collectionIds ?? this.collectionIds,
     importedFrom: importedFrom,

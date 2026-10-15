@@ -20,19 +20,65 @@ Future<String?> promptLabelName(
   action: action,
   maxLength: maxLabelNameLength,
 );
+
+/// Creates a label; for collections, optionally nested inside [parent].
 Future<Label?> createLabelWithPrompt(
   BuildContext context,
   LabelKind kind,
-  List<Label> existing,
-) async {
+  List<Label> existing, {
+  Label? parent,
+}) async {
   final service = AppDependencies.of(context).bookmarks;
   final name = await promptLabelName(
     context,
-    title: 'New ${kind.singular.toLowerCase()}',
+    title: parent == null
+        ? 'New ${kind.singular.toLowerCase()}'
+        : 'New collection in ${parent.name}',
     action: 'Create',
   );
   if (name == null) return null;
-  return service.createLabel(kind, name, existing);
+  return service.createLabel(kind, name, existing, parentId: parent?.id);
+}
+
+/// Lets the user move a collection to the top level or into another one
+/// (never into itself or its own sub-collections).
+Future<void> moveCollectionWithPicker(
+  BuildContext context,
+  Label label,
+  List<Label> all,
+) async {
+  final service = AppDependencies.of(context).bookmarks;
+  final messenger = ScaffoldMessenger.of(context);
+  final blocked = labelWithDescendants(label.id, all);
+  final targets = [
+    for (final (l, _) in labelTree(all))
+      if (!blocked.contains(l.id)) l,
+  ];
+
+  // A record so "top level" (null) differs from cancelling.
+  final choice = await showDialog<({String? parentId})>(
+    context: context,
+    builder: (context) => SimpleDialog(
+      title: Text('Move "${label.name}" to'),
+      children: [
+        SimpleDialogOption(
+          onPressed: () => Navigator.pop(context, (parentId: null)),
+          child: const Text('Top level'),
+        ),
+        for (final t in targets)
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, (parentId: t.id)),
+            child: Text(labelPath(t, all)),
+          ),
+      ],
+    ),
+  );
+  if (choice == null) return;
+  try {
+    await service.moveCollection(label, choice.parentId, all);
+  } on Object catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Could not move: $e')));
+  }
 }
 
 Future<void> renameLabelWithPrompt(

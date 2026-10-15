@@ -131,6 +131,18 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
             actions: [
               if (bookmark != null) ...[
                 IconButton(
+                  tooltip: bookmark.favorite
+                      ? 'Remove from favorites'
+                      : 'Add to favorites',
+                  icon: Icon(
+                    bookmark.favorite ? Icons.star : Icons.star_outline,
+                    color: bookmark.favorite ? Colors.amber : null,
+                  ),
+                  onPressed: () => _run(
+                    () => _service.setFavorite(bookmark, !bookmark.favorite),
+                  ),
+                ),
+                IconButton(
                   tooltip: 'Edit title',
                   icon: const Icon(Icons.edit_outlined),
                   onPressed: () => _editTitle(bookmark),

@@ -50,7 +50,9 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
     // search on the client instead.
     final token = view is LabelView ? null : primarySearchToken(query.search);
     if (token != null) q = q.where('searchTokens', arrayContains: token);
-    q = q.orderBy('createdAt', descending: true).limit(limit);
+    q = q
+        .orderBy('createdAt', descending: query.sort == BookmarkSort.newest)
+        .limit(limit);
 
     final searching = searchWords(query.search).isNotEmpty;
     return q.snapshots().map((snapshot) {
@@ -70,6 +72,7 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
     return switch (view) {
       InboxView() => active.where('inInbox', isEqualTo: true),
       AllView() => active,
+      FavoritesView() => active.where('favorite', isEqualTo: true),
       ArchivedView() => _collection.where('archived', isEqualTo: true),
       SourceView(:final source) => active.where('source', isEqualTo: source.id),
       LabelView(:final kind, :final labelId) => active.where(

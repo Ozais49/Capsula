@@ -35,16 +35,24 @@ class FirestoreLabelRepository implements LabelRepository {
           id: d.id,
           kind: kind,
           name: d.data()['name'] as String? ?? '',
+          parentId: d.data()['parentId'] as String?,
         ),
       ),
     ),
   );
 
   @override
-  Future<void> create(Label label) =>
+  Future<void> create(Label label) => _labels(label.kind).doc(label.id).set({
+    'name': label.name,
+    'parentId': ?label.parentId,
+    'createdAt': Timestamp.now(),
+  });
+
+  @override
+  Future<void> setParent(Label label, String? parentId) =>
       _labels(label.kind)
           .doc(label.id)
-          .set({'name': label.name, 'createdAt': Timestamp.now()});
+          .update({'parentId': parentId ?? FieldValue.delete()});
 
   @override
   Future<void> rename(Label label, String name) =>
@@ -69,6 +77,15 @@ class FirestoreLabelRepository implements LabelRepository {
         });
       }
       await batch.commit();
+    }
+    // Nested collections move up to the deleted one's parent.
+    final children = await _labels(label.kind)
+        .where('parentId', isEqualTo: label.id)
+        .get();
+    for (final child in children.docs) {
+      await child.reference.update({
+        'parentId': label.parentId ?? FieldValue.delete(),
+      });
     }
     await _labels(label.kind).doc(label.id).delete();
   }

@@ -11,21 +11,43 @@ class BookmarkTile extends StatelessWidget {
     super.key,
     required this.bookmark,
     required this.onTap,
+    this.onLongPress,
+    this.selected = false,
     this.labels = const Labels(),
   });
 
   final Bookmark bookmark;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  /// Shown with a check mark during bulk selection.
+  final bool selected;
   final Labels labels;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final status = bookmark.readingStatus;
     final tags = labels.resolve(LabelKind.tag, bookmark.tagIds);
 
     return ListTile(
       onTap: onTap,
-      leading: _Leading(bookmark),
+      onLongPress: onLongPress,
+      selected: selected,
+      leading: selected
+          ? CircleAvatar(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
+              child: const Icon(Icons.check, semanticLabel: 'Selected'),
+            )
+          : _Leading(bookmark),
+      trailing: bookmark.favorite
+          ? const Icon(
+              Icons.star,
+              color: Colors.amber,
+              semanticLabel: 'Favorite',
+            )
+          : null,
       title: Text(
         bookmark.displayTitle,
         maxLines: 2,

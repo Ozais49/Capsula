@@ -90,6 +90,36 @@ class BookmarkService {
   );
 
   /// Takes the bookmark out of the Inbox ("done organizing"), or puts it back.
+  Future<void> setFavorite(Bookmark bookmark, bool favorite) => _repository
+      .update(bookmark.copyWith(favorite: favorite, updatedAt: _now()));
+
+  /// Applies [change] to every bookmark in [bookmarks] (bulk edit).
+  Future<void> updateMany(
+    Iterable<Bookmark> bookmarks,
+    Bookmark Function(Bookmark b) change,
+  ) => Future.wait([
+    for (final b in bookmarks)
+      _repository.update(change(b).copyWith(updatedAt: _now())),
+  ]);
+
+  /// Adds [labelId] to every bookmark that doesn't have it yet.
+  Future<void> addLabelToMany(
+    Iterable<Bookmark> bookmarks,
+    LabelKind kind,
+    String labelId,
+  ) => updateMany(
+    bookmarks.where((b) => !b.labelIds(kind).contains(labelId)),
+    (b) => switch (kind) {
+      LabelKind.tag => b.copyWith(tagIds: [...b.tagIds, labelId]),
+      LabelKind.collection => b.copyWith(
+        collectionIds: [...b.collectionIds, labelId],
+      ),
+    },
+  );
+
+  Future<void> deleteMany(Iterable<Bookmark> bookmarks) =>
+      Future.wait([for (final b in bookmarks) _repository.delete(b.id)]);
+
   Future<void> setInInbox(Bookmark bookmark, bool inInbox) => _repository
       .update(bookmark.copyWith(inInbox: inInbox, updatedAt: _now()));
 
@@ -197,17 +227,49 @@ class BookmarkService {
   /// Creates a label, or returns the existing one with the same name
   /// (ignoring case). Returns null for a blank name. The label is usable
   /// immediately; the write syncs in the background.
-  Label? createLabel(LabelKind kind, String name, List<Label> existing) {
+  Label? createLabel(
+    LabelKind kind,
+    String name,
+    List<Label> existing, {
+    String? parentId,
+  }) {
     final normalized = normalizeLabelName(name);
     if (normalized == null) return null;
+    final parent = kind == LabelKind.collection ? parentId : null;
+    // Names are unique among siblings: "Papers" may exist under two parents.
     final match = existing.where(
-      (l) => l.kind == kind && l.name.toLowerCase() == normalized.toLowerCase(),
+      (l) =>
+          l.kind == kind &&
+          l.parentId == parent &&
+          l.name.toLowerCase() == normalized.toLowerCase(),
     );
     if (match.isNotEmpty) return match.first;
 
-    final label = Label(id: _labels.newId(kind), kind: kind, name: normalized);
+    final label = Label(
+      id: _labels.newId(kind),
+      kind: kind,
+      name: normalized,
+      parentId: parent,
+    );
     _labels.create(label).ignore();
     return label;
+  }
+
+  /// Moves a collection under [parentId] (null for the top level). Returns
+  /// false when that would put it inside itself.
+  Future<bool> moveCollection(
+    Label label,
+    String? parentId,
+    List<Label> all,
+  ) async {
+    if (label.kind != LabelKind.collection) return false;
+    if (parentId != null &&
+        labelWithDescendants(label.id, all).contains(parentId)) {
+      return false;
+    }
+    if (label.parentId == parentId) return true;
+    await _labels.setParent(label, parentId);
+    return true;
   }
 
   /// Returns false when [name] is blank or already used by another label.

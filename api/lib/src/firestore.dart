@@ -61,6 +61,7 @@ class AdminBookmarkRepository implements BookmarkRepository {
     var q = switch (view) {
       InboxView() => active.where('inInbox', WhereFilter.equal, true),
       AllView() => active,
+      FavoritesView() => active.where('favorite', WhereFilter.equal, true),
       ArchivedView() => _col.where('archived', WhereFilter.equal, true),
       SourceView(:final source) => active.where(
         'source',
@@ -79,14 +80,20 @@ class AdminBookmarkRepository implements BookmarkRepository {
     }
     final searching = searchWords(query.search).isNotEmpty;
     return Stream.fromFuture(
-      q.orderBy('createdAt', descending: true).limit(limit).get().then((s) {
-        final list = s.docs.map(_decode);
-        return searching
-            ? list
-                  .where((b) => matchesSearch(b.searchableText, query.search))
-                  .toList()
-            : list.toList();
-      }),
+      q
+          .orderBy('createdAt', descending: query.sort == BookmarkSort.newest)
+          .limit(limit)
+          .get()
+          .then((s) {
+            final list = s.docs.map(_decode);
+            return searching
+                ? list
+                      .where(
+                        (b) => matchesSearch(b.searchableText, query.search),
+                      )
+                      .toList()
+                : list.toList();
+          }),
     );
   }
 
@@ -172,6 +179,7 @@ class AdminLabelRepository implements LabelRepository {
             id: d.id,
             kind: kind,
             name: d.data()['name'] as String? ?? '',
+            parentId: d.data()['parentId'] as String?,
           ),
         ),
       ),
@@ -179,10 +187,17 @@ class AdminLabelRepository implements LabelRepository {
   );
 
   @override
-  Future<void> create(Label label) =>
-      _labels(label.kind)
-          .doc(label.id)
-          .set({'name': label.name, 'createdAt': _writeTime(DateTime.now())});
+  Future<void> create(Label label) => _labels(label.kind).doc(label.id).set({
+    'name': label.name,
+    'parentId': ?label.parentId,
+    'createdAt': _writeTime(DateTime.now()),
+  });
+
+  @override
+  Future<void> setParent(Label label, String? parentId) =>
+      _labels(label.kind).doc(label.id).update({
+        FieldPath(const ['parentId']): parentId ?? FieldValue.delete,
+      });
 
   @override
   Future<void> rename(Label label, String name) =>
@@ -207,6 +222,15 @@ class AdminLabelRepository implements LabelRepository {
             FieldPath(const ['updatedAt']): _writeTime(DateTime.now()),
           });
         }
+      });
+    }
+    // Nested collections move up to the deleted one's parent.
+    final children = await _labels(label.kind)
+        .where('parentId', WhereFilter.equal, label.id)
+        .get();
+    for (final child in children.docs) {
+      await child.ref.update({
+        FieldPath(const ['parentId']): label.parentId ?? FieldValue.delete,
       });
     }
     await _labels(label.kind).doc(label.id).delete();

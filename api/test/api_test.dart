@@ -457,4 +457,68 @@ void main() {
 
     expect((await s.call('GET', '/v1/nothing-here')).$1, 404);
   });
+
+  test('favorites and nested collections', () async {
+    final (_, b) = await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {'url': 'https://example.com/fav'},
+    );
+    final (_, starred) = await s.call(
+      'PATCH',
+      '/v1/bookmarks/${b['id']}',
+      body: {'favorite': true},
+    );
+    expect(starred['favorite'], isTrue);
+    expect(
+      (await s.call('GET', '/v1/bookmarks?view=favorites')).$2['bookmarks'],
+      hasLength(1),
+    );
+
+    final (_, parent) = await s.call(
+      'POST',
+      '/v1/collections',
+      body: {'name': 'Work'},
+    );
+    final (status, child) = await s.call(
+      'POST',
+      '/v1/collections',
+      body: {'name': 'Reports', 'parentId': parent['id']},
+    );
+    expect(status, 201);
+    expect(child['parentId'], parent['id']);
+
+    // The same name under a different parent is a separate collection.
+    final (_, top) = await s.call(
+      'POST',
+      '/v1/collections',
+      body: {'name': 'Reports'},
+    );
+    expect(top['id'], isNot(child['id']));
+
+    // No loops: a parent can't move into its own child.
+    final (loop, _) = await s.call(
+      'PATCH',
+      '/v1/collections/${parent['id']}',
+      body: {'parentId': child['id']},
+    );
+    expect(loop, 400);
+
+    final (moved, body) = await s.call(
+      'PATCH',
+      '/v1/collections/${child['id']}',
+      body: {'parentId': null},
+    );
+    expect(moved, 200);
+    expect(body.containsKey('parentId'), isFalse);
+
+    expect(
+      (await s.call(
+        'POST',
+        '/v1/tags',
+        body: {'name': 'x', 'parentId': parent['id']},
+      )).$1,
+      400,
+    );
+  });
 }

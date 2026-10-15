@@ -21,7 +21,8 @@ service cloud.firestore {
 
     function isValidLabel(data) {
       return data.keys().hasAll(['name', 'createdAt'])
-        && data.keys().hasOnly(['name', 'createdAt'])
+        && data.keys().hasOnly(['name', 'createdAt', 'parentId'])
+        && isOptionalString(data, 'parentId', 100)
         && data.name is string
         && data.name.size() > 0 && data.name.size() <= 50
         && data.createdAt is timestamp;
@@ -37,7 +38,7 @@ service cloud.firestore {
           'url', 'canonicalUrl', 'title', 'description', 'imageUrl', 'source',
           'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
           'updatedAt', 'searchTokens', 'tagIds', 'collectionIds',
-          'importedFrom', 'importedAt'
+          'importedFrom', 'importedAt', 'favorite'
         ])
         && data.url is string && data.url.size() <= 4096
         && data.url.matches('^https?://.+')
@@ -58,7 +59,8 @@ service cloud.firestore {
         && isOptionalIdList(data, 'tagIds')
         && isOptionalIdList(data, 'collectionIds')
         && isOptionalString(data, 'importedFrom', 50)
-        && (!('importedAt' in data) || data.importedAt is timestamp);
+        && (!('importedAt' in data) || data.importedAt is timestamp)
+        && (!('favorite' in data) || data.favorite is bool);
     }
 
     match /users/{userId}/bookmarks/{bookmarkId} {

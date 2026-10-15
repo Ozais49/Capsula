@@ -46,8 +46,13 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
     IconData icon,
     String label, {
     Widget? trailing,
+    int depth = 0,
   }) => ListTile(
     dense: true,
+    contentPadding: EdgeInsetsDirectional.only(
+      start: Gap.md + depth * Gap.md,
+      end: Gap.sm,
+    ),
     selected: widget.selected == view,
     leading: Icon(icon),
     title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -98,26 +103,49 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
           padding: const EdgeInsets.symmetric(horizontal: Gap.md),
           child: Text('None yet', style: Theme.of(context).textTheme.bodySmall),
         ),
-      for (final label in labels)
+      // Collections nest; tags are flat.
+      for (final (label, depth)
+          in kind == LabelKind.collection
+              ? labelTree(labels)
+              : [for (final l in labels) (l, 0)])
         _item(
           LabelView(kind, label.id),
-          icon,
+          depth > 0 ? Icons.subdirectory_arrow_right : icon,
           label.name,
+          depth: depth,
           trailing: PopupMenuButton<String>(
             tooltip: '${label.name} options',
             icon: const Icon(Icons.more_vert, size: 18),
             onSelected: (action) async {
-              if (action == 'rename') {
-                await renameLabelWithPrompt(context, label, labels);
-              } else if (action == 'delete' &&
-                  await deleteLabelWithConfirm(context, label) &&
-                  widget.selected == LabelView(kind, label.id)) {
-                widget.onSelect(BookmarkView.inbox);
+              switch (action) {
+                case 'rename':
+                  await renameLabelWithPrompt(context, label, labels);
+                case 'sub':
+                  await createLabelWithPrompt(
+                    context,
+                    kind,
+                    labels,
+                    parent: label,
+                  );
+                case 'move':
+                  await moveCollectionWithPicker(context, label, labels);
+                case 'delete':
+                  if (await deleteLabelWithConfirm(context, label) &&
+                      widget.selected == LabelView(kind, label.id)) {
+                    widget.onSelect(BookmarkView.inbox);
+                  }
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'rename', child: Text('Rename')),
-              PopupMenuItem(value: 'delete', child: Text('Delete')),
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'rename', child: Text('Rename')),
+              if (kind == LabelKind.collection) ...const [
+                PopupMenuItem(
+                  value: 'sub',
+                  child: Text('New collection inside'),
+                ),
+                PopupMenuItem(value: 'move', child: Text('Move to…')),
+              ],
+              const PopupMenuItem(value: 'delete', child: Text('Delete')),
             ],
           ),
         ),
@@ -147,6 +175,7 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
           ),
         ),
         _item(BookmarkView.all, Icons.bookmarks_outlined, 'All bookmarks'),
+        _item(BookmarkView.favorites, Icons.star_outline, 'Favorites'),
         _item(BookmarkView.archived, Icons.archive_outlined, 'Archived'),
         ..._labelSection(LabelKind.collection, Icons.folder_outlined),
         ..._labelSection(LabelKind.tag, Icons.label_outline),
@@ -210,6 +239,7 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
 String viewTitle(BookmarkView view, Labels labels) => switch (view) {
   InboxView() => 'Inbox',
   AllView() => 'All bookmarks',
+  FavoritesView() => 'Favorites',
   ArchivedView() => 'Archived',
   SourceView(:final source) => source.label,
   LabelView(:final kind, :final labelId) =>

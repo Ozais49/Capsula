@@ -14,6 +14,7 @@ import 'api_settings.dart';
 import 'auth_session.dart';
 import 'backend_controller.dart';
 import 'dependencies.dart';
+import 'display_preferences.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -34,6 +35,7 @@ class CapsulaApp extends StatefulWidget {
     this.fileSaver = const PlatformFileSaver(),
     this.apiSettings,
     this.apiClientFactory,
+    this.display,
   });
 
   final AppConfig config;
@@ -51,6 +53,9 @@ class CapsulaApp extends StatefulWidget {
   /// Defaults to the address saved on the device.
   final ApiSettings? apiSettings;
   final ApiClientFactory? apiClientFactory;
+
+  /// Defaults to preferences remembered on the device.
+  final DisplayPreferences? display;
 
   @override
   State<CapsulaApp> createState() => _CapsulaAppState();
@@ -77,6 +82,8 @@ class _CapsulaAppState extends State<CapsulaApp> {
     _apiClient,
     widget.pageInfo ?? PageInfoService(_fetcher),
   );
+  late final DisplayPreferences _display =
+      widget.display ?? DisplayPreferences();
   late final GoRouter _router = createRouter(widget.backend, _session);
   bool _backfilled = false;
   (Uri, CapsulaApiClient)? _client;
@@ -88,6 +95,7 @@ class _CapsulaAppState extends State<CapsulaApp> {
     _attachSessionWhenConnected();
     _session.addListener(_backfillOnceSignedIn);
     if (widget.apiSettings == null) _apiSettings.load();
+    if (widget.display == null) _display.load();
   }
 
   CapsulaApiClient? _apiClient() {
@@ -145,6 +153,7 @@ class _CapsulaAppState extends State<CapsulaApp> {
       pageInfo: _pageInfo,
       apiSettings: _apiSettings,
       apiClient: _apiClient,
+      display: _display,
       importFilePicker: widget.importFilePicker,
       fileSaver: widget.fileSaver,
       child: MaterialApp.router(

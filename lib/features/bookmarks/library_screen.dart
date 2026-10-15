@@ -1,23 +1,24 @@
 import 'dart:async';
 
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
+import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
+import 'package:capsula_core/domain/organization/label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/dependencies.dart';
+import '../../app/display_preferences.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-
-import 'package:capsula_core/domain/bookmarks/bookmark.dart';
-import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
-import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
-import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
-import 'package:capsula_core/domain/organization/label.dart';
-
 import '../common/keyboard_shortcuts.dart';
+import '../organization/label_picker_sheet.dart';
 import '../organization/labels_builder.dart';
 import 'add_bookmark_sheet.dart';
+import 'bookmark_cards.dart';
 import 'bookmark_tile.dart';
 import 'library_navigation.dart';
 
@@ -43,11 +44,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Timer? _debounce;
   String _search = '';
   int _limit = LibraryScreen.pageSize;
+  BookmarkSort? _sort;
   Stream<List<Bookmark>>? _stream;
+
+  /// Bookmarks selected for a bulk action, by ID. Empty when not selecting.
+  final Map<String, Bookmark> _selected = {};
+
+  DisplayPreferences get _display => AppDependencies.of(context).display;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _sort ??= _display.sort;
     _stream ??= _subscribe();
   }
 
@@ -56,6 +64,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.view != widget.view) {
       _limit = LibraryScreen.pageSize;
+      _selected.clear();
       _stream = _subscribe();
     }
   }
@@ -70,7 +79,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Stream<List<Bookmark>> _subscribe() =>
       AppDependencies.of(context).bookmarks.repository.watchList(
-        BookmarkQuery(view: widget.view, search: _search),
+        BookmarkQuery(
+          view: widget.view,
+          search: _search,
+          sort: _sort ?? BookmarkSort.newest,
+        ),
         limit: _limit,
       );
 
@@ -91,7 +104,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
     _stream = _subscribe();
   });
 
+  void _setSort(BookmarkSort sort) {
+    _display.setSort(sort);
+    setState(() {
+      _sort = sort;
+      _limit = LibraryScreen.pageSize;
+      _stream = _subscribe();
+    });
+  }
+
   void _select(BookmarkView view) => context.go(AppRoutes.library(view));
+
+  void _open(Bookmark b) =>
+      _selected.isEmpty ? context.push(AppRoutes.bookmark(b.id)) : _toggle(b);
+
+  void _toggle(Bookmark b) => setState(() {
+    if (_selected.remove(b.id) == null) _selected[b.id] = b;
+  });
 
   Future<void> _removeFromInbox(Bookmark bookmark) async {
     final service = AppDependencies.of(context).bookmarks;
@@ -110,6 +139,186 @@ class _LibraryScreenState extends State<LibraryScreen> {
       messenger.showSnackBar(SnackBar(content: Text('Could not update: $e')));
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // Bulk actions
+
+  Future<void> _bulk(String done, Future<void> Function() action) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final count = _selected.length;
+    setState(_selected.clear);
+    try {
+      await action();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('$done $count bookmark${count == 1 ? '' : 's'}'),
+        ),
+      );
+    } on Object catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not update: $e')));
+    }
+  }
+
+  Future<void> _bulkLabel(LabelKind kind, Labels labels) async {
+    final service = AppDependencies.of(context).bookmarks;
+    final chosen = await showLabelPicker(
+      context,
+      kind: kind,
+      available: labels.of(kind),
+      selected: const [],
+    );
+    if (chosen == null || chosen.isEmpty || !mounted) return;
+    final items = _selected.values.toList();
+    await _bulk(
+      kind == LabelKind.tag ? 'Tagged' : 'Added to collection:',
+      () async {
+        for (final id in chosen) {
+          await service.addLabelToMany(items, kind, id);
+          // Re-read so later labels build on the updated lists.
+          for (var i = 0; i < items.length; i++) {
+            items[i] =
+                await service.repository.watch(items[i].id).first ?? items[i];
+          }
+        }
+      },
+    );
+  }
+
+  Future<void> _bulkDelete() async {
+    final count = _selected.length;
+    final service = AppDependencies.of(context).bookmarks;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete $count bookmark${count == 1 ? '' : 's'}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(88, 40)),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final items = _selected.values.toList();
+    await _bulk('Deleted', () => service.deleteMany(items));
+  }
+
+  AppBar _selectionBar(Labels labels) {
+    final service = AppDependencies.of(context).bookmarks;
+    final items = _selected.values.toList();
+    final allFavorite = items.every((b) => b.favorite);
+    return AppBar(
+      leading: IconButton(
+        tooltip: 'Cancel selection',
+        icon: const Icon(Icons.close),
+        onPressed: () => setState(_selected.clear),
+      ),
+      title: Text('${_selected.length} selected'),
+      actions: [
+        IconButton(
+          tooltip: allFavorite ? 'Remove from favorites' : 'Add to favorites',
+          icon: Icon(allFavorite ? Icons.star : Icons.star_outline),
+          onPressed: () => _bulk(
+            allFavorite ? 'Unfavorited' : 'Favorited',
+            () => service.updateMany(
+              items,
+              (b) => b.copyWith(favorite: !allFavorite),
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Add to collection',
+          icon: const Icon(Icons.create_new_folder_outlined),
+          onPressed: () => _bulkLabel(LabelKind.collection, labels),
+        ),
+        IconButton(
+          tooltip: 'Add tags',
+          icon: const Icon(Icons.new_label_outlined),
+          onPressed: () => _bulkLabel(LabelKind.tag, labels),
+        ),
+        PopupMenuButton<String>(
+          tooltip: 'More actions',
+          onSelected: (action) => switch (action) {
+            'done' => _bulk(
+              'Removed from Inbox:',
+              () =>
+                  service.updateMany(items, (b) => b.copyWith(inInbox: false)),
+            ),
+            'archive' => _bulk(
+              'Archived',
+              () => service.updateMany(
+                items,
+                (b) => b.copyWith(archived: true, inInbox: false),
+              ),
+            ),
+            'unarchive' => _bulk(
+              'Unarchived',
+              () =>
+                  service.updateMany(items, (b) => b.copyWith(archived: false)),
+            ),
+            'delete' => _bulkDelete(),
+            _ => null,
+          },
+          itemBuilder: (_) => [
+            const PopupMenuItem(
+              value: 'done',
+              child: Text('Remove from Inbox'),
+            ),
+            if (widget.view is ArchivedView)
+              const PopupMenuItem(value: 'unarchive', child: Text('Unarchive'))
+            else
+              const PopupMenuItem(value: 'archive', child: Text('Archive')),
+            const PopupMenuItem(value: 'delete', child: Text('Delete')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  AppBar _normalBar(Labels labels) => AppBar(
+    title: Text(viewTitle(widget.view, labels)),
+    actions: [
+      ListenableBuilder(
+        listenable: _display,
+        builder: (context, _) => PopupMenuButton<Object>(
+          tooltip: 'Display',
+          icon: Icon(switch (_display.layout) {
+            LibraryLayout.list => Icons.view_list_outlined,
+            LibraryLayout.cards => Icons.view_agenda_outlined,
+            LibraryLayout.grid => Icons.grid_view,
+          }),
+          onSelected: (choice) => switch (choice) {
+            final LibraryLayout l => _display.setLayout(l),
+            final BookmarkSort s => _setSort(s),
+            _ => null,
+          },
+          itemBuilder: (_) => [
+            for (final l in LibraryLayout.values)
+              CheckedPopupMenuItem(
+                value: l,
+                checked: _display.layout == l,
+                child: Text(l.label),
+              ),
+            const PopupMenuDivider(),
+            for (final s in BookmarkSort.values)
+              CheckedPopupMenuItem(
+                value: s,
+                checked: _sort == s,
+                child: Text(s.label),
+              ),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -134,13 +343,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
             onSelect: _select,
           );
           final scaffold = Scaffold(
-            appBar: AppBar(title: Text(viewTitle(widget.view, labels))),
+            appBar: _selected.isEmpty
+                ? _normalBar(labels)
+                : _selectionBar(labels),
             drawer: wide ? null : Drawer(child: SafeArea(child: navigation)),
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: () => showAddBookmarkSheet(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Add'),
-            ),
+            floatingActionButton: _selected.isNotEmpty
+                ? null
+                : FloatingActionButton.extended(
+                    onPressed: () => showAddBookmarkSheet(context),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add'),
+                  ),
             body: _body(labels),
           );
           if (!wide) return scaffold;
@@ -247,52 +460,107 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (items.isEmpty) return _empty();
-
-              final inInbox = widget.view is InboxView;
-              final hasMore = items.length >= _limit;
-              return ListView.builder(
-                padding: const EdgeInsets.only(bottom: 88),
-                itemCount: items.length + (hasMore ? 1 : 0),
-                itemBuilder: (context, i) {
-                  if (i == items.length) {
-                    return Padding(
-                      padding: const EdgeInsets.all(Gap.md),
-                      child: Center(
-                        child: OutlinedButton(
-                          onPressed: _loadMore,
-                          child: const Text('Load more'),
-                        ),
-                      ),
-                    );
-                  }
-                  final bookmark = items[i];
-                  final tile = BookmarkTile(
-                    bookmark: bookmark,
-                    labels: labels,
-                    onTap: () => context.push(AppRoutes.bookmark(bookmark.id)),
-                  );
-                  if (!inInbox) return tile;
-                  return Dismissible(
-                    key: ValueKey(bookmark.id),
-                    background: const _SwipeBackground(),
-                    onDismissed: (_) => _removeFromInbox(bookmark),
-                    // Swiping isn't available to screen reader users.
-                    child: Semantics(
-                      customSemanticsActions: {
-                        const CustomSemanticsAction(
-                          label: 'Remove from Inbox',
-                        ): () =>
-                            _removeFromInbox(bookmark),
-                      },
-                      child: tile,
-                    ),
-                  );
-                },
+              // Keep selected bookmarks current as they change.
+              for (final b in items) {
+                if (_selected.containsKey(b.id)) _selected[b.id] = b;
+              }
+              return ListenableBuilder(
+                listenable: _display,
+                builder: (context, _) => _items(items, labels),
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  Widget _items(List<Bookmark> items, Labels labels) {
+    final hasMore = items.length >= _limit;
+    final footer = SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 88),
+        child: hasMore
+            ? Center(
+                child: OutlinedButton(
+                  onPressed: _loadMore,
+                  child: const Text('Load more'),
+                ),
+              )
+            : const SizedBox.shrink(),
+      ),
+    );
+
+    final Widget content = switch (_display.layout) {
+      LibraryLayout.list => SliverList.builder(
+        itemCount: items.length,
+        itemBuilder: (context, i) => _listItem(items[i], labels),
+      ),
+      LibraryLayout.cards => SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+        sliver: SliverList.builder(
+          itemCount: items.length,
+          itemBuilder: (context, i) => Padding(
+            padding: const EdgeInsets.only(bottom: Gap.sm),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: BookmarkCard(
+                  bookmark: items[i],
+                  selected: _selected.containsKey(items[i].id),
+                  onTap: () => _open(items[i]),
+                  onLongPress: () => _toggle(items[i]),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      LibraryLayout.grid => SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+        sliver: SliverGrid.builder(
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 240,
+            mainAxisSpacing: Gap.sm,
+            crossAxisSpacing: Gap.sm,
+            childAspectRatio: 0.78,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, i) => BookmarkCard(
+            bookmark: items[i],
+            compact: true,
+            selected: _selected.containsKey(items[i].id),
+            onTap: () => _open(items[i]),
+            onLongPress: () => _toggle(items[i]),
+          ),
+        ),
+      ),
+    };
+    return CustomScrollView(slivers: [content, footer]);
+  }
+
+  Widget _listItem(Bookmark bookmark, Labels labels) {
+    final selected = _selected.containsKey(bookmark.id);
+    final tile = BookmarkTile(
+      bookmark: bookmark,
+      labels: labels,
+      selected: selected,
+      onTap: () => _open(bookmark),
+      onLongPress: () => _toggle(bookmark),
+    );
+    if (widget.view is! InboxView || _selected.isNotEmpty) return tile;
+    return Dismissible(
+      key: ValueKey(bookmark.id),
+      background: const _SwipeBackground(),
+      onDismissed: (_) => _removeFromInbox(bookmark),
+      // Swiping isn't available to screen reader users.
+      child: Semantics(
+        customSemanticsActions: {
+          const CustomSemanticsAction(label: 'Remove from Inbox'): () =>
+              _removeFromInbox(bookmark),
+        },
+        child: tile,
+      ),
     );
   }
 
@@ -311,6 +579,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       AllView() => const _Message(
         icon: Icons.bookmark_border,
         text: 'No bookmarks yet. Tap Add to save a link.',
+      ),
+      FavoritesView() => const _Message(
+        icon: Icons.star_outline,
+        text: 'No favorites yet.\nTap the star on a bookmark to add it here.',
       ),
       ArchivedView() => const _Message(
         icon: Icons.archive_outlined,
