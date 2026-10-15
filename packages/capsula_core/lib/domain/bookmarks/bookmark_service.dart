@@ -1,3 +1,4 @@
+import '../highlights/highlight.dart';
 import '../organization/label.dart';
 import '../reader/page_info_service.dart';
 import '../reader/reader_content.dart';
@@ -33,8 +34,17 @@ class InvalidUrl extends SaveResult {
 
 /// Bookmark use cases. Saving never waits on metadata or the network.
 class BookmarkService {
-  BookmarkService(this._repository, this._labels, {DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  BookmarkService(
+    this._repository,
+    this._labels, {
+    this._highlights,
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
+
+  final HighlightRepository? _highlights;
+
+  HighlightRepository get highlights =>
+      _highlights ?? (throw StateError('No highlight repository'));
 
   final BookmarkRepository _repository;
   final LabelRepository _labels;
@@ -138,7 +148,63 @@ class BookmarkService {
     });
   }
 
-  Future<void> delete(Bookmark bookmark) => _repository.delete(bookmark.id);
+  /// Deletes the bookmark and its highlights.
+  Future<void> delete(Bookmark bookmark) async {
+    await _repository.delete(bookmark.id);
+    await _highlights?.deleteForBookmark(bookmark.id);
+  }
+
+  /// Sets or, when blank, clears the bookmark's note.
+  Future<void> setNote(Bookmark bookmark, String note) {
+    final trimmed = note.trim();
+    if (trimmed.length > maxNoteLength) {
+      throw ArgumentError('Notes are limited to $maxNoteLength characters');
+    }
+    return _repository.update(
+      bookmark.copyWith(
+        note: trimmed.isEmpty ? null : trimmed,
+        clearNote: trimmed.isEmpty,
+        updatedAt: _now(),
+      ),
+    );
+  }
+
+  /// Highlights [text] in [bookmark]. Returns null for an empty selection.
+  Highlight? addHighlight(
+    Bookmark bookmark,
+    String text, {
+    HighlightColor color = HighlightColor.yellow,
+  }) {
+    final normalized = normalizeHighlightText(text);
+    if (normalized == null) return null;
+    final highlight = Highlight(
+      id: highlights.newId(),
+      bookmarkId: bookmark.id,
+      text: normalized,
+      color: color,
+      createdAt: _now(),
+    );
+    highlights.save(highlight).ignore();
+    return highlight;
+  }
+
+  Future<void> updateHighlight(
+    Highlight highlight, {
+    String? note,
+    HighlightColor? color,
+  }) {
+    final trimmed = note?.trim();
+    return highlights.save(
+      highlight.copyWith(
+        note: trimmed,
+        clearNote: trimmed != null && trimmed.isEmpty,
+        color: color,
+      ),
+    );
+  }
+
+  Future<void> deleteHighlight(Highlight highlight) =>
+      highlights.delete(highlight.id);
 
   /// Whether the title was made up by Capsula from the URL, rather than
   /// found on the page or chosen by the user.

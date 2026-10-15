@@ -38,7 +38,7 @@ service cloud.firestore {
           'url', 'canonicalUrl', 'title', 'description', 'imageUrl', 'source',
           'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
           'updatedAt', 'searchTokens', 'tagIds', 'collectionIds',
-          'importedFrom', 'importedAt', 'favorite'
+          'importedFrom', 'importedAt', 'favorite', 'note'
         ])
         && data.url is string && data.url.size() <= 4096
         && data.url.matches('^https?://.+')
@@ -60,7 +60,8 @@ service cloud.firestore {
         && isOptionalIdList(data, 'collectionIds')
         && isOptionalString(data, 'importedFrom', 50)
         && (!('importedAt' in data) || data.importedAt is timestamp)
-        && (!('favorite' in data) || data.favorite is bool);
+        && (!('favorite' in data) || data.favorite is bool)
+        && isOptionalString(data, 'note', 10000);
     }
 
     match /users/{userId}/bookmarks/{bookmarkId} {
@@ -75,6 +76,25 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.url == resource.data.url
         && request.resource.data.canonicalUrl == resource.data.canonicalUrl;
+    }
+
+    function isValidHighlight(data) {
+      return data.keys().hasAll(['bookmarkId', 'text', 'color', 'createdAt'])
+        && data.keys().hasOnly(['bookmarkId', 'text', 'note', 'color', 'createdAt'])
+        && data.bookmarkId is string && data.bookmarkId.size() <= 100
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 5000
+        && isOptionalString(data, 'note', 10000)
+        && data.color in ['yellow', 'green', 'blue', 'pink']
+        && data.createdAt is timestamp;
+    }
+
+    match /users/{userId}/highlights/{highlightId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidHighlight(request.resource.data);
+      allow update: if isOwner(userId)
+        && isValidHighlight(request.resource.data)
+        && request.resource.data.text == resource.data.text
+        && request.resource.data.bookmarkId == resource.data.bookmarkId;
     }
 
     // Tags and collections.

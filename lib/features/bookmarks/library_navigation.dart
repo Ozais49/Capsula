@@ -176,6 +176,16 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
         ),
         _item(BookmarkView.all, Icons.bookmarks_outlined, 'All bookmarks'),
         _item(BookmarkView.favorites, Icons.star_outline, 'Favorites'),
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.format_quote_outlined),
+          title: const Text('Highlights'),
+          shape: const StadiumBorder(),
+          onTap: () {
+            Scaffold.maybeOf(context)?.closeDrawer();
+            context.push(AppRoutes.highlights);
+          },
+        ),
         _item(BookmarkView.archived, Icons.archive_outlined, 'Archived'),
         ..._labelSection(LabelKind.collection, Icons.folder_outlined),
         ..._labelSection(LabelKind.tag, Icons.label_outline),

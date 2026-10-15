@@ -2,6 +2,7 @@
 library;
 
 import '../domain/bookmarks/bookmark.dart';
+import '../domain/highlights/highlight.dart';
 import '../domain/organization/label.dart';
 import '../domain/reader/reader_content.dart';
 
@@ -18,6 +19,7 @@ Map<String, Object?> bookmarkToJson(Bookmark b) => {
   'archived': b.archived,
   'inInbox': b.inInbox,
   'favorite': b.favorite,
+  'note': ?b.note,
   'tagIds': b.tagIds,
   'collectionIds': b.collectionIds,
   'importedFrom': ?b.importedFrom,
@@ -176,4 +178,13 @@ ReaderBlock? _blockFromJson(Map<String, Object?> j) => switch (j['k']) {
     _ => null,
   },
   _ => null,
+};
+
+Map<String, Object?> highlightToJson(Highlight h) => {
+  'id': h.id,
+  'bookmarkId': h.bookmarkId,
+  'text': h.text,
+  'note': ?h.note,
+  'color': h.color.name,
+  'createdAt': _iso(h.createdAt),
 };

@@ -32,6 +32,7 @@ class Bookmark {
     this.archived = false,
     this.inInbox = true,
     this.favorite = false,
+    this.note,
     this.tagIds = const [],
     this.collectionIds = const [],
     this.importedFrom,
@@ -58,6 +59,9 @@ class Bookmark {
   /// Newly captured items awaiting organization.
   final bool inInbox;
   final bool favorite;
+
+  /// The user's own note about the bookmark.
+  final String? note;
   final List<String> tagIds;
   final List<String> collectionIds;
 
@@ -81,6 +85,7 @@ class Bookmark {
     sourceDomain,
     source.label,
     ?description,
+    ?note,
     ...?Uri.tryParse(url)?.pathSegments.take(6),
   ];
 
@@ -92,6 +97,8 @@ class Bookmark {
     bool? archived,
     bool? inInbox,
     bool? favorite,
+    String? note,
+    bool clearNote = false,
     List<String>? tagIds,
     List<String>? collectionIds,
     DateTime? updatedAt,
@@ -108,6 +115,7 @@ class Bookmark {
     archived: archived ?? this.archived,
     inInbox: inInbox ?? this.inInbox,
     favorite: favorite ?? this.favorite,
+    note: clearNote ? null : note ?? this.note,
     tagIds: tagIds ?? this.tagIds,
     collectionIds: collectionIds ?? this.collectionIds,
     importedFrom: importedFrom,

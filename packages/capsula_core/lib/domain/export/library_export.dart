@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../bookmarks/bookmark.dart';
+import '../highlights/highlight.dart';
 import '../organization/label.dart';
 
 enum ExportFormat {
@@ -27,8 +28,9 @@ String exportLibrary(
   List<Bookmark> bookmarks,
   List<Label> labels, {
   required DateTime now,
+  List<Highlight> highlights = const [],
 }) => switch (format) {
-  ExportFormat.json => _json(bookmarks, labels, now),
+  ExportFormat.json => _json(bookmarks, labels, highlights, now),
   ExportFormat.html => _html(bookmarks, labels),
 };
 
@@ -39,7 +41,16 @@ Map<String, String> _names(List<Label> labels, LabelKind kind) => {
 List<String> _resolve(Map<String, String> names, List<String> ids) =>
     ids.map((id) => names[id]).nonNulls.toList();
 
-String _json(List<Bookmark> bookmarks, List<Label> labels, DateTime now) {
+String _json(
+  List<Bookmark> bookmarks,
+  List<Label> labels,
+  List<Highlight> highlights,
+  DateTime now,
+) {
+  final byBookmark = <String, List<Highlight>>{};
+  for (final h in highlights) {
+    byBookmark.putIfAbsent(h.bookmarkId, () => []).add(h);
+  }
   final tags = _names(labels, LabelKind.tag);
   final collections = _names(labels, LabelKind.collection);
   return const JsonEncoder.withIndent('  ').convert({
@@ -59,6 +70,18 @@ String _json(List<Bookmark> bookmarks, List<Label> labels, DateTime now) {
           'readingStatus': b.readingStatus.name,
           'archived': b.archived,
           'inInbox': b.inInbox,
+          if (b.favorite) 'favorite': true,
+          'note': ?b.note,
+          if (byBookmark[b.id] case final hs?)
+            'highlights': [
+              for (final h in hs)
+                {
+                  'text': h.text,
+                  'note': ?h.note,
+                  'color': h.color.name,
+                  'createdAt': h.createdAt.toUtc().toIso8601String(),
+                },
+            ],
           'tags': _resolve(tags, b.tagIds),
           'collections': _resolve(collections, b.collectionIds),
           'createdAt': b.createdAt.toUtc().toIso8601String(),

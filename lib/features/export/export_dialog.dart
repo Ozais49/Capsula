@@ -38,7 +38,16 @@ class _ExportDialogState extends State<_ExportDialog> {
         ...await deps.bookmarks.labels.watch(LabelKind.collection).first,
       ];
       final now = DateTime.now();
-      final text = exportLibrary(_format, bookmarks, labels, now: now);
+      final highlights = await deps.bookmarks.highlights
+          .watchAll(limit: 1000000)
+          .first;
+      final text = exportLibrary(
+        _format,
+        bookmarks,
+        labels,
+        now: now,
+        highlights: highlights,
+      );
       final saved = await deps.fileSaver.save(
         exportFileName(_format, now),
         _format.mimeType,

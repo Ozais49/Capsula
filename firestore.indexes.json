@@ -376,6 +376,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "highlights",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "bookmarkId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ]
 }

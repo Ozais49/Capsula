@@ -4,6 +4,7 @@ import '../../app/dependencies.dart';
 import '../../app/theme.dart';
 
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/highlights/highlight.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
 
@@ -22,14 +23,19 @@ class ReaderScreen extends StatefulWidget {
 
 class _ReaderScreenState extends State<ReaderScreen> {
   Stream<Bookmark?>? _bookmark;
+  Stream<List<Highlight>>? _highlights;
+
+  /// The reader's current text selection, for the Highlight action.
+  String? _selection;
   Future<ReaderContent>? _content;
   String? _loadedUrl;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _bookmark ??= AppDependencies.of(context).bookmarks.repository
-        .watch(widget.bookmarkId);
+    final bookmarks = AppDependencies.of(context).bookmarks;
+    _bookmark ??= bookmarks.repository.watch(widget.bookmarkId);
+    _highlights ??= bookmarks.highlights.watchForBookmark(widget.bookmarkId);
   }
 
   /// Loads once per URL, so saving enriched details doesn't reload.
@@ -50,6 +56,17 @@ class _ReaderScreenState extends State<ReaderScreen> {
       deps.bookmarks.applyMetadata(bookmark, metadata);
     }
     return content;
+  }
+
+  void _highlight(Bookmark bookmark) {
+    final text = _selection;
+    if (text == null) return;
+    final created = AppDependencies.of(context).bookmarks
+        .addHighlight(bookmark, text);
+    if (created != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Highlighted')));
+    }
   }
 
   void _retry(Bookmark bookmark) => setState(() {
@@ -87,10 +104,16 @@ class _ReaderScreenState extends State<ReaderScreen> {
             _ => FutureBuilder<ReaderContent>(
               future: _contentFor(bookmark),
               builder: (context, content) => switch (content) {
-                AsyncSnapshot(:final data?) => _ReaderBody(
-                  bookmark: bookmark,
-                  content: data,
-                  onRetry: () => _retry(bookmark),
+                AsyncSnapshot(:final data?) => StreamBuilder<List<Highlight>>(
+                  stream: _highlights,
+                  builder: (context, marks) => _ReaderBody(
+                    bookmark: bookmark,
+                    content: data,
+                    highlights: marks.data ?? const [],
+                    onSelectionChanged: (text) => _selection = text,
+                    onHighlight: () => _highlight(bookmark),
+                    onRetry: () => _retry(bookmark),
+                  ),
                 ),
                 AsyncSnapshot(hasError: true) => _ReaderBody(
                   bookmark: bookmark,
@@ -132,11 +155,17 @@ class _ReaderBody extends StatelessWidget {
     required this.bookmark,
     required this.content,
     required this.onRetry,
+    this.highlights = const [],
+    this.onSelectionChanged,
+    this.onHighlight,
   });
 
   final Bookmark bookmark;
   final ReaderContent content;
   final VoidCallback onRetry;
+  final List<Highlight> highlights;
+  final ValueChanged<String?>? onSelectionChanged;
+  final VoidCallback? onHighlight;
 
   Uri get _url => Uri.parse(bookmark.url);
 
@@ -148,6 +177,28 @@ class _ReaderBody extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: SelectionArea(
+            onSelectionChanged: (content) =>
+                onSelectionChanged?.call(content?.plainText),
+            // Adds Highlight to the usual Copy / Select all menu.
+            contextMenuBuilder: (context, state) {
+              final items = state.contextMenuButtonItems;
+              if (onHighlight != null) {
+                items.insert(
+                  0,
+                  ContextMenuButtonItem(
+                    label: 'Highlight',
+                    onPressed: () {
+                      onHighlight!();
+                      state.hideToolbar();
+                    },
+                  ),
+                );
+              }
+              return AdaptiveTextSelectionToolbar.buttonItems(
+                anchors: state.contextMenuAnchors,
+                buttonItems: items,
+              );
+            },
             child: switch (content) {
               final ArticleContent article => _article(context, article),
               final VideoContent video => _video(context, video),
@@ -194,7 +245,7 @@ class _ReaderBody extends StatelessWidget {
           ReaderImage(url: image),
           const SizedBox(height: Gap.lg),
         ],
-        ReaderBlocks(blocks: article.blocks),
+        ReaderBlocks(blocks: article.blocks, marks: highlights),
         const Divider(height: Gap.xl),
         _openButton(context, label: 'Read on ${bookmark.sourceDomain}'),
       ],

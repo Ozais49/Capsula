@@ -283,3 +283,42 @@ describe('favorites and nested collections', () => {
     await assertFails(setDoc(ref, { name: 'Child', parentId: 42, createdAt: Timestamp.now() }));
   });
 });
+
+describe('notes and highlights', () => {
+  const hRef = (firestore, owner, id = 'h1') =>
+    doc(firestore, `users/${owner}/highlights/${id}`);
+  const validHighlight = (overrides = {}) => ({
+    bookmarkId: 'b1',
+    text: 'An important passage',
+    color: 'yellow',
+    createdAt: Timestamp.now(),
+    ...overrides,
+  });
+
+  test('bookmark notes are optional strings', async () => {
+    const ref = bookmarkRef(db('alice'), 'alice');
+    await assertSucceeds(setDoc(ref, validBookmark({ note: 'Remember this' })));
+    await assertFails(setDoc(ref, validBookmark({ note: 5 })));
+    await assertFails(setDoc(ref, validBookmark({ note: 'x'.repeat(10001) })));
+  });
+
+  test('owner can create, annotate and delete highlights', async () => {
+    const ref = hRef(db('alice'), 'alice');
+    await assertSucceeds(setDoc(ref, validHighlight()));
+    await assertSucceeds(updateDoc(ref, { note: 'Why it matters', color: 'green' }));
+    await assertFails(updateDoc(ref, { text: 'Rewritten' }));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  test('rejects invalid highlights and other users', async () => {
+    const alice = db('alice');
+    await assertFails(setDoc(hRef(alice, 'alice'), validHighlight({ text: '' })));
+    await assertFails(setDoc(hRef(alice, 'alice'), validHighlight({ color: 'red' })));
+    await assertFails(setDoc(hRef(alice, 'alice'), validHighlight({ extra: 1 })));
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(hRef(ctx.firestore(), 'bob'), validHighlight()),
+    );
+    await assertFails(getDoc(hRef(alice, 'bob')));
+    await assertFails(deleteDoc(hRef(alice, 'bob')));
+  });
+});

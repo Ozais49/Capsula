@@ -6,12 +6,18 @@ import '../../app/theme.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
 
 import '../common/open_link.dart';
+import '../highlights/highlight_widgets.dart';
+
+import 'package:capsula_core/domain/highlights/highlight.dart';
 
 /// Renders extracted article blocks as native widgets.
 class ReaderBlocks extends StatelessWidget {
-  const ReaderBlocks({super.key, required this.blocks});
+  const ReaderBlocks({super.key, required this.blocks, this.marks = const []});
 
   final List<ReaderBlock> blocks;
+
+  /// Highlights to mark wherever their text appears.
+  final List<Highlight> marks;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -19,7 +25,7 @@ class ReaderBlocks extends StatelessWidget {
     children: [for (final block in blocks) _block(context, block)],
   );
 
-  static Widget _block(BuildContext context, ReaderBlock block) {
+  Widget _block(BuildContext context, ReaderBlock block) {
     final theme = Theme.of(context);
     final body = theme.textTheme.bodyLarge?.copyWith(height: 1.6);
 
@@ -28,6 +34,7 @@ class ReaderBlocks extends StatelessWidget {
         padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm),
         child: RichRuns(
           runs: runs,
+          marks: marks,
           style: switch (level) {
             1 || 2 => theme.textTheme.headlineSmall,
             3 => theme.textTheme.titleLarge,
@@ -37,7 +44,7 @@ class ReaderBlocks extends StatelessWidget {
       ),
       ParagraphBlock(:final runs) => Padding(
         padding: const EdgeInsets.only(bottom: Gap.md),
-        child: RichRuns(runs: runs, style: body),
+        child: RichRuns(runs: runs, style: body, marks: marks),
       ),
       ListBlock(:final ordered, :final items) => Padding(
         padding: const EdgeInsets.only(bottom: Gap.md),
@@ -55,7 +62,7 @@ class ReaderBlocks extends StatelessWidget {
                       child: Text(ordered ? '${i + 1}.' : '•', style: body),
                     ),
                     Expanded(
-                      child: RichRuns(runs: item, style: body),
+                      child: RichRuns(runs: item, style: body, marks: marks),
                     ),
                   ],
                 ),
@@ -71,7 +78,7 @@ class ReaderBlocks extends StatelessWidget {
             left: BorderSide(color: theme.colorScheme.outlineVariant, width: 3),
           ),
         ),
-        child: ReaderBlocks(blocks: blocks),
+        child: ReaderBlocks(blocks: blocks, marks: marks),
       ),
       CodeBlock(:final text) => Container(
         margin: const EdgeInsets.only(bottom: Gap.md),
@@ -148,10 +155,16 @@ class ReaderImage extends StatelessWidget {
 
 /// Formatted inline text with tappable links.
 class RichRuns extends StatefulWidget {
-  const RichRuns({super.key, required this.runs, this.style});
+  const RichRuns({
+    super.key,
+    required this.runs,
+    this.style,
+    this.marks = const [],
+  });
 
   final List<InlineRun> runs;
   final TextStyle? style;
+  final List<Highlight> marks;
 
   @override
   State<RichRuns> createState() => _RichRunsState();
@@ -180,32 +193,60 @@ class _RichRunsState extends State<RichRuns> {
     return recognizer;
   }
 
+  /// Highlighted character ranges of this text, with their colors.
+  List<(int, int, HighlightColor)> _ranges(String plain) => [
+    for (final h in widget.marks)
+      for (final (start, end) in highlightRanges(plain, [h.text]))
+        (start, end, h.color),
+  ];
+
   @override
   Widget build(BuildContext context) {
     _disposeRecognizers();
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final ranges = widget.marks.isEmpty
+        ? const <(int, int, HighlightColor)>[]
+        : _ranges(widget.runs.map((r) => r.text).join());
 
-    return Text.rich(
-      TextSpan(
-        style: widget.style,
-        children: [
-          for (final run in widget.runs)
-            TextSpan(
-              text: run.text,
-              style: TextStyle(
-                fontWeight: run.bold ? FontWeight.bold : null,
-                fontStyle: run.italic ? FontStyle.italic : null,
-                fontFamily: run.code ? 'monospace' : null,
-                backgroundColor: run.code
-                    ? scheme.surfaceContainerHighest
-                    : null,
-                color: run.link != null ? scheme.primary : null,
-                decoration: run.link != null ? TextDecoration.underline : null,
-              ),
-              recognizer: run.link == null ? null : _linkRecognizer(run.link!),
-            ),
+    final spans = <InlineSpan>[];
+    var offset = 0;
+    for (final run in widget.runs) {
+      final start = offset;
+      final end = offset + run.text.length;
+      offset = end;
+      // Cut the run wherever a highlight starts or ends inside it.
+      final cuts = {
+        start,
+        end,
+        for (final (s, e, _) in ranges) ...[
+          if (s > start && s < end) s,
+          if (e > start && e < end) e,
         ],
-      ),
-    );
+      }.toList()..sort();
+      for (var i = 0; i < cuts.length - 1; i++) {
+        final (a, b) = (cuts[i], cuts[i + 1]);
+        final mark = ranges.where((r) => r.$1 <= a && r.$2 >= b).firstOrNull;
+        spans.add(
+          TextSpan(
+            text: run.text.substring(a - start, b - start),
+            style: TextStyle(
+              fontWeight: run.bold ? FontWeight.bold : null,
+              fontStyle: run.italic ? FontStyle.italic : null,
+              fontFamily: run.code ? 'monospace' : null,
+              backgroundColor: mark != null
+                  ? highlightColor(mark.$3, theme.brightness)
+                  : run.code
+                  ? scheme.surfaceContainerHighest
+                  : null,
+              color: run.link != null ? scheme.primary : null,
+              decoration: run.link != null ? TextDecoration.underline : null,
+            ),
+            recognizer: run.link == null ? null : _linkRecognizer(run.link!),
+          ),
+        );
+      }
+    }
+    return Text.rich(TextSpan(style: widget.style, children: spans));
   }
 }

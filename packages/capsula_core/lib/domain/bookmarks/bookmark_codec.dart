@@ -1,3 +1,4 @@
+import '../highlights/highlight.dart';
 import '../organization/label.dart';
 import 'bookmark.dart';
 import 'bookmark_source.dart';
@@ -21,6 +22,7 @@ Map<String, Object?> encodeBookmark(
   'archived': b.archived,
   'inInbox': b.inInbox,
   if (b.favorite) 'favorite': true,
+  'note': ?b.note,
   'tagIds': b.tagIds,
   'collectionIds': b.collectionIds,
   'importedFrom': ?b.importedFrom,
@@ -49,6 +51,7 @@ Bookmark decodeBookmark(
   archived: data['archived'] as bool? ?? false,
   inInbox: data['inInbox'] as bool? ?? false,
   favorite: data['favorite'] as bool? ?? false,
+  note: data['note'] as String?,
   tagIds: _strings(data['tagIds']),
   collectionIds: _strings(data['collectionIds']),
   importedFrom: data['importedFrom'] as String?,
@@ -73,3 +76,28 @@ String labelCollection(LabelKind kind) => switch (kind) {
   LabelKind.tag => 'tags',
   LabelKind.collection => 'collections',
 };
+
+Map<String, Object?> encodeHighlight(
+  Highlight h,
+  Object Function(DateTime) timestamp,
+) => {
+  'bookmarkId': h.bookmarkId,
+  'text': h.text,
+  'note': ?h.note,
+  'color': h.color.name,
+  'createdAt': timestamp(h.createdAt),
+};
+
+Highlight decodeHighlight(
+  String id,
+  Map<String, Object?> data,
+  DateTime? Function(Object?) readTime,
+) => Highlight(
+  id: id,
+  bookmarkId: data['bookmarkId'] as String? ?? '',
+  text: data['text'] as String? ?? '',
+  note: data['note'] as String?,
+  color: HighlightColor.fromName(data['color'] as String?),
+  createdAt:
+      readTime(data['createdAt']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+);

@@ -32,6 +32,7 @@ Future<void> main() async {
     userData: (uid) => UserData(
       AdminBookmarkRepository(firestore, uid),
       AdminLabelRepository(firestore, uid),
+      AdminHighlightRepository(firestore, uid),
     ),
     tokens: FirestoreTokenStore(firestore),
     pageInfo: PageInfoService(fetcher),

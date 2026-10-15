@@ -3,6 +3,7 @@ import 'package:capsula_core/domain/bookmarks/bookmark_codec.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
+import 'package:capsula_core/domain/highlights/highlight.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 import 'package:dart_firebase_admin/auth.dart';
 import 'package:dart_firebase_admin/firestore.dart';
@@ -295,6 +296,59 @@ class FirebaseIdTokenVerifier implements IdTokenVerifier {
       return (await _auth.verifyIdToken(idToken)).uid;
     } on Object {
       return null;
+    }
+  }
+}
+
+/// Highlights of one user, through the admin SDK.
+class AdminHighlightRepository implements HighlightRepository {
+  AdminHighlightRepository(this._db, this._uid);
+
+  final Firestore _db;
+  final String _uid;
+
+  CollectionReference<DocumentData> get _col =>
+      _db.collection('users').doc(_uid).collection('highlights');
+
+  Highlight _decode(DocumentSnapshot<DocumentData> d) =>
+      decodeHighlight(d.id, d.data()!, _readTime);
+
+  @override
+  String newId() => _col.doc().id;
+
+  @override
+  Stream<List<Highlight>> watchForBookmark(String bookmarkId) =>
+      Stream.fromFuture(
+        _col
+            .where('bookmarkId', WhereFilter.equal, bookmarkId)
+            .orderBy('createdAt')
+            .get()
+            .then((s) => s.docs.map(_decode).toList()),
+      );
+
+  @override
+  Stream<List<Highlight>> watchAll({required int limit}) => Stream.fromFuture(
+    _col
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .get()
+        .then((s) => s.docs.map(_decode).toList()),
+  );
+
+  @override
+  Future<void> save(Highlight h) =>
+      _col.doc(h.id).set(encodeHighlight(h, _writeTime));
+
+  @override
+  Future<void> delete(String id) => _col.doc(id).delete();
+
+  @override
+  Future<void> deleteForBookmark(String bookmarkId) async {
+    final s = await _col
+        .where('bookmarkId', WhereFilter.equal, bookmarkId)
+        .get();
+    for (final d in s.docs) {
+      await d.ref.delete();
     }
   }
 }

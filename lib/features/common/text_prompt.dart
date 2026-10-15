@@ -8,6 +8,7 @@ Future<String?> promptText(
   String initial = '',
   String action = 'Save',
   int? maxLength,
+  int maxLines = 1,
 }) => showDialog<String>(
   context: context,
   builder: (_) => _TextPromptDialog(
@@ -16,6 +17,7 @@ Future<String?> promptText(
     initial: initial,
     action: action,
     maxLength: maxLength,
+    maxLines: maxLines,
   ),
 );
 
@@ -27,6 +29,7 @@ class _TextPromptDialog extends StatefulWidget {
     required this.initial,
     required this.action,
     required this.maxLength,
+    required this.maxLines,
   });
 
   final String title;
@@ -34,6 +37,7 @@ class _TextPromptDialog extends StatefulWidget {
   final String initial;
   final String action;
   final int? maxLength;
+  final int maxLines;
 
   @override
   State<_TextPromptDialog> createState() => _TextPromptDialogState();
@@ -55,8 +59,14 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
       controller: _controller,
       autofocus: true,
       maxLength: widget.maxLength,
+      minLines: widget.maxLines > 1 ? 3 : 1,
+      maxLines: widget.maxLines,
+      keyboardType: widget.maxLines > 1 ? TextInputType.multiline : null,
       decoration: InputDecoration(labelText: widget.label),
-      onSubmitted: (value) => Navigator.pop(context, value),
+      // Multi-line fields use Enter for new lines.
+      onSubmitted: widget.maxLines > 1
+          ? null
+          : (value) => Navigator.pop(context, value),
     ),
     actions: [
       TextButton(

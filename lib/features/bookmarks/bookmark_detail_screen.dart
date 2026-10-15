@@ -13,6 +13,10 @@ import 'package:capsula_core/domain/organization/label.dart';
 
 import '../common/open_link.dart';
 import '../common/text_prompt.dart';
+import '../highlights/highlight_widgets.dart';
+
+import 'package:capsula_core/domain/highlights/highlight.dart';
+
 import '../organization/label_picker_sheet.dart';
 import '../organization/labels_builder.dart';
 import 'bookmark_display.dart';
@@ -309,6 +313,9 @@ class _Details extends StatelessWidget {
           labelStyle,
         ),
         const SizedBox(height: Gap.lg),
+        _NoteSection(bookmark: bookmark, labelStyle: labelStyle),
+        _HighlightsSection(bookmarkId: bookmark.id, labelStyle: labelStyle),
+        const SizedBox(height: Gap.lg),
         Text('Link', style: labelStyle),
         Row(
           children: [
@@ -346,4 +353,121 @@ class _Details extends StatelessWidget {
       ],
     );
   }
+}
+
+class _NoteSection extends StatelessWidget {
+  const _NoteSection({required this.bookmark, required this.labelStyle});
+
+  final Bookmark bookmark;
+  final TextStyle? labelStyle;
+
+  Future<void> _edit(BuildContext context) async {
+    final service = AppDependencies.of(context).bookmarks;
+    final messenger = ScaffoldMessenger.of(context);
+    final note = await promptText(
+      context,
+      title: bookmark.note == null ? 'Add note' : 'Edit note',
+      label: 'Note',
+      initial: bookmark.note ?? '',
+      maxLength: maxNoteLength,
+      maxLines: 8,
+    );
+    if (note == null) return;
+    try {
+      await service.setNote(bookmark, note);
+    } on Object catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not save: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final note = bookmark.note;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Note', style: labelStyle),
+        const SizedBox(height: Gap.xs),
+        if (note == null)
+          TextButton.icon(
+            onPressed: () => _edit(context),
+            icon: const Icon(Icons.sticky_note_2_outlined),
+            label: const Text('Add a note'),
+          )
+        else
+          Card(
+            margin: EdgeInsets.zero,
+            child: InkWell(
+              onTap: () => _edit(context),
+              child: Padding(
+                padding: const EdgeInsets.all(Gap.md),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: Text(note)),
+                    const Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      semanticLabel: 'Edit note',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: Gap.lg),
+      ],
+    );
+  }
+}
+
+class _HighlightsSection extends StatefulWidget {
+  const _HighlightsSection({
+    required this.bookmarkId,
+    required this.labelStyle,
+  });
+
+  final String bookmarkId;
+  final TextStyle? labelStyle;
+
+  @override
+  State<_HighlightsSection> createState() => _HighlightsSectionState();
+}
+
+class _HighlightsSectionState extends State<_HighlightsSection> {
+  Stream<List<Highlight>>? _stream;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _stream ??= AppDependencies.of(context).bookmarks.highlights
+        .watchForBookmark(widget.bookmarkId);
+  }
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<List<Highlight>>(
+    stream: _stream,
+    builder: (context, snapshot) {
+      final highlights = snapshot.data ?? const <Highlight>[];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            highlights.isEmpty
+                ? 'Highlights'
+                : 'Highlights (${highlights.length})',
+            style: widget.labelStyle,
+          ),
+          const SizedBox(height: Gap.xs),
+          if (highlights.isEmpty)
+            Text(
+              'Select text in the reader and choose Highlight.',
+              style: Theme.of(context).textTheme.bodySmall,
+            )
+          else
+            for (final h in highlights) HighlightCard(highlight: h),
+        ],
+      );
+    },
+  );
 }

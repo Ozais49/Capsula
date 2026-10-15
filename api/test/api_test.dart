@@ -6,6 +6,7 @@ import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
+import 'package:capsula_core/testing/in_memory_highlight_repository.dart';
 import 'package:capsula_core/testing/in_memory_label_repository.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
@@ -59,7 +60,8 @@ class _Server {
       userData: (uid) {
         final b = bookmarks.putIfAbsent(uid, InMemoryBookmarkRepository.new);
         final l = labels.putIfAbsent(uid, () => InMemoryLabelRepository(b));
-        return UserData(b, l);
+        final h = highlights.putIfAbsent(uid, InMemoryHighlightRepository.new);
+        return UserData(b, l, h);
       },
       tokens: tokens,
       pageInfo: pageInfo,
@@ -71,6 +73,7 @@ class _Server {
   late final CapsulaApi api;
   final bookmarks = <String, InMemoryBookmarkRepository>{};
   final labels = <String, InMemoryLabelRepository>{};
+  final highlights = <String, InMemoryHighlightRepository>{};
   final tokens = _MemoryTokens();
   final pageInfo = _FakePageInfo();
 
@@ -520,5 +523,86 @@ void main() {
       )).$1,
       400,
     );
+  });
+
+  test('notes and highlights', () async {
+    final (_, b) = await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {'url': 'https://example.com/article'},
+    );
+    final id = b['id'];
+
+    final (_, noted) = await s.call(
+      'PATCH',
+      '/v1/bookmarks/$id',
+      body: {'note': '  Read before Friday  '},
+    );
+    expect(noted['note'], 'Read before Friday');
+    final (_, cleared) = await s.call(
+      'PATCH',
+      '/v1/bookmarks/$id',
+      body: {'note': ''},
+    );
+    expect(cleared.containsKey('note'), isFalse);
+
+    final (status, h) = await s.call(
+      'POST',
+      '/v1/highlights',
+      body: {
+        'bookmarkId': id,
+        'text': '  A key   point ',
+        'note': 'Why',
+        'color': 'green',
+      },
+    );
+    expect(status, 201);
+    expect(h['text'], 'A key point');
+    expect(h['note'], 'Why');
+    expect(h['color'], 'green');
+
+    expect(
+      (await s.call(
+        'POST',
+        '/v1/highlights',
+        body: {'bookmarkId': id, 'text': 'x', 'color': 'red'},
+      )).$1,
+      400,
+    );
+    expect(
+      (await s.call(
+        'POST',
+        '/v1/highlights',
+        body: {'bookmarkId': 'nope', 'text': 'x'},
+      )).$1,
+      404,
+    );
+
+    final (_, updated) = await s.call(
+      'PATCH',
+      '/v1/highlights/${h['id']}',
+      body: {'note': 'Because'},
+    );
+    expect(updated['note'], 'Because');
+
+    final (_, forBookmark) = await s.call(
+      'GET',
+      '/v1/highlights?bookmarkId=$id',
+    );
+    expect(forBookmark['highlights'], hasLength(1));
+
+    // Other users can't see or delete them.
+    expect(
+      (await s.call(
+        'DELETE',
+        '/v1/highlights/${h['id']}',
+        auth: 'bob-id-token',
+      )).$1,
+      404,
+    );
+
+    // Deleting the bookmark deletes its highlights.
+    await s.call('DELETE', '/v1/bookmarks/$id');
+    expect((await s.call('GET', '/v1/highlights')).$2['highlights'], isEmpty);
   });
 }

@@ -7,6 +7,7 @@ import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/bookmarks/url_normalizer.dart';
+import 'package:capsula_core/domain/highlights/highlight.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
@@ -19,10 +20,11 @@ import 'http.dart';
 
 /// A user's data, scoped so callers can't reach anyone else's.
 class UserData {
-  const UserData(this.bookmarks, this.labels);
+  const UserData(this.bookmarks, this.labels, this.highlights);
 
   final BookmarkRepository bookmarks;
   final LabelRepository labels;
+  final HighlightRepository highlights;
 }
 
 typedef UserDataFactory = UserData Function(String uid);
@@ -95,6 +97,12 @@ class CapsulaApi {
       );
     }
 
+    // Highlights
+    r.get('/v1/highlights', _authed(_listHighlights));
+    r.post('/v1/highlights', _authed(_createHighlight));
+    r.patch('/v1/highlights/<id>', _authedWithId(_updateHighlight));
+    r.delete('/v1/highlights/<id>', _authedWithId(_deleteHighlight));
+
     // Server-side fetching (no browser CORS limits)
     r.get('/v1/page-info', _authed(_pageInfo));
     r.get('/v1/reader', _authed(_reader));
@@ -136,7 +144,12 @@ class CapsulaApi {
 
   BookmarkService _service(Principal p) {
     final data = userData(p.uid);
-    return BookmarkService(data.bookmarks, data.labels, now: _now);
+    return BookmarkService(
+      data.bookmarks,
+      data.labels,
+      highlights: data.highlights,
+      now: _now,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -254,6 +267,13 @@ class CapsulaApi {
       next = next.copyWith(readingStatus: match.single);
       changed = true;
     }
+    if (body.containsKey('note')) {
+      final note = _optionalString(body, 'note', maxNoteLength)?.trim() ?? '';
+      next = note.isEmpty
+          ? next.copyWith(clearNote: true)
+          : next.copyWith(note: note);
+      changed = true;
+    }
     if (body['favorite'] case final Object favorite) {
       next = next.copyWith(favorite: _bool(favorite, 'favorite'));
       changed = true;
@@ -346,7 +366,8 @@ class CapsulaApi {
     if (await repo.watch(id).first == null) {
       throw const ApiError.notFound('No bookmark with this ID');
     }
-    await repo.delete(id);
+    final existing = (await repo.watch(id).first)!;
+    await _service(p).delete(existing);
     return Response(204);
   }
 
@@ -444,6 +465,99 @@ class CapsulaApi {
         .firstOrNull;
     if (label == null) throw const ApiError.notFound();
     await labels.delete(label);
+    return Response(204);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Highlights
+
+  Future<Response> _listHighlights(Request req, Principal p) async {
+    final params = req.url.queryParameters;
+    final highlights = userData(p.uid).highlights;
+    final bookmarkId = params['bookmarkId'];
+    final list = bookmarkId != null
+        ? await highlights.watchForBookmark(bookmarkId).first
+        : await highlights
+              .watchAll(
+                limit: (int.tryParse(params['limit'] ?? '') ?? 100).clamp(
+                  1,
+                  _maxListLimit,
+                ),
+              )
+              .first;
+    return jsonResponse({'highlights': list.map(highlightToJson).toList()});
+  }
+
+  Future<Highlight> _findHighlight(Principal p, String id) async {
+    // Highlights are few per user; look the ID up among them.
+    final all = await userData(p.uid).highlights.watchAll(limit: 10000).first;
+    final h = all.where((h) => h.id == id).firstOrNull;
+    if (h == null) throw const ApiError.notFound('No highlight with this ID');
+    return h;
+  }
+
+  HighlightColor? _color(Map<String, Object?> body) {
+    final raw = body['color'];
+    if (raw == null) return null;
+    final match = HighlightColor.values.where((c) => c.name == raw);
+    if (match.isEmpty) {
+      throw ApiError.badRequest(
+        '"color" must be one of '
+        '${HighlightColor.values.map((c) => c.name).join(', ')}',
+      );
+    }
+    return match.single;
+  }
+
+  Future<Response> _createHighlight(Request req, Principal p) async {
+    final body = await readJson(req);
+    final bookmarkId = _optionalString(body, 'bookmarkId', 100);
+    final text = _optionalString(body, 'text', maxHighlightLength);
+    if (bookmarkId == null || text == null) {
+      throw const ApiError.badRequest('"bookmarkId" and "text" are required');
+    }
+    final bookmark = await userData(p.uid).bookmarks.watch(bookmarkId).first;
+    if (bookmark == null) {
+      throw const ApiError.notFound('No bookmark with this ID');
+    }
+    final service = _service(p);
+    var highlight = service.addHighlight(
+      bookmark,
+      text,
+      color: _color(body) ?? HighlightColor.yellow,
+    );
+    if (highlight == null) throw const ApiError.badRequest('"text" is empty');
+    final note = _optionalString(body, 'note', maxNoteLength);
+    if (note != null && note.trim().isNotEmpty) {
+      highlight = highlight.copyWith(note: note.trim());
+    }
+    await userData(p.uid).highlights.save(highlight);
+    return jsonResponse(highlightToJson(highlight), status: 201);
+  }
+
+  Future<Response> _updateHighlight(Request req, Principal p, String id) async {
+    final existing = await _findHighlight(p, id);
+    final body = await readJson(req);
+    final note = body.containsKey('note')
+        ? (_optionalString(body, 'note', maxNoteLength) ?? '')
+        : null;
+    final color = _color(body);
+    await _service(p).updateHighlight(existing, note: note, color: color);
+    final trimmed = note?.trim();
+    return jsonResponse(
+      highlightToJson(
+        existing.copyWith(
+          note: trimmed,
+          clearNote: trimmed != null && trimmed.isEmpty,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Future<Response> _deleteHighlight(Request req, Principal p, String id) async {
+    await _findHighlight(p, id);
+    await userData(p.uid).highlights.delete(id);
     return Response(204);
   }
 
