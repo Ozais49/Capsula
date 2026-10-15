@@ -64,6 +64,7 @@ class AdminBookmarkRepository implements BookmarkRepository {
       InboxView() => active.where('inInbox', WhereFilter.equal, true),
       AllView() => active,
       FavoritesView() => active.where('favorite', WhereFilter.equal, true),
+      RemindersView() => active,
       ArchivedView() => _col.where('archived', WhereFilter.equal, true),
       SourceView(:final source) => active.where(
         'source',
@@ -81,14 +82,20 @@ class AdminBookmarkRepository implements BookmarkRepository {
         labelId,
       ),
     };
-    final token = view is LabelView ? null : primarySearchToken(query.search);
+    final token = view is LabelView || view is RemindersView
+        ? null
+        : primarySearchToken(query.search);
     if (token != null) {
       q = q.where('searchTokens', WhereFilter.arrayContains, token);
     }
     final searching = searchWords(query.search).isNotEmpty;
     return Stream.fromFuture(
       q
-          .orderBy('createdAt', descending: query.sort == BookmarkSort.newest)
+          .orderBy(
+            view is RemindersView ? 'remindAt' : 'createdAt',
+            descending:
+                view is! RemindersView && query.sort == BookmarkSort.newest,
+          )
           .limit(limit)
           .get()
           .then((s) {

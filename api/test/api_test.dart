@@ -782,4 +782,37 @@ void main() {
       'https://example.com/paper.pdf',
     );
   });
+
+  test('reminders', () async {
+    final (_, b) = await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {'url': 'https://example.com/r'},
+    );
+    final (status, set) = await s.call(
+      'PATCH',
+      '/v1/bookmarks/${b['id']}',
+      body: {'remindAt': '2030-01-02T09:00:00Z'},
+    );
+    expect(status, 200);
+    expect(set['remindAt'], '2030-01-02T09:00:00.000Z');
+    expect(
+      (await s.call('GET', '/v1/bookmarks?view=reminders')).$2['bookmarks'],
+      hasLength(1),
+    );
+    expect(
+      (await s.call(
+        'PATCH',
+        '/v1/bookmarks/${b['id']}',
+        body: {'remindAt': 'soon'},
+      )).$1,
+      400,
+    );
+    final (_, cleared) = await s.call(
+      'PATCH',
+      '/v1/bookmarks/${b['id']}',
+      body: {'remindAt': null},
+    );
+    expect(cleared.containsKey('remindAt'), isFalse);
+  });
 }

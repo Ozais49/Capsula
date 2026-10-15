@@ -100,6 +100,16 @@ class BookmarkService {
   );
 
   /// Takes the bookmark out of the Inbox ("done organizing"), or puts it back.
+  /// Sets a reminder, or clears it when [when] is null.
+  Future<void> setReminder(Bookmark bookmark, DateTime? when) =>
+      _repository.update(
+        bookmark.copyWith(
+          remindAt: when,
+          clearReminder: when == null,
+          updatedAt: _now(),
+        ),
+      );
+
   Future<void> setFavorite(Bookmark bookmark, bool favorite) => _repository
       .update(bookmark.copyWith(favorite: favorite, updatedAt: _now()));
 

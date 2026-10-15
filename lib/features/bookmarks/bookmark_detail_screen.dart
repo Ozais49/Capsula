@@ -313,6 +313,7 @@ class _Details extends StatelessWidget {
           labelStyle,
         ),
         const SizedBox(height: Gap.lg),
+        _ReminderSection(bookmark: bookmark, labelStyle: labelStyle),
         _NoteSection(bookmark: bookmark, labelStyle: labelStyle),
         _HighlightsSection(bookmarkId: bookmark.id, labelStyle: labelStyle),
         const SizedBox(height: Gap.lg),
@@ -470,4 +471,117 @@ class _HighlightsSectionState extends State<_HighlightsSection> {
       );
     },
   );
+}
+
+class _ReminderSection extends StatelessWidget {
+  const _ReminderSection({required this.bookmark, required this.labelStyle});
+
+  final Bookmark bookmark;
+  final TextStyle? labelStyle;
+
+  /// Quick choices, or a date and time from the pickers.
+  Future<DateTime?> _choose(BuildContext context) async {
+    final now = DateTime.now();
+    final today = DateUtils.dateOnly(now);
+    final evening = today.add(const Duration(hours: 18));
+    final options = <(String, DateTime)>[
+      if (now.isBefore(evening.subtract(const Duration(hours: 1))))
+        ('Later today (18:00)', evening),
+      (
+        'Tomorrow morning (09:00)',
+        today.add(const Duration(days: 1, hours: 9)),
+      ),
+      (
+        'Next week (Mon 09:00)',
+        _nextMonday(today).add(const Duration(hours: 9)),
+      ),
+    ];
+    final picked = await showModalBottomSheet<Object>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (label, at) in options)
+              ListTile(
+                leading: const Icon(Icons.alarm),
+                title: Text(label),
+                onTap: () => Navigator.pop(context, at),
+              ),
+            ListTile(
+              leading: const Icon(Icons.edit_calendar_outlined),
+              title: const Text('Pick date and time…'),
+              onTap: () => Navigator.pop(context, 'custom'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked is DateTime || picked == null || !context.mounted) {
+      return picked as DateTime?;
+    }
+    final date = await showDatePicker(
+      context: context,
+      initialDate: today.add(const Duration(days: 1)),
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 365 * 5)),
+    );
+    if (date == null || !context.mounted) return null;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 9, minute: 0),
+    );
+    if (time == null) return null;
+    return date.add(Duration(hours: time.hour, minutes: time.minute));
+  }
+
+  /// The coming Monday (a week ahead if today is Monday).
+  static DateTime _nextMonday(DateTime day) {
+    final days = (DateTime.monday - day.weekday + 7) % 7;
+    return day.add(Duration(days: days == 0 ? 7 : days));
+  }
+
+  Future<void> _set(BuildContext context) async {
+    final service = AppDependencies.of(context).bookmarks;
+    final when = await _choose(context);
+    if (when != null) await service.setReminder(bookmark, when);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final service = AppDependencies.of(context).bookmarks;
+    final remindAt = bookmark.remindAt;
+    final due = bookmark.isDue(DateTime.now());
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Reminder', style: labelStyle),
+        const SizedBox(height: Gap.xs),
+        if (remindAt == null)
+          ActionChip(
+            avatar: const Icon(Icons.alarm_add_outlined, size: 18),
+            label: const Text('Remind me'),
+            onPressed: () => _set(context),
+          )
+        else
+          InputChip(
+            avatar: Icon(
+              due ? Icons.alarm_on : Icons.alarm,
+              size: 18,
+              color: due ? scheme.error : null,
+            ),
+            label: Text(
+              '${due ? 'Due' : 'Remind'} ${formatReminder(remindAt)}',
+            ),
+            onPressed: () => _set(context),
+            deleteButtonTooltipMessage: 'Clear reminder',
+            onDeleted: () => service.setReminder(bookmark, null),
+          ),
+        const SizedBox(height: Gap.lg),
+      ],
+    );
+  }
 }

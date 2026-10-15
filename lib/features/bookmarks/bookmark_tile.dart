@@ -58,6 +58,8 @@ class BookmarkTile extends StatelessWidget {
           bookmark.sourceDomain,
           formatSavedDate(bookmark.createdAt),
           if (status != ReadingStatus.saved) status.label,
+          if (bookmark.remindAt case final at?)
+            '${bookmark.isDue(DateTime.now()) ? 'Due' : 'Remind'} ${formatReminder(at)}',
           ...tags.map((t) => '#${t.name}'),
         ].join(' · '),
         maxLines: 1,

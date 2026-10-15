@@ -34,6 +34,7 @@ class Bookmark {
     this.inInbox = true,
     this.favorite = false,
     this.note,
+    this.remindAt,
     this.tagIds = const [],
     this.collectionIds = const [],
     this.importedFrom,
@@ -63,6 +64,11 @@ class Bookmark {
 
   /// The user's own note about the bookmark.
   final String? note;
+
+  /// When to bring the bookmark back to the user's attention.
+  final DateTime? remindAt;
+
+  bool isDue(DateTime now) => remindAt != null && !remindAt!.isAfter(now);
   final List<String> tagIds;
   final List<String> collectionIds;
 
@@ -103,6 +109,8 @@ class Bookmark {
     bool? favorite,
     String? note,
     bool clearNote = false,
+    DateTime? remindAt,
+    bool clearReminder = false,
     List<String>? tagIds,
     List<String>? collectionIds,
     DateTime? updatedAt,
@@ -120,6 +128,7 @@ class Bookmark {
     inInbox: inInbox ?? this.inInbox,
     favorite: favorite ?? this.favorite,
     note: clearNote ? null : note ?? this.note,
+    remindAt: clearReminder ? null : remindAt ?? this.remindAt,
     tagIds: tagIds ?? this.tagIds,
     collectionIds: collectionIds ?? this.collectionIds,
     importedFrom: importedFrom,

@@ -5,6 +5,7 @@ import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 
+import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/bookmarks/content_type.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
@@ -35,12 +36,20 @@ class LibraryNavigation extends StatefulWidget {
 
 class _LibraryNavigationState extends State<LibraryNavigation> {
   Future<int?>? _inboxCount;
+  Future<int>? _dueCount;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _inboxCount ??= AppDependencies.of(context).bookmarks.repository
-        .countInbox();
+    final repo = AppDependencies.of(context).bookmarks.repository;
+    _inboxCount ??= repo.countInbox();
+    _dueCount ??= repo
+        .watchList(
+          const BookmarkQuery(view: BookmarkView.reminders),
+          limit: 200,
+        )
+        .first
+        .then((list) => list.where((b) => b.isDue(DateTime.now())).length);
   }
 
   Widget _item(
@@ -185,6 +194,20 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
         ),
         _item(BookmarkView.all, Icons.bookmarks_outlined, 'All bookmarks'),
         _item(BookmarkView.favorites, Icons.star_outline, 'Favorites'),
+        _item(
+          BookmarkView.reminders,
+          Icons.alarm,
+          'Reminders',
+          trailing: FutureBuilder<int>(
+            future: _dueCount,
+            builder: (context, due) => (due.data ?? 0) == 0
+                ? const SizedBox.shrink()
+                : Badge(
+                    label: Text('${due.data}'),
+                    child: const SizedBox.square(dimension: 8),
+                  ),
+          ),
+        ),
         ListTile(
           dense: true,
           leading: const Icon(Icons.format_quote_outlined),
@@ -268,6 +291,7 @@ String viewTitle(BookmarkView view, Labels labels) => switch (view) {
   InboxView() => 'Inbox',
   AllView() => 'All bookmarks',
   FavoritesView() => 'Favorites',
+  RemindersView() => 'Reminders',
   ArchivedView() => 'Archived',
   SourceView(:final source) => source.label,
   TypeView(:final type) => type.label,

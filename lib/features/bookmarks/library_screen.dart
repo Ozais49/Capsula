@@ -585,6 +585,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
         icon: Icons.star_outline,
         text: 'No favorites yet.\nTap the star on a bookmark to add it here.',
       ),
+      RemindersView() => const _Message(
+        icon: Icons.alarm,
+        text: 'No reminders.\nOpen a bookmark and tap Remind me.',
+      ),
       ArchivedView() => const _Message(
         icon: Icons.archive_outlined,
         text: 'Nothing archived yet.',

@@ -74,6 +74,7 @@ bool bookmarkInView(Bookmark bookmark, BookmarkView view) => switch (view) {
   InboxView() => !bookmark.archived && bookmark.inInbox,
   AllView() => !bookmark.archived,
   FavoritesView() => !bookmark.archived && bookmark.favorite,
+  RemindersView() => !bookmark.archived && bookmark.remindAt != null,
   ArchivedView() => bookmark.archived,
   SourceView(:final source) => !bookmark.archived && bookmark.source == source,
   TypeView(:final type) => !bookmark.archived && bookmark.type == type,

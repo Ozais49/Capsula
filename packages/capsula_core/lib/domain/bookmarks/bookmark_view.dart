@@ -11,6 +11,7 @@ sealed class BookmarkView {
   static const all = AllView();
   static const archived = ArchivedView();
   static const favorites = FavoritesView();
+  static const reminders = RemindersView();
 
   /// Stable string used in URLs, e.g. `inbox`, `source:reddit`, `tag:abc`.
   String get key;
@@ -24,6 +25,7 @@ sealed class BookmarkView {
         'all' => all,
         'archived' => archived,
         'favorites' => favorites,
+        'reminders' => reminders,
         _ => inbox,
       };
     }
@@ -65,6 +67,14 @@ class FavoritesView extends BookmarkView {
 
   @override
   String get key => 'favorites';
+}
+
+/// Bookmarks with a reminder, soonest first.
+class RemindersView extends BookmarkView {
+  const RemindersView();
+
+  @override
+  String get key => 'reminders';
 }
 
 class ArchivedView extends BookmarkView {

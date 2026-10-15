@@ -48,11 +48,19 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
     var q = _viewQuery(view);
     // Firestore allows one array-contains per query, so label views
     // search on the client instead.
-    final token = view is LabelView ? null : primarySearchToken(query.search);
+    // Label and reminder views search on the device, avoiding extra indexes.
+    final token = view is LabelView || view is RemindersView
+        ? null
+        : primarySearchToken(query.search);
     if (token != null) q = q.where('searchTokens', arrayContains: token);
-    q = q
-        .orderBy('createdAt', descending: query.sort == BookmarkSort.newest)
-        .limit(limit);
+    q = view is RemindersView
+        ? q.orderBy('remindAt').limit(limit)
+        : q
+              .orderBy(
+                'createdAt',
+                descending: query.sort == BookmarkSort.newest,
+              )
+              .limit(limit);
 
     final searching = searchWords(query.search).isNotEmpty;
     return q.snapshots().map((snapshot) {
@@ -73,6 +81,7 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
       InboxView() => active.where('inInbox', isEqualTo: true),
       AllView() => active,
       FavoritesView() => active.where('favorite', isEqualTo: true),
+      RemindersView() => active,
       ArchivedView() => _collection.where('archived', isEqualTo: true),
       SourceView(:final source) => active.where('source', isEqualTo: source.id),
       TypeView(:final type) => active.where('type', isEqualTo: type.name),

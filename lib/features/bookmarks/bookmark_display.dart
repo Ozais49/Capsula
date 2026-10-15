@@ -50,3 +50,21 @@ String formatSavedDate(DateTime date, {DateTime? now}) {
   final monthDay = '${_months[day.month - 1]} ${day.day}';
   return day.year == today.year ? monthDay : '$monthDay, ${day.year}';
 }
+
+/// "Today 14:30", "Tomorrow 09:00" or "Mar 5, 18:00".
+String formatReminder(DateTime when, {DateTime? now}) {
+  final local = when.toLocal();
+  final time =
+      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  final today = DateUtils.dateOnly(now ?? DateTime.now());
+  final day = DateUtils.dateOnly(local);
+  final diff = day.difference(today).inDays;
+  final date = switch (diff) {
+    0 => 'Today',
+    1 => 'Tomorrow',
+    -1 => 'Yesterday',
+    _ =>
+      '${_months[day.month - 1]} ${day.day}${day.year == today.year ? '' : ', ${day.year}'}',
+  };
+  return '$date $time';
+}

@@ -287,6 +287,19 @@ class CapsulaApi {
           : next.copyWith(note: note);
       changed = true;
     }
+    if (body.containsKey('remindAt')) {
+      final raw = body['remindAt'];
+      final when = raw is String ? DateTime.tryParse(raw) : null;
+      if (raw != null && when == null) {
+        throw const ApiError.badRequest(
+          '"remindAt" must be an ISO 8601 date-time or null',
+        );
+      }
+      next = when == null
+          ? next.copyWith(clearReminder: true)
+          : next.copyWith(remindAt: when);
+      changed = true;
+    }
     if (body['favorite'] case final Object favorite) {
       next = next.copyWith(favorite: _bool(favorite, 'favorite'));
       changed = true;

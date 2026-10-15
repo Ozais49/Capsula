@@ -359,3 +359,11 @@ describe('content type', () => {
     await assertFails(setDoc(ref, validBookmark({ type: 'podcast' })));
   });
 });
+
+describe('reminders', () => {
+  test('remindAt must be a timestamp', async () => {
+    const ref = bookmarkRef(db('alice'), 'alice');
+    await assertSucceeds(setDoc(ref, validBookmark({ remindAt: Timestamp.now() })));
+    await assertFails(setDoc(ref, validBookmark({ remindAt: 'tomorrow' })));
+  });
+});
