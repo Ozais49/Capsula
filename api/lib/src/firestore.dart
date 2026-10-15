@@ -70,6 +70,11 @@ class AdminBookmarkRepository implements BookmarkRepository {
         WhereFilter.equal,
         source.id,
       ),
+      TypeView(:final type) => active.where(
+        'type',
+        WhereFilter.equal,
+        type.name,
+      ),
       LabelView(:final kind, :final labelId) => active.where(
         labelField(kind),
         WhereFilter.arrayContains,

@@ -343,3 +343,11 @@ describe('public links', () => {
     await assertFails(getDoc(doc(db(null), 'publicShares/anything')));
   });
 });
+
+describe('content type', () => {
+  test('type must be a known value', async () => {
+    const ref = bookmarkRef(db('alice'), 'alice');
+    await assertSucceeds(setDoc(ref, validBookmark({ type: 'video' })));
+    await assertFails(setDoc(ref, validBookmark({ type: 'podcast' })));
+  });
+});

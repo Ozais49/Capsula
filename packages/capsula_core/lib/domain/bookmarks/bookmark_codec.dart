@@ -18,6 +18,7 @@ Map<String, Object?> encodeBookmark(
   'imageUrl': ?b.imageUrl,
   'source': b.source.id,
   'sourceDomain': b.sourceDomain,
+  'type': b.type.name,
   'readingStatus': b.readingStatus.name,
   'archived': b.archived,
   'inInbox': b.inInbox,

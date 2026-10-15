@@ -86,6 +86,8 @@ Future<void> _openDrawer(WidgetTester tester) async {
 
 Future<void> _openView(WidgetTester tester, String name) async {
   await _openDrawer(tester);
+  await tester.ensureVisible(find.text(name).last);
+  await tester.pumpAndSettle();
   await tester.tap(find.text(name).last);
   await tester.pumpAndSettle();
 }

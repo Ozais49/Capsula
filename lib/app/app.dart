@@ -1,3 +1,4 @@
+import 'package:capsula_core/domain/maintenance/maintenance.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:capsula_core/net/http_content_fetcher.dart';
@@ -36,6 +37,7 @@ class CapsulaApp extends StatefulWidget {
     this.apiSettings,
     this.apiClientFactory,
     this.display,
+    this.linkChecker,
   });
 
   final AppConfig config;
@@ -56,6 +58,9 @@ class CapsulaApp extends StatefulWidget {
 
   /// Defaults to preferences remembered on the device.
   final DisplayPreferences? display;
+
+  /// Defaults to checking links over HTTP (through the API when set).
+  final LinkChecker? linkChecker;
 
   @override
   State<CapsulaApp> createState() => _CapsulaAppState();
@@ -84,6 +89,10 @@ class _CapsulaAppState extends State<CapsulaApp> {
   );
   late final DisplayPreferences _display =
       widget.display ?? DisplayPreferences();
+  late final LinkChecker _linkChecker = ApiOrLocalLinkChecker(
+    _apiClient,
+    widget.linkChecker ?? FetcherLinkChecker(_fetcher),
+  );
   late final GoRouter _router = createRouter(widget.backend, _session);
   bool _backfilled = false;
   (Uri, CapsulaApiClient)? _client;
@@ -154,6 +163,7 @@ class _CapsulaAppState extends State<CapsulaApp> {
       apiSettings: _apiSettings,
       apiClient: _apiClient,
       display: _display,
+      linkChecker: _linkChecker,
       importFilePicker: widget.importFilePicker,
       fileSaver: widget.fileSaver,
       child: MaterialApp.router(

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:capsula_api/capsula_api.dart';
+import 'package:capsula_core/domain/maintenance/maintenance.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:capsula_core/net/http_content_fetcher.dart';
@@ -38,6 +39,7 @@ Future<void> main() async {
     shares: FirestoreShareStore(firestore),
     pageInfo: PageInfoService(fetcher),
     reader: ReaderService(fetcher),
+    linkChecker: FetcherLinkChecker(fetcher),
     rateLimiter: RateLimiter(config.requestsPerMinute),
     corsOrigins: config.corsOrigins,
     log: (error, stack) => stderr.writeln('Unhandled error: $error\n$stack'),

@@ -11,6 +11,7 @@ import '../features/highlights/highlights_screen.dart';
 import '../features/import/import_screen.dart';
 import '../features/integrations/integrations_screen.dart';
 import '../features/loading/loading_screen.dart';
+import '../features/maintenance/maintenance_screen.dart';
 import '../features/reader/reader_screen.dart';
 import '../features/share/share_screen.dart';
 import 'auth_session.dart';
@@ -25,6 +26,7 @@ abstract final class AppRoutes {
   static const import = '/import';
   static const integrations = '/integrations';
   static const highlights = '/highlights';
+  static const maintenance = '/maintenance';
 
   static String bookmark(String id) => '/bookmarks/$id';
 
@@ -77,6 +79,10 @@ final _authRoutes = [
   GoRoute(
     path: AppRoutes.loading,
     builder: (context, state) => const LoadingScreen(),
+  ),
+  GoRoute(
+    path: AppRoutes.maintenance,
+    builder: (context, state) => const MaintenanceScreen(),
   ),
   GoRoute(
     path: AppRoutes.highlights,

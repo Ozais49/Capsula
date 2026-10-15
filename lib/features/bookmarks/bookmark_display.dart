@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/content_type.dart';
 
 IconData sourceIcon(BookmarkSource source) => switch (source) {
   BookmarkSource.reddit => Icons.forum_outlined,
@@ -13,6 +14,15 @@ IconData sourceIcon(BookmarkSource source) => switch (source) {
   BookmarkSource.github => Icons.code,
   BookmarkSource.amazon => Icons.shopping_bag_outlined,
   BookmarkSource.website => Icons.public,
+};
+
+IconData typeIcon(ContentType type) => switch (type) {
+  ContentType.article => Icons.article_outlined,
+  ContentType.video => Icons.smart_display_outlined,
+  ContentType.image => Icons.image_outlined,
+  ContentType.document => Icons.picture_as_pdf_outlined,
+  ContentType.post => Icons.chat_bubble_outline,
+  ContentType.product => Icons.shopping_bag_outlined,
 };
 
 const _months = [

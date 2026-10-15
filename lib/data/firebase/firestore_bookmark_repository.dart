@@ -75,6 +75,7 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
       FavoritesView() => active.where('favorite', isEqualTo: true),
       ArchivedView() => _collection.where('archived', isEqualTo: true),
       SourceView(:final source) => active.where('source', isEqualTo: source.id),
+      TypeView(:final type) => active.where('type', isEqualTo: type.name),
       LabelView(:final kind, :final labelId) => active.where(
         labelField(kind),
         arrayContains: labelId,

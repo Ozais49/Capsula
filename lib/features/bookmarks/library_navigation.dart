@@ -6,6 +6,7 @@ import '../../app/router.dart';
 import '../../app/theme.dart';
 
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/content_type.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 
@@ -197,6 +198,9 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
         _item(BookmarkView.archived, Icons.archive_outlined, 'Archived'),
         ..._labelSection(LabelKind.collection, Icons.folder_outlined),
         ..._labelSection(LabelKind.tag, Icons.label_outline),
+        _header('Types'),
+        for (final type in ContentType.values)
+          _item(TypeView(type), typeIcon(type), type.label),
         _header('Sources'),
         for (final source in BookmarkSource.values)
           _item(SourceView(source), sourceIcon(source), source.label),
@@ -220,6 +224,12 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
                 leading: const Icon(Icons.upload_file),
                 title: const Text('Import bookmarks'),
                 onTap: () => context.push(AppRoutes.import),
+              ),
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.build_outlined),
+                title: const Text('Maintenance'),
+                onTap: () => context.push(AppRoutes.maintenance),
               ),
               ListTile(
                 dense: true,
@@ -260,6 +270,7 @@ String viewTitle(BookmarkView view, Labels labels) => switch (view) {
   FavoritesView() => 'Favorites',
   ArchivedView() => 'Archived',
   SourceView(:final source) => source.label,
+  TypeView(:final type) => type.label,
   LabelView(:final kind, :final labelId) =>
     labels.find(kind, labelId)?.name ?? kind.singular,
 };

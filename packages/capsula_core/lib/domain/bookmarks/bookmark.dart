@@ -1,5 +1,6 @@
 import '../organization/label.dart';
 import 'bookmark_source.dart';
+import 'content_type.dart';
 
 /// Reading progress, independent of source, tags and collections.
 enum ReadingStatus {
@@ -76,6 +77,9 @@ class Bookmark {
     LabelKind.tag => tagIds,
     LabelKind.collection => collectionIds,
   };
+
+  /// Detected from the URL; stored for type filters.
+  ContentType get type => detectContentType(Uri.tryParse(url) ?? Uri(), source);
 
   String get displayTitle => title.trim().isEmpty ? sourceDomain : title;
 

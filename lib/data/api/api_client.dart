@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:capsula_core/api/api_json.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/maintenance/maintenance.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
@@ -99,6 +100,22 @@ class CapsulaApiClient {
     await _send('GET', '/v1/reader', query: {'url': url.toString()}),
   );
 
+  Future<LinkCheck> linkStatus(Uri url) async {
+    final json = await _send(
+      'GET',
+      '/v1/link-status',
+      query: {'url': url.toString()},
+    );
+    return LinkCheck(
+      LinkHealth.values.firstWhere(
+        (h) => h.name == json['health'],
+        orElse: () => LinkHealth.unknown,
+      ),
+      statusCode: json['statusCode'] as int?,
+      reason: json['reason'] as String?,
+    );
+  }
+
   /// Turns on the collection's public link and returns its URL.
   Future<Uri> shareCollection(String collectionId) async {
     final json = await _send('POST', '/v1/collections/$collectionId/share');
@@ -187,5 +204,25 @@ class ApiOrLocalReader implements ReaderSource {
       }
     }
     return _local.load(bookmark);
+  }
+}
+
+class ApiOrLocalLinkChecker implements LinkChecker {
+  ApiOrLocalLinkChecker(this._api, this._local);
+
+  final CapsulaApiClient? Function() _api;
+  final LinkChecker _local;
+
+  @override
+  Future<LinkCheck> check(Uri url) async {
+    final api = _api();
+    if (api != null) {
+      try {
+        return await api.linkStatus(url);
+      } on Object {
+        // Fall back to checking from the device.
+      }
+    }
+    return _local.check(url);
   }
 }

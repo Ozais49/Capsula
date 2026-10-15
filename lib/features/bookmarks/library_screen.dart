@@ -19,6 +19,7 @@ import '../organization/label_picker_sheet.dart';
 import '../organization/labels_builder.dart';
 import 'add_bookmark_sheet.dart';
 import 'bookmark_cards.dart';
+import 'bookmark_display.dart';
 import 'bookmark_tile.dart';
 import 'library_navigation.dart';
 
@@ -587,6 +588,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ArchivedView() => const _Message(
         icon: Icons.archive_outlined,
         text: 'Nothing archived yet.',
+      ),
+      TypeView(:final type) => _Message(
+        icon: typeIcon(type),
+        text: 'No ${type.label.toLowerCase()} yet.',
       ),
       SourceView(:final source) => _Message(
         icon: Icons.public,

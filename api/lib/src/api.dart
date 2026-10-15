@@ -8,6 +8,7 @@ import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/bookmarks/url_normalizer.dart';
 import 'package:capsula_core/domain/highlights/highlight.dart';
+import 'package:capsula_core/domain/maintenance/maintenance.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
@@ -41,6 +42,7 @@ class CapsulaApi {
     required this.shares,
     required this.pageInfo,
     required this.reader,
+    required this.linkChecker,
     required this.rateLimiter,
     this.corsOrigins = const ['*'],
     this.log,
@@ -53,6 +55,7 @@ class CapsulaApi {
   final ShareStore shares;
   final PageInfoSource pageInfo;
   final ReaderSource reader;
+  final LinkChecker linkChecker;
   final RateLimiter rateLimiter;
   final List<String> corsOrigins;
   final void Function(Object error, StackTrace stack)? log;
@@ -109,6 +112,7 @@ class CapsulaApi {
     // Server-side fetching (no browser CORS limits)
     r.get('/v1/page-info', _authed(_pageInfo));
     r.get('/v1/reader', _authed(_reader));
+    r.get('/v1/link-status', _authed(_linkStatus));
 
     // Public collection links
     r.post('/v1/collections/<id>/share', _authedWithId(_shareCollection));
@@ -585,6 +589,15 @@ class CapsulaApi {
   Future<Response> _pageInfo(Request req, Principal p) async {
     final info = await pageInfo.lookup(_urlParam(req));
     return jsonResponse(metadataToJson(info ?? const PageMetadata()));
+  }
+
+  Future<Response> _linkStatus(Request req, Principal p) async {
+    final check = await linkChecker.check(_urlParam(req));
+    return jsonResponse({
+      'health': check.health.name,
+      'statusCode': ?check.statusCode,
+      'reason': ?check.reason,
+    });
   }
 
   Future<Response> _reader(Request req, Principal p) async {

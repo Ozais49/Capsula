@@ -38,7 +38,7 @@ service cloud.firestore {
           'url', 'canonicalUrl', 'title', 'description', 'imageUrl', 'source',
           'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
           'updatedAt', 'searchTokens', 'tagIds', 'collectionIds',
-          'importedFrom', 'importedAt', 'favorite', 'note'
+          'importedFrom', 'importedAt', 'favorite', 'note', 'type'
         ])
         && data.url is string && data.url.size() <= 4096
         && data.url.matches('^https?://.+')
@@ -61,7 +61,9 @@ service cloud.firestore {
         && isOptionalString(data, 'importedFrom', 50)
         && (!('importedAt' in data) || data.importedAt is timestamp)
         && (!('favorite' in data) || data.favorite is bool)
-        && isOptionalString(data, 'note', 10000);
+        && isOptionalString(data, 'note', 10000)
+        && (!('type' in data) || data.type in
+          ['article', 'video', 'image', 'document', 'post', 'product']);
     }
 
     match /users/{userId}/bookmarks/{bookmarkId} {

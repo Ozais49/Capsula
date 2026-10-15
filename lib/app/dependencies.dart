@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:capsula_core/domain/maintenance/maintenance.dart';
+
 import '../config/app_config.dart';
 import '../data/api/api_client.dart';
 import 'api_settings.dart';
@@ -30,6 +32,7 @@ class AppDependencies extends InheritedWidget {
     required this.apiSettings,
     required this.apiClient,
     required this.display,
+    required this.linkChecker,
     this.importFilePicker = const FileSelectorImportPicker(),
     this.fileSaver = const PlatformFileSaver(),
     required super.child,
@@ -47,6 +50,7 @@ class AppDependencies extends InheritedWidget {
   /// nobody is signed in.
   final CapsulaApiClient? Function() apiClient;
   final DisplayPreferences display;
+  final LinkChecker linkChecker;
   final ImportFilePicker importFilePicker;
   final FileSaver fileSaver;
 

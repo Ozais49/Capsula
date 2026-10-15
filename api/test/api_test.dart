@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:capsula_api/capsula_api.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/maintenance/maintenance.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
@@ -70,6 +71,17 @@ class _FakePageInfo implements PageInfoSource {
       : PageMetadata(title: titles[url.toString()]);
 }
 
+class _FakeLinks implements LinkChecker {
+  @override
+  Future<LinkCheck> check(Uri url) async => url.path.contains('gone')
+      ? const LinkCheck(
+          LinkHealth.broken,
+          statusCode: 404,
+          reason: 'Page not found',
+        )
+      : const LinkCheck(LinkHealth.ok, statusCode: 200);
+}
+
 class _FakeReader implements ReaderSource {
   @override
   Future<ReaderContent> load(Bookmark b) async => ArticleContent(
@@ -94,6 +106,7 @@ class _Server {
       shares: _MemoryShares(labels),
       pageInfo: pageInfo,
       reader: _FakeReader(),
+      linkChecker: _FakeLinks(),
       rateLimiter: RateLimiter(perMinute),
     );
   }
@@ -737,6 +750,36 @@ void main() {
     expect(
       (await s.call('GET', '/v1/public/not-a-real-share-id', auth: null)).$1,
       404,
+    );
+  });
+
+  test('link status and content types', () async {
+    final (_, gone) = await s.call(
+      'GET',
+      '/v1/link-status?url=${Uri.encodeQueryComponent('https://example.com/gone')}',
+    );
+    expect(gone, {
+      'health': 'broken',
+      'statusCode': 404,
+      'reason': 'Page not found',
+    });
+
+    await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {'url': 'https://youtu.be/abc'},
+    );
+    await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {'url': 'https://example.com/paper.pdf'},
+    );
+    final (_, videos) = await s.call('GET', '/v1/bookmarks?view=type:video');
+    expect(videos['bookmarks'], hasLength(1));
+    final (_, docs) = await s.call('GET', '/v1/bookmarks?view=type:document');
+    expect(
+      ((docs['bookmarks'] as List).single as Map)['url'],
+      'https://example.com/paper.pdf',
     );
   });
 }

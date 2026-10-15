@@ -1,5 +1,6 @@
 import '../organization/label.dart';
 import 'bookmark_source.dart';
+import 'content_type.dart';
 
 /// A filtered view of the library. Views are queries over bookmark
 /// metadata, never folders: one bookmark can appear in many views.
@@ -31,6 +32,7 @@ sealed class BookmarkView {
     if (value.isEmpty) return inbox;
     return switch (type) {
       'source' => SourceView(BookmarkSource.fromId(value)),
+      'type' => TypeView(ContentType.fromName(value)),
       'tag' => LabelView(LabelKind.tag, value),
       'collection' => LabelView(LabelKind.collection, value),
       _ => inbox,
@@ -79,6 +81,15 @@ class SourceView extends BookmarkView {
 
   @override
   String get key => 'source:${source.id}';
+}
+
+class TypeView extends BookmarkView {
+  const TypeView(this.type);
+
+  final ContentType type;
+
+  @override
+  String get key => 'type:${type.name}';
 }
 
 class LabelView extends BookmarkView {

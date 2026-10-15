@@ -4,6 +4,7 @@ import 'package:capsula/app/backend_controller.dart';
 import 'package:capsula/app/dependencies.dart';
 import 'package:capsula/app/display_preferences.dart';
 import 'package:capsula/config/app_config.dart';
+import 'package:capsula_core/domain/maintenance/maintenance.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:flutter/widgets.dart';
@@ -33,5 +34,6 @@ AppDependencies testDependencies({
   apiSettings: ApiSettings(MemoryApiSettingsStore()),
   apiClient: () => null,
   display: DisplayPreferences(persist: false),
+  linkChecker: FetcherLinkChecker(FakeContentFetcher()),
   child: child,
 );

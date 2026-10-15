@@ -127,6 +127,21 @@ class BookmarkService {
     },
   );
 
+  /// Rewrites every bookmark so stored fields derived from it (type,
+  /// search words) are current. Returns how many were rewritten.
+  Future<int> reindexAll({
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final all = await _repository.fetchAll();
+    onProgress?.call(0, all.length);
+    for (var i = 0; i < all.length; i += 50) {
+      final chunk = all.skip(i).take(50);
+      await Future.wait([for (final b in chunk) _repository.update(b)]);
+      onProgress?.call((i + 50).clamp(0, all.length), all.length);
+    }
+    return all.length;
+  }
+
   Future<void> deleteMany(Iterable<Bookmark> bookmarks) =>
       Future.wait([for (final b in bookmarks) _repository.delete(b.id)]);
 
