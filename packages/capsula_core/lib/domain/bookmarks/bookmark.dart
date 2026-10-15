@@ -35,6 +35,7 @@ class Bookmark {
     this.favorite = false,
     this.note,
     this.remindAt,
+    this.contentIndexedAt,
     this.tagIds = const [],
     this.collectionIds = const [],
     this.importedFrom,
@@ -67,6 +68,9 @@ class Bookmark {
 
   /// When to bring the bookmark back to the user's attention.
   final DateTime? remindAt;
+
+  /// When the page's text was last indexed for full-text search.
+  final DateTime? contentIndexedAt;
 
   bool isDue(DateTime now) => remindAt != null && !remindAt!.isAfter(now);
   final List<String> tagIds;
@@ -111,6 +115,7 @@ class Bookmark {
     bool clearNote = false,
     DateTime? remindAt,
     bool clearReminder = false,
+    DateTime? contentIndexedAt,
     List<String>? tagIds,
     List<String>? collectionIds,
     DateTime? updatedAt,
@@ -129,6 +134,7 @@ class Bookmark {
     favorite: favorite ?? this.favorite,
     note: clearNote ? null : note ?? this.note,
     remindAt: clearReminder ? null : remindAt ?? this.remindAt,
+    contentIndexedAt: contentIndexedAt ?? this.contentIndexedAt,
     tagIds: tagIds ?? this.tagIds,
     collectionIds: collectionIds ?? this.collectionIds,
     importedFrom: importedFrom,

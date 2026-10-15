@@ -38,7 +38,7 @@ service cloud.firestore {
           'url', 'canonicalUrl', 'title', 'description', 'imageUrl', 'source',
           'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
           'updatedAt', 'searchTokens', 'tagIds', 'collectionIds',
-          'importedFrom', 'importedAt', 'favorite', 'note', 'type', 'remindAt'
+          'importedFrom', 'importedAt', 'favorite', 'note', 'type', 'remindAt', 'contentIndexedAt'
         ])
         && data.url is string && data.url.size() <= 4096
         && data.url.matches('^https?://.+')
@@ -63,6 +63,7 @@ service cloud.firestore {
         && (!('favorite' in data) || data.favorite is bool)
         && isOptionalString(data, 'note', 10000)
         && (!('remindAt' in data) || data.remindAt is timestamp)
+        && (!('contentIndexedAt' in data) || data.contentIndexedAt is timestamp)
         && (!('type' in data) || data.type in
           ['article', 'video', 'image', 'document', 'post', 'product']);
     }
@@ -88,8 +89,19 @@ service cloud.firestore {
         && data.text is string && data.text.size() > 0 && data.text.size() <= 5000
         && isOptionalString(data, 'note', 10000)
         && (!('remindAt' in data) || data.remindAt is timestamp)
+        && (!('contentIndexedAt' in data) || data.contentIndexedAt is timestamp)
         && data.color in ['yellow', 'green', 'blue', 'pink']
         && data.createdAt is timestamp;
+    }
+
+    // Page text words for full-text search, one document per bookmark.
+    match /users/{userId}/contents/{bookmarkId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['words', 'updatedAt'])
+        && request.resource.data.words is list
+        && request.resource.data.words.size() <= 3000
+        && request.resource.data.updatedAt is timestamp;
     }
 
     match /users/{userId}/highlights/{highlightId} {

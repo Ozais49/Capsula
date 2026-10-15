@@ -55,6 +55,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
       // Best effort; the reader works the same if this fails.
       deps.bookmarks.applyMetadata(bookmark, metadata);
     }
+    // Index the page text for full-text search; best effort.
+    if (content is ArticleContent) {
+      deps.bookmarks.indexContent(bookmark, content).ignore();
+    }
     return content;
   }
 

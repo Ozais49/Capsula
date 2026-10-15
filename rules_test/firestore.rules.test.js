@@ -367,3 +367,14 @@ describe('reminders', () => {
     await assertFails(setDoc(ref, validBookmark({ remindAt: 'tomorrow' })));
   });
 });
+
+describe('page text index', () => {
+  const ref = (firestore, owner) => doc(firestore, `users/${owner}/contents/b1`);
+
+  test('owner can write words; others can\'t read them', async () => {
+    await assertSucceeds(setDoc(ref(db('alice'), 'alice'), { words: ['rice'], updatedAt: Timestamp.now() }));
+    await assertFails(getDoc(ref(db('bob'), 'alice')));
+    await assertFails(setDoc(ref(db('alice'), 'alice'), { words: 'rice', updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(ref(db('alice'), 'alice'), { words: [], updatedAt: Timestamp.now(), extra: 1 }));
+  });
+});

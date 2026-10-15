@@ -5,6 +5,7 @@ import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
 import 'package:capsula_core/domain/highlights/highlight.dart';
 import 'package:capsula_core/domain/organization/label.dart';
+import 'package:capsula_core/domain/search/full_text.dart';
 import 'package:dart_firebase_admin/auth.dart';
 import 'package:dart_firebase_admin/firestore.dart';
 
@@ -408,4 +409,40 @@ class FirestoreShareStore implements ShareStore {
     });
     await _col.doc(shareId).delete();
   }
+}
+
+class AdminContentIndex implements ContentIndex {
+  AdminContentIndex(this._db, this._uid);
+
+  final Firestore _db;
+  final String _uid;
+
+  CollectionReference<DocumentData> get _col =>
+      _db.collection('users').doc(_uid).collection('contents');
+
+  @override
+  Future<void> save(String bookmarkId, List<String> words) => _col
+      .doc(bookmarkId)
+      .set({'words': words, 'updatedAt': _writeTime(DateTime.now())});
+
+  @override
+  Future<List<String>> search(String query, {int limit = 50}) async {
+    final word = fullTextLookupWord(query);
+    if (word == null) return const [];
+    final s = await _col
+        .where('words', WhereFilter.arrayContains, word)
+        .limit(limit * 2)
+        .get();
+    return [
+      for (final d in s.docs)
+        if (fullTextMatches(
+          (d.data()['words'] as List? ?? const []).whereType<String>(),
+          query,
+        ))
+          d.id,
+    ].take(limit).toList();
+  }
+
+  @override
+  Future<void> delete(String bookmarkId) => _col.doc(bookmarkId).delete();
 }

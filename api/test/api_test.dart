@@ -7,6 +7,7 @@ import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
+import 'package:capsula_core/testing/in_memory_content_index.dart';
 import 'package:capsula_core/testing/in_memory_highlight_repository.dart';
 import 'package:capsula_core/testing/in_memory_label_repository.dart';
 import 'package:shelf/shelf.dart';
@@ -100,7 +101,8 @@ class _Server {
         final b = bookmarks.putIfAbsent(uid, InMemoryBookmarkRepository.new);
         final l = labels.putIfAbsent(uid, () => InMemoryLabelRepository(b));
         final h = highlights.putIfAbsent(uid, InMemoryHighlightRepository.new);
-        return UserData(b, l, h);
+        final c = contents.putIfAbsent(uid, InMemoryContentIndex.new);
+        return UserData(b, l, h, c);
       },
       tokens: tokens,
       shares: _MemoryShares(labels),
@@ -115,6 +117,7 @@ class _Server {
   final bookmarks = <String, InMemoryBookmarkRepository>{};
   final labels = <String, InMemoryLabelRepository>{};
   final highlights = <String, InMemoryHighlightRepository>{};
+  final contents = <String, InMemoryContentIndex>{};
   final tokens = _MemoryTokens();
   final pageInfo = _FakePageInfo();
 
@@ -814,5 +817,39 @@ void main() {
       body: {'remindAt': null},
     );
     expect(cleared.containsKey('remindAt'), isFalse);
+  });
+
+  test('full-text search over saved pages', () async {
+    final (_, b) = await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {'url': 'https://example.com/greeting'},
+    );
+    // Creating indexes the page in the background; let it finish.
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    final (_, found) = await s.call('GET', '/v1/search?q=world');
+    expect(((found['bookmarks'] as List).single as Map)['id'], b['id']);
+    expect(
+      (await s.call('GET', '/v1/search?q=nothing+here')).$2['bookmarks'],
+      isEmpty,
+    );
+    expect((await s.call('GET', '/v1/search')).$1, 400);
+
+    final (status, indexed) = await s.call(
+      'POST',
+      '/v1/bookmarks/${b['id']}/index',
+    );
+    expect(status, 200);
+    expect(indexed['indexed'], isTrue);
+    expect(
+      (await s.call(
+        'GET',
+        '/v1/search?q=world',
+        auth: 'bob-id-token',
+      )).$2['bookmarks'],
+      isEmpty,
+    );
   });
 }

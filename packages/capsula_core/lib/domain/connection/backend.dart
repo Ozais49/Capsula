@@ -4,6 +4,7 @@ import '../bookmarks/bookmark_service.dart';
 import '../import/import_service.dart';
 import '../highlights/highlight.dart';
 import '../organization/label.dart';
+import '../search/full_text.dart';
 import 'firebase_connection.dart';
 
 /// Repositories provided by a connected backend.
@@ -13,17 +14,20 @@ class BackendServices {
     required this.bookmarkRepository,
     required this.labelRepository,
     required this.highlightRepository,
+    required this.contentIndex,
   });
 
   final AuthRepository authRepository;
   final BookmarkRepository bookmarkRepository;
   final LabelRepository labelRepository;
   final HighlightRepository highlightRepository;
+  final ContentIndex contentIndex;
 
   late final BookmarkService bookmarks = BookmarkService(
     bookmarkRepository,
     labelRepository,
     highlights: highlightRepository,
+    contentIndex: contentIndex,
   );
 
   late final ImportService importer = ImportService(

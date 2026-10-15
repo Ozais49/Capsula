@@ -48,6 +48,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   BookmarkSort? _sort;
   Stream<List<Bookmark>>? _stream;
 
+  /// Searching the text of saved pages instead of titles and links.
+  bool _fullText = false;
+  Future<List<Bookmark>>? _fullTextResults;
+
   /// Bookmarks selected for a bulk action, by ID. Empty when not selecting.
   final Map<String, Bookmark> _selected = {};
 
@@ -67,6 +71,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       _limit = LibraryScreen.pageSize;
       _selected.clear();
       _stream = _subscribe();
+      _fullTextResults = _searchPages();
     }
   }
 
@@ -96,9 +101,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _search = text;
         _limit = LibraryScreen.pageSize;
         _stream = _subscribe();
+        _fullTextResults = _searchPages();
       });
     });
   }
+
+  Future<List<Bookmark>>? _searchPages() =>
+      _fullText && _search.trim().isNotEmpty
+      ? AppDependencies.of(context).bookmarks
+            .searchContent(_search, view: widget.view)
+      : null;
+
+  void _setFullText(bool on) => setState(() {
+    _fullText = on;
+    _fullTextResults = _searchPages();
+  });
 
   void _loadMore() => setState(() {
     _limit += LibraryScreen.pageSize;
@@ -418,6 +435,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
           ),
         ),
+        if (_search.trim().isNotEmpty &&
+            AppDependencies.of(context).bookmarks.hasContentIndex)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FilterChip(
+                avatar: const Icon(Icons.find_in_page_outlined, size: 18),
+                label: const Text('Page text'),
+                tooltip: 'Search inside saved pages',
+                selected: _fullText,
+                onSelected: _setFullText,
+              ),
+            ),
+          ),
         if (matchingLabels.isNotEmpty)
           SizedBox(
             height: 48,
@@ -446,38 +478,71 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ],
             ),
           ),
-        Expanded(
-          child: StreamBuilder<List<Bookmark>>(
-            stream: _stream,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return _Message(
-                  icon: Icons.error_outline,
-                  text: 'Could not load bookmarks.\n${snapshot.error}',
+        if (_fullTextResults case final pages?)
+          Expanded(
+            child: FutureBuilder<List<Bookmark>>(
+              future: pages,
+              builder: (context, snapshot) {
+                final items = snapshot.data;
+                if (snapshot.hasError) {
+                  return _Message(
+                    icon: Icons.error_outline,
+                    text: 'Could not search pages.\n${snapshot.error}',
+                  );
+                }
+                if (items == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (items.isEmpty) {
+                  return _Message(
+                    icon: Icons.find_in_page_outlined,
+                    text:
+                        'No saved page mentions "$_search".\n'
+                        "Pages are searchable after they've been opened in "
+                        'the reader or indexed under Maintenance.',
+                  );
+                }
+                return ListenableBuilder(
+                  listenable: _display,
+                  builder: (context, _) =>
+                      _items(items, labels, allowMore: false),
                 );
-              }
-              final items = snapshot.data;
-              if (items == null) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (items.isEmpty) return _empty();
-              // Keep selected bookmarks current as they change.
-              for (final b in items) {
-                if (_selected.containsKey(b.id)) _selected[b.id] = b;
-              }
-              return ListenableBuilder(
-                listenable: _display,
-                builder: (context, _) => _items(items, labels),
-              );
-            },
+              },
+            ),
+          )
+        else
+          Expanded(
+            child: StreamBuilder<List<Bookmark>>(
+              stream: _stream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return _Message(
+                    icon: Icons.error_outline,
+                    text: 'Could not load bookmarks.\n${snapshot.error}',
+                  );
+                }
+                final items = snapshot.data;
+                if (items == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (items.isEmpty) return _empty();
+                // Keep selected bookmarks current as they change.
+                for (final b in items) {
+                  if (_selected.containsKey(b.id)) _selected[b.id] = b;
+                }
+                return ListenableBuilder(
+                  listenable: _display,
+                  builder: (context, _) => _items(items, labels),
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }
 
-  Widget _items(List<Bookmark> items, Labels labels) {
-    final hasMore = items.length >= _limit;
+  Widget _items(List<Bookmark> items, Labels labels, {bool allowMore = true}) {
+    final hasMore = allowMore && items.length >= _limit;
     final footer = SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 88),

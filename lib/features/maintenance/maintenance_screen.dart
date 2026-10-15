@@ -22,7 +22,12 @@ class MaintenanceScreen extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 720),
         child: ListView(
           padding: const EdgeInsets.all(Gap.md),
-          children: const [_BrokenLinks(), _Duplicates(), _Reindex()],
+          children: const [
+            _BrokenLinks(),
+            _Duplicates(),
+            _IndexPages(),
+            _Reindex(),
+          ],
         ),
       ),
     ),
@@ -359,6 +364,84 @@ class _ReindexState extends State<_Reindex> {
     running: _running,
     progress: _progress,
     children: [
+      if (_result case final r?)
+        Padding(
+          padding: const EdgeInsets.only(top: Gap.sm),
+          child: Text(r),
+        ),
+    ],
+  );
+}
+
+// -----------------------------------------------------------------------------
+
+class _IndexPages extends StatefulWidget {
+  const _IndexPages();
+
+  @override
+  State<_IndexPages> createState() => _IndexPagesState();
+}
+
+class _IndexPagesState extends State<_IndexPages> {
+  bool _running = false;
+  int _done = 0;
+  int _total = 0;
+  String? _result;
+
+  Future<void> _run() async {
+    final deps = AppDependencies.of(context);
+    setState(() {
+      _running = true;
+      _done = 0;
+      _result = null;
+    });
+    final pending = (await deps.bookmarks.repository.fetchAll())
+        .where((b) => !b.archived && b.contentIndexedAt == null)
+        .toList();
+    _total = pending.length;
+    var indexed = 0;
+    var next = 0;
+    Future<void> worker() async {
+      while (next < pending.length) {
+        final b = pending[next++];
+        try {
+          final content = await deps.reader.load(b);
+          if (await deps.bookmarks.indexContent(b, content)) indexed++;
+        } on Object {
+          // Skip pages that can't be read.
+        }
+        if (mounted) setState(() => _done++);
+      }
+    }
+
+    await Future.wait([for (var i = 0; i < 3; i++) worker()]);
+    if (!mounted) return;
+    setState(() {
+      _running = false;
+      _result = pending.isEmpty
+          ? 'Every page is already indexed.'
+          : "Indexed $indexed of ${pending.length} pages. Others aren't "
+                "articles or couldn't be read.";
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => _Section(
+    icon: Icons.find_in_page_outlined,
+    title: 'Index page text',
+    description:
+        'Reads saved pages so their text can be searched with "Page text". '
+        'Pages you open in the reader are indexed automatically.',
+    action: 'Index',
+    onRun: AppDependencies.of(context).bookmarks.hasContentIndex ? _run : null,
+    running: _running,
+    progress: _total == 0 ? null : _done / _total,
+    children: [
+      if (_running)
+        Padding(
+          padding: const EdgeInsets.only(top: Gap.xs),
+          child: Text('Read $_done of $_total'),
+        ),
       if (_result case final r?)
         Padding(
           padding: const EdgeInsets.only(top: Gap.sm),

@@ -13,6 +13,7 @@ import 'package:capsula_core/domain/organization/label.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
+import 'package:capsula_core/domain/search/full_text.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
@@ -22,11 +23,12 @@ import 'sharing.dart';
 
 /// A user's data, scoped so callers can't reach anyone else's.
 class UserData {
-  const UserData(this.bookmarks, this.labels, this.highlights);
+  const UserData(this.bookmarks, this.labels, this.highlights, this.contents);
 
   final BookmarkRepository bookmarks;
   final LabelRepository labels;
   final HighlightRepository highlights;
+  final ContentIndex contents;
 }
 
 typedef UserDataFactory = UserData Function(String uid);
@@ -83,6 +85,8 @@ class CapsulaApi {
     // Bookmarks
     r.get('/v1/bookmarks', _authed(_listBookmarks));
     r.get('/v1/bookmarks/export', _authed(_exportBookmarks));
+    r.get('/v1/search', _authed(_searchContent));
+    r.post('/v1/bookmarks/<id>/index', _authedWithId(_indexBookmark));
     r.post('/v1/bookmarks', _authed(_createBookmark));
     r.get('/v1/bookmarks/<id>', _authedWithId(_getBookmark));
     r.patch('/v1/bookmarks/<id>', _authedWithId(_updateBookmark));
@@ -161,6 +165,7 @@ class CapsulaApi {
       data.bookmarks,
       data.labels,
       highlights: data.highlights,
+      contentIndex: data.contents,
       now: _now,
     );
   }
@@ -190,6 +195,29 @@ class CapsulaApi {
   Future<Response> _exportBookmarks(Request req, Principal p) async {
     final all = await userData(p.uid).bookmarks.fetchAll();
     return jsonResponse({'bookmarks': all.map(bookmarkToJson).toList()});
+  }
+
+  Future<Response> _searchContent(Request req, Principal p) async {
+    final params = req.url.queryParameters;
+    final q = params['q'] ?? '';
+    if (q.trim().isEmpty) throw const ApiError.badRequest('"q" is required');
+    final found = await _service(p).searchContent(
+      q,
+      view: BookmarkView.parse(params['view'] ?? 'all'),
+      limit: (int.tryParse(params['limit'] ?? '') ?? 50).clamp(1, 200),
+    );
+    return jsonResponse({'bookmarks': found.map(bookmarkToJson).toList()});
+  }
+
+  /// Reads the bookmark's page on the server and indexes its text.
+  Future<Response> _indexBookmark(Request req, Principal p, String id) async {
+    final bookmark = await userData(p.uid).bookmarks.watch(id).first;
+    if (bookmark == null) {
+      throw const ApiError.notFound('No bookmark with this ID');
+    }
+    final content = await reader.load(bookmark);
+    final indexed = await _service(p).indexContent(bookmark, content);
+    return jsonResponse({'indexed': indexed});
   }
 
   Future<Response> _getBookmark(Request req, Principal p, String id) async {
@@ -231,6 +259,15 @@ class CapsulaApi {
                   ) ??
               saved;
         }
+        // Index the page text in the background for full-text search.
+        final service0 = service;
+        final created = saved;
+        unawaited(
+          reader
+              .load(created)
+              .then((c) => service0.indexContent(created, c))
+              .catchError((Object _) => false),
+        );
         // Return what was written; re-reading could race the background
         // write of fetched details.
         return jsonResponse(bookmarkToJson(saved), status: 201);

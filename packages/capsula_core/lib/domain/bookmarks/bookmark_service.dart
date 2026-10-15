@@ -1,6 +1,7 @@
 import '../highlights/highlight.dart';
 import '../organization/label.dart';
 import '../reader/page_info_service.dart';
+import '../search/full_text.dart';
 import '../reader/reader_content.dart';
 import 'bookmark.dart';
 import 'bookmark_repository.dart';
@@ -38,8 +39,13 @@ class BookmarkService {
     this._repository,
     this._labels, {
     this._highlights,
+    this._contentIndex,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
+
+  final ContentIndex? _contentIndex;
+
+  bool get hasContentIndex => _contentIndex != null;
 
   final HighlightRepository? _highlights;
 
@@ -177,6 +183,43 @@ class BookmarkService {
   Future<void> delete(Bookmark bookmark) async {
     await _repository.delete(bookmark.id);
     await _highlights?.deleteForBookmark(bookmark.id);
+    await _contentIndex?.delete(bookmark.id);
+  }
+
+  /// Stores the words of an article for full-text search. Returns false
+  /// when there's nothing to index (not an article, or no index).
+  Future<bool> indexContent(Bookmark bookmark, ReaderContent content) async {
+    final index = _contentIndex;
+    if (index == null || content is! ArticleContent) return false;
+    final words = contentWords(articleTexts(content));
+    if (words.isEmpty) return false;
+    await index.save(bookmark.id, words);
+    // Re-read so this doesn't overwrite changes made meanwhile (e.g. the
+    // title the reader just fetched).
+    final latest = await _repository.watch(bookmark.id).first;
+    if (latest == null) return true;
+    await _repository.update(
+      latest.copyWith(contentIndexedAt: _now(), updatedAt: _now()),
+    );
+    return true;
+  }
+
+  /// Bookmarks in [view] whose saved page contains every word of [query].
+  Future<List<Bookmark>> searchContent(
+    String query, {
+    BookmarkView view = BookmarkView.all,
+    int limit = 50,
+  }) async {
+    final index = _contentIndex;
+    if (index == null) return const [];
+    final ids = await index.search(query, limit: limit * 2);
+    final found = await Future.wait(
+      ids.map((id) => _repository.watch(id).first),
+    );
+    return found.nonNulls
+        .where((b) => bookmarkInView(b, view))
+        .take(limit)
+        .toList();
   }
 
   /// Sets or, when blank, clears the bookmark's note.
