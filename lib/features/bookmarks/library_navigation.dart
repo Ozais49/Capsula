@@ -182,6 +182,12 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
               ),
               ListTile(
                 dense: true,
+                leading: const Icon(Icons.api),
+                title: const Text('API & integrations'),
+                onTap: () => context.push(AppRoutes.integrations),
+              ),
+              ListTile(
+                dense: true,
                 leading: const Icon(Icons.settings_ethernet),
                 title: const Text('Connection settings'),
                 onTap: () => context.push(AppRoutes.connection),

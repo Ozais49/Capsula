@@ -61,6 +61,10 @@ class FakeAuthRepository implements AuthRepository {
     _setUser(null);
   }
 
+  @override
+  Future<String?> idToken() async =>
+      _user == null ? null : 'id-token-${_user!.id}';
+
   void _setUser(AppUser? user) {
     _user = user;
     _changes.add(user);

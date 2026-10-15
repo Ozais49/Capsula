@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 import '../config/app_config.dart';
+import '../data/api/api_client.dart';
+import 'api_settings.dart';
 
 import 'package:capsula_core/domain/auth/auth_repository.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
@@ -24,6 +26,8 @@ class AppDependencies extends InheritedWidget {
     required this.shareIntake,
     required this.reader,
     required this.pageInfo,
+    required this.apiSettings,
+    required this.apiClient,
     this.importFilePicker = const FileSelectorImportPicker(),
     this.fileSaver = const PlatformFileSaver(),
     required super.child,
@@ -35,6 +39,11 @@ class AppDependencies extends InheritedWidget {
   final ShareIntake shareIntake;
   final ReaderSource reader;
   final PageInfoSource pageInfo;
+  final ApiSettings apiSettings;
+
+  /// A client for the configured API server, or null when none is set or
+  /// nobody is signed in.
+  final CapsulaApiClient? Function() apiClient;
   final ImportFilePicker importFilePicker;
   final FileSaver fileSaver;
 
@@ -60,6 +69,7 @@ class AppDependencies extends InheritedWidget {
       shareIntake != oldWidget.shareIntake ||
       reader != oldWidget.reader ||
       pageInfo != oldWidget.pageInfo ||
+      apiSettings != oldWidget.apiSettings ||
       importFilePicker != oldWidget.importFilePicker ||
       fileSaver != oldWidget.fileSaver;
 }

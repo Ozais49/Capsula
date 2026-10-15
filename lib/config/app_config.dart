@@ -9,6 +9,7 @@ class AppConfig {
     required this.useFirebaseEmulators,
     required this.firebaseEmulatorHost,
     this.defaultAndroidConnection,
+    this.apiBaseUrl,
   });
 
   factory AppConfig.fromEnvironment() {
@@ -23,6 +24,10 @@ class AppConfig {
         defaultValue: 'localhost',
       ),
       defaultAndroidConnection: _androidConnection(),
+      apiBaseUrl: switch (const String.fromEnvironment('API_BASE_URL')) {
+        '' => null,
+        final url => Uri.tryParse(url),
+      },
     );
   }
 
@@ -58,6 +63,10 @@ class AppConfig {
   /// Firebase settings built into Android builds, used when none are saved
   /// on the device. The connection screen can still override them.
   final FirebaseConnection? defaultAndroidConnection;
+
+  /// Capsula API server built into this build, if any (`API_BASE_URL`).
+  /// Users can change it under API & integrations.
+  final Uri? apiBaseUrl;
 
   bool get isProduction => environment == AppEnvironment.prod;
 }

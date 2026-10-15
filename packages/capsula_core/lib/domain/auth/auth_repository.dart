@@ -21,6 +21,10 @@ abstract interface class AuthRepository {
   Future<void> sendPasswordReset(String email);
 
   Future<void> signOut();
+
+  /// A short-lived token proving the signed-in user's identity to the
+  /// Capsula API, or null when signed out.
+  Future<String?> idToken();
 }
 
 enum AuthErrorCode {

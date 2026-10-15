@@ -145,6 +145,23 @@ To simulate a share from the command line with a device connected:
 adb shell am start -a android.intent.action.SEND -t text/plain -n com.ygtech.capsula/.ShareActivity --es android.intent.extra.TEXT "https://www.reddit.com/r/FlutterDev/" --es android.intent.extra.SUBJECT "FlutterDev"
 ```
 
+## Repository layout
+
+| Path | What |
+|---|---|
+| `lib/` | Flutter app (Android and Web) |
+| `packages/capsula_core/` | Pure-Dart domain model and logic shared by the app and the API |
+| `api/` | Self-hosted REST API server (see [api/README.md](api/README.md)) |
+| `rules_test/` | Firestore security rules tests |
+
+## API and integrations
+
+`api/` is a self-hosted Dart server that exposes the library over REST, for scripts, browser
+extensions and other services. It authenticates with Firebase sign-in or personal API tokens.
+In the app, **API & integrations** (navigation menu) sets the server address and manages
+tokens. When an address is set, the app also uses the server to read pages and look up
+titles, which removes the web app's cross-origin limitation.
+
 ## Web
 
 Live at **https://capsula-ygtech.web.app** (Firebase Hosting).

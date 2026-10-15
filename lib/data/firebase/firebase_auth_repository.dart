@@ -39,6 +39,9 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() => _guard(_auth.signOut);
 
+  @override
+  Future<String?> idToken() async => _auth.currentUser?.getIdToken();
+
   static AppUser? _toAppUser(User? user) => user == null
       ? null
       : AppUser(id: user.uid, email: user.email, displayName: user.displayName);

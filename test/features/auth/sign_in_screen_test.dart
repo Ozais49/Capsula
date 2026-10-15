@@ -1,3 +1,4 @@
+import 'package:capsula/app/api_settings.dart';
 import 'package:capsula/app/auth_session.dart';
 import 'package:capsula/app/dependencies.dart';
 import 'package:capsula/config/app_config.dart';
@@ -12,6 +13,7 @@ import '../../fakes/fake_auth_repository.dart';
 import '../../fakes/fake_backend.dart';
 import '../../fakes/fake_content_fetcher.dart';
 import '../../fakes/fake_share_intake.dart';
+import '../../fakes/memory_api_settings_store.dart';
 
 Future<Widget> _wrap(FakeAuthRepository auth) async => AppDependencies(
   config: const AppConfig(
@@ -24,6 +26,8 @@ Future<Widget> _wrap(FakeAuthRepository auth) async => AppDependencies(
   shareIntake: FakeShareIntake(),
   reader: ReaderService(FakeContentFetcher()),
   pageInfo: PageInfoService(FakeContentFetcher()),
+  apiSettings: ApiSettings(MemoryApiSettingsStore()),
+  apiClient: () => null,
   child: const MaterialApp(home: SignInScreen()),
 );
 
