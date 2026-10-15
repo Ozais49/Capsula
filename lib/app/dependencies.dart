@@ -13,6 +13,7 @@ import 'package:capsula_core/domain/import/import_service.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
 
+import '../platform/clipboard_reader.dart';
 import '../platform/file_saver.dart';
 import '../platform/import_file_picker.dart';
 import '../platform/share_intake.dart';
@@ -33,6 +34,7 @@ class AppDependencies extends InheritedWidget {
     required this.apiClient,
     required this.display,
     required this.linkChecker,
+    this.clipboard = const SystemClipboardReader(),
     this.importFilePicker = const FileSelectorImportPicker(),
     this.fileSaver = const PlatformFileSaver(),
     required super.child,
@@ -51,6 +53,7 @@ class AppDependencies extends InheritedWidget {
   final CapsulaApiClient? Function() apiClient;
   final DisplayPreferences display;
   final LinkChecker linkChecker;
+  final ClipboardReader clipboard;
   final ImportFilePicker importFilePicker;
   final FileSaver fileSaver;
 

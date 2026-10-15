@@ -96,7 +96,7 @@ void main() {
     expect(find.byType(LibraryScreen), findsOneWidget);
 
     await openNavigation(tester);
-    await tester.tap(find.text('Sign out'));
+    await tester.tap(find.byTooltip('Log out'));
     await tester.pumpAndSettle();
 
     expect(find.byType(SignInScreen), findsOneWidget);

@@ -143,10 +143,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await openNavigation(tester);
-    await tester.ensureVisible(find.text('Maintenance'));
-    await tester.tap(find.text('Maintenance'));
-    await tester.pumpAndSettle();
+    await openSettingsItem(tester, 'Maintenance');
     return connector;
   }
 

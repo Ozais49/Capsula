@@ -81,9 +81,7 @@ Future<(_FakeServer, MemoryApiSettingsStore)> _open(
     ),
   );
   await tester.pumpAndSettle();
-  await openNavigation(tester);
-  await tester.tap(find.text('API & integrations'));
-  await tester.pumpAndSettle();
+  await openSettingsItem(tester, 'API & integrations');
   return (server, store);
 }
 

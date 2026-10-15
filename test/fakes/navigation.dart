@@ -31,3 +31,20 @@ Future<void> tapNavigationItem(WidgetTester tester, String text) async {
   await tester.tap(item.first);
   await tester.pumpAndSettle();
 }
+
+/// Opens Settings from the navigation header and taps the item labelled
+/// [text].
+Future<void> openSettingsItem(WidgetTester tester, String text) async {
+  await openNavigation(tester);
+  await tester.tap(find.byTooltip('Settings'));
+  await tester.pumpAndSettle();
+  final item = find.text(text);
+  await tester.scrollUntilVisible(
+    item,
+    100,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(item.first);
+  await tester.pumpAndSettle();
+}

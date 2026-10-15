@@ -91,9 +91,7 @@ void main() {
         bookmarks: [_bookmark('a', 'One'), _bookmark('b', 'Two')],
       );
 
-      await openNavigation(tester);
-      await tester.tap(find.text('Export library'));
-      await tester.pumpAndSettle();
+      await openSettingsItem(tester, 'Export library');
       await tester.tap(find.widgetWithText(FilledButton, 'Export'));
       await tester.pumpAndSettle();
 
@@ -110,9 +108,7 @@ void main() {
       final saver = _FakeSaver()..accept = false;
       await _pump(tester, saver: saver, bookmarks: [_bookmark('a', 'One')]);
 
-      await openNavigation(tester);
-      await tester.tap(find.text('Export library'));
-      await tester.pumpAndSettle();
+      await openSettingsItem(tester, 'Export library');
       await tester.tap(find.text('Browser bookmarks (HTML)'));
       await tester.tap(find.widgetWithText(FilledButton, 'Export'));
       await tester.pumpAndSettle();

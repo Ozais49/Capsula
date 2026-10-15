@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
 import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
+import 'package:capsula_core/domain/bookmarks/shared_content.dart';
+import 'package:capsula_core/domain/bookmarks/url_normalizer.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -32,6 +35,10 @@ class LibraryScreen extends StatefulWidget {
 
   static const searchFieldKey = Key('library-search');
 
+  /// The last copied link offered for saving, so each is offered once per
+  /// app run even as the library screen is rebuilt.
+  static String? lastOfferedLink;
+
   /// Width from which navigation is shown beside the list.
   static const wideLayout = 1000.0;
 
@@ -39,7 +46,8 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> {
+class _LibraryScreenState extends State<LibraryScreen>
+    with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
   Timer? _debounce;
@@ -62,6 +70,75 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.didChangeDependencies();
     _sort ??= _display.sort;
     _stream ??= _subscribe();
+    if (!_observing) {
+      _observing = true;
+      WidgetsBinding.instance.addObserver(this);
+      _offerCopiedLink();
+    }
+  }
+
+  bool _observing = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _offerCopiedLink();
+  }
+
+  /// Offers to save a link the user copied in another app.
+  Future<void> _offerCopiedLink() async {
+    final deps = AppDependencies.of(context);
+    if (!deps.display.offerCopiedLinks) return;
+    final text = await deps.clipboard.read();
+    if (text == null || text.trim().isEmpty || !mounted) return;
+    final links = extractSharedLinks(SharedContent(text: text));
+    if (links.urls.isEmpty) return;
+    final url = links.urls.first;
+    final canonical = canonicalizeUrl(url);
+    if (canonical == LibraryScreen.lastOfferedLink) return;
+    LibraryScreen.lastOfferedLink = canonical;
+    try {
+      final existing = await deps.bookmarks.repository.findByCanonicalUrl(
+        canonical,
+      );
+      if (existing != null || !mounted) return;
+    } on Object {
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 8),
+        content: Text('Save the link you copied? ${url.host}'),
+        action: SnackBarAction(
+          label: 'Save',
+          onPressed: () async {
+            try {
+              final result = await deps.bookmarks.save(
+                url.toString(),
+                title: links.title,
+              );
+              if (result case Saved(:final bookmark)) {
+                deps.bookmarks
+                    .fetchDetails(
+                      bookmark,
+                      deps.pageInfo,
+                      fallbackTitle: links.title,
+                    )
+                    .ignore();
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Saved to Inbox')),
+                );
+              }
+            } on Object catch (e) {
+              messenger.showSnackBar(
+                SnackBar(content: Text('Could not save: $e')),
+              );
+            }
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -77,6 +154,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   void dispose() {
+    if (_observing) WidgetsBinding.instance.removeObserver(this);
     _debounce?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();

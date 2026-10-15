@@ -54,9 +54,7 @@ Future<_Harness> _openImport(WidgetTester tester) async {
     ),
   );
   await tester.pumpAndSettle();
-  await openNavigation(tester);
-  await tester.tap(find.text('Import bookmarks'));
-  await tester.pumpAndSettle();
+  await openSettingsItem(tester, 'Import bookmarks');
   return _Harness(connector, picker);
 }
 

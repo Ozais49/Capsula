@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
 import '../data/api/api_client.dart';
+import '../platform/clipboard_reader.dart';
 import '../platform/file_saver.dart';
 import '../platform/import_file_picker.dart';
 import '../platform/share_intake.dart';
@@ -38,6 +39,7 @@ class CapsulaApp extends StatefulWidget {
     this.apiClientFactory,
     this.display,
     this.linkChecker,
+    this.clipboard = const SystemClipboardReader(),
   });
 
   final AppConfig config;
@@ -61,6 +63,7 @@ class CapsulaApp extends StatefulWidget {
 
   /// Defaults to checking links over HTTP (through the API when set).
   final LinkChecker? linkChecker;
+  final ClipboardReader clipboard;
 
   @override
   State<CapsulaApp> createState() => _CapsulaAppState();
@@ -164,6 +167,7 @@ class _CapsulaAppState extends State<CapsulaApp> {
       apiClient: _apiClient,
       display: _display,
       linkChecker: _linkChecker,
+      clipboard: widget.clipboard,
       importFilePicker: widget.importFilePicker,
       fileSaver: widget.fileSaver,
       child: MaterialApp.router(
