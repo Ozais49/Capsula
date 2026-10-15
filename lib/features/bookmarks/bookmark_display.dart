@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 
 IconData sourceIcon(BookmarkSource source) => switch (source) {
   BookmarkSource.reddit => Icons.forum_outlined,

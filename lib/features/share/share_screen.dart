@@ -6,8 +6,10 @@ import 'package:go_router/go_router.dart';
 import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-import '../../domain/bookmarks/bookmark_service.dart';
-import '../../domain/bookmarks/shared_content.dart';
+
+import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
+import 'package:capsula_core/domain/bookmarks/shared_content.dart';
+
 import '../bookmarks/bookmark_display.dart';
 
 /// Shown over the sharing app when a link is shared to Capsula. Saves to

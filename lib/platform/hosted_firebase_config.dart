@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../domain/connection/firebase_connection.dart';
+import 'package:capsula_core/domain/connection/firebase_connection.dart';
 
 /// Firebase Hosting serves the project's web config at this path, so a
 /// copy of the app hosted there can connect without manual setup.

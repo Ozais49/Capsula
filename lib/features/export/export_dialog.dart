@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../../app/dependencies.dart';
 import '../../app/theme.dart';
-import '../../domain/export/library_export.dart';
-import '../../domain/organization/label.dart';
+
+import 'package:capsula_core/domain/export/library_export.dart';
+import 'package:capsula_core/domain/organization/label.dart';
 
 Future<void> showExportDialog(BuildContext context) =>
     showDialog<void>(context: context, builder: (_) => const _ExportDialog());

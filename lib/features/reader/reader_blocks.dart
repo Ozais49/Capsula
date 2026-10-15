@@ -2,7 +2,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
-import '../../domain/reader/reader_content.dart';
+
+import 'package:capsula_core/domain/reader/reader_content.dart';
+
 import '../common/open_link.dart';
 
 /// Renders extracted article blocks as native widgets.

@@ -1,4 +1,4 @@
-import 'package:capsula/domain/reader/content_fetcher.dart';
+import 'package:capsula_core/domain/reader/content_fetcher.dart';
 
 /// Serves canned responses by URL prefix; anything else fails as offline.
 class FakeContentFetcher implements ContentFetcher {

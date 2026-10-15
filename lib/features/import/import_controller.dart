@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 
-import '../../domain/import/bookmark_html_parser.dart';
-import '../../domain/import/import_service.dart';
-import '../../domain/import/imported_item.dart';
-import '../../domain/import/tabular_import.dart';
-import '../../domain/organization/label.dart';
+import 'package:capsula_core/domain/import/bookmark_html_parser.dart';
+import 'package:capsula_core/domain/import/import_service.dart';
+import 'package:capsula_core/domain/import/imported_item.dart';
+import 'package:capsula_core/domain/import/tabular_import.dart';
+import 'package:capsula_core/domain/organization/label.dart';
+
 import '../../platform/import_file_picker.dart';
 
 sealed class ImportStep {

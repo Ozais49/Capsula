@@ -1,9 +1,9 @@
 import 'package:capsula/app/auth_session.dart';
 import 'package:capsula/app/dependencies.dart';
 import 'package:capsula/config/app_config.dart';
-import 'package:capsula/domain/reader/page_info_service.dart';
-import 'package:capsula/domain/reader/reader_service.dart';
-import 'package:capsula/domain/auth/auth_repository.dart';
+import 'package:capsula_core/domain/reader/page_info_service.dart';
+import 'package:capsula_core/domain/reader/reader_service.dart';
+import 'package:capsula_core/domain/auth/auth_repository.dart';
 import 'package:capsula/features/auth/sign_in_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

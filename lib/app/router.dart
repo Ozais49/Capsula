@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
-import '../domain/bookmarks/bookmark_view.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
+
 import '../features/auth/sign_in_screen.dart';
 import '../features/connection/connection_screen.dart';
 import '../features/bookmarks/bookmark_detail_screen.dart';

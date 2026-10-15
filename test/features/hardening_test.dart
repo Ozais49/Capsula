@@ -3,9 +3,9 @@ import 'dart:typed_data';
 
 import 'package:capsula/app/app.dart';
 import 'package:capsula/config/app_config.dart';
-import 'package:capsula/domain/auth/app_user.dart';
-import 'package:capsula/domain/bookmarks/bookmark.dart';
-import 'package:capsula/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/auth/app_user.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula/features/auth/sign_in_screen.dart';
 import 'package:capsula/platform/file_saver.dart';
 import 'package:flutter/material.dart';

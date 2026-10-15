@@ -1,5 +1,5 @@
 import 'package:capsula/data/firebase/firebase_auth_repository.dart';
-import 'package:capsula/domain/auth/auth_repository.dart';
+import 'package:capsula_core/domain/auth/auth_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

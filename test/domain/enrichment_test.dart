@@ -1,6 +1,6 @@
-import 'package:capsula/domain/bookmarks/bookmark_service.dart';
-import 'package:capsula/domain/reader/page_info_service.dart';
-import 'package:capsula/domain/reader/reader_content.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
+import 'package:capsula_core/domain/reader/page_info_service.dart';
+import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_content_fetcher.dart';

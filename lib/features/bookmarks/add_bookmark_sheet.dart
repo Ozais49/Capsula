@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-import '../../domain/bookmarks/bookmark.dart';
-import '../../domain/bookmarks/bookmark_service.dart';
+
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
+
 import 'bookmark_display.dart';
 
 Future<void> showAddBookmarkSheet(BuildContext context) =>

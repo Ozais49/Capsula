@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../domain/organization/label.dart';
+import 'package:capsula_core/domain/organization/label.dart';
+
 import 'firestore_bookmark_repository.dart';
 
 /// Stores tags at `users/{uid}/tags` and collections at

@@ -1,7 +1,7 @@
 import 'package:capsula/app/app.dart';
 import 'package:capsula/app/backend_controller.dart';
 import 'package:capsula/config/app_config.dart';
-import 'package:capsula/domain/auth/app_user.dart';
+import 'package:capsula_core/domain/auth/app_user.dart';
 import 'package:capsula/features/auth/sign_in_screen.dart';
 import 'package:capsula/features/connection/connection_screen.dart';
 import 'package:capsula/features/bookmarks/library_screen.dart';

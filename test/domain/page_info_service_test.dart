@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:capsula/domain/reader/content_fetcher.dart';
-import 'package:capsula/domain/reader/page_info_service.dart';
+import 'package:capsula_core/domain/reader/content_fetcher.dart';
+import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_content_fetcher.dart';

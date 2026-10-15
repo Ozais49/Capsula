@@ -1,10 +1,10 @@
 import 'package:capsula/app/app.dart';
 import 'package:capsula/config/app_config.dart';
-import 'package:capsula/domain/auth/app_user.dart';
-import 'package:capsula/domain/bookmarks/bookmark.dart';
-import 'package:capsula/domain/bookmarks/bookmark_source.dart';
-import 'package:capsula/domain/bookmarks/shared_content.dart';
-import 'package:capsula/domain/reader/page_info_service.dart';
+import 'package:capsula_core/domain/auth/app_user.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/shared_content.dart';
+import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula/features/auth/sign_in_screen.dart';
 import 'package:capsula/features/bookmarks/bookmark_detail_screen.dart';
 import 'package:capsula/features/share/share_screen.dart';

@@ -1,4 +1,4 @@
-import 'package:capsula/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

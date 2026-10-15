@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:capsula/domain/organization/label.dart';
+import 'package:capsula_core/domain/organization/label.dart';
 
 import 'in_memory_bookmark_repository.dart';
 

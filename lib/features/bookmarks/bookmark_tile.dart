@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../domain/bookmarks/bookmark.dart';
-import '../../domain/organization/label.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/organization/label.dart';
+
 import '../organization/labels_builder.dart';
 import 'bookmark_display.dart';
 

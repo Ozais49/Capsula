@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../app/dependencies.dart';
 import '../../app/theme.dart';
-import '../../domain/organization/label.dart';
+
+import 'package:capsula_core/domain/organization/label.dart';
 
 /// Lets the user choose labels of [kind], creating new ones inline.
 /// Returns the chosen IDs, or null when dismissed.

@@ -1,4 +1,4 @@
-import 'package:capsula/domain/bookmarks/shared_content.dart';
+import 'package:capsula_core/domain/bookmarks/shared_content.dart';
 import 'package:capsula/platform/share_intake.dart';
 
 class FakeShareIntake implements ShareIntake {

@@ -1,8 +1,8 @@
-import 'package:capsula/domain/bookmarks/bookmark.dart';
-import 'package:capsula/domain/bookmarks/bookmark_source.dart';
-import 'package:capsula/domain/import/import_service.dart';
-import 'package:capsula/domain/import/imported_item.dart';
-import 'package:capsula/domain/organization/label.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/import/import_service.dart';
+import 'package:capsula_core/domain/import/imported_item.dart';
+import 'package:capsula_core/domain/organization/label.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/in_memory_bookmark_repository.dart';

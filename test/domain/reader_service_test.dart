@@ -1,11 +1,11 @@
 import 'dart:convert';
 
-import 'package:capsula/domain/bookmarks/bookmark.dart';
-import 'package:capsula/domain/bookmarks/bookmark_source.dart';
-import 'package:capsula/domain/bookmarks/url_normalizer.dart';
-import 'package:capsula/domain/reader/content_fetcher.dart';
-import 'package:capsula/domain/reader/reader_content.dart';
-import 'package:capsula/domain/reader/reader_service.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/url_normalizer.dart';
+import 'package:capsula_core/domain/reader/content_fetcher.dart';
+import 'package:capsula_core/domain/reader/reader_content.dart';
+import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_content_fetcher.dart';

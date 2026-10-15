@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-import '../../domain/auth/auth_repository.dart';
+
+import 'package:capsula_core/domain/auth/auth_repository.dart';
 
 enum _Mode { signIn, register }
 

@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../domain/bookmarks/bookmark.dart';
-import '../../domain/bookmarks/bookmark_repository.dart';
-import '../../domain/bookmarks/bookmark_source.dart';
-import '../../domain/bookmarks/bookmark_view.dart';
-import '../../domain/organization/label.dart';
-import '../../domain/bookmarks/search_tokens.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
+import 'package:capsula_core/domain/organization/label.dart';
+import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
 
 /// Stores bookmarks at `users/{uid}/bookmarks/{id}`. Security rules enforce
 /// that only the owner can read or write that path.

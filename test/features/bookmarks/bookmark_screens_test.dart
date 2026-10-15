@@ -1,8 +1,8 @@
 import 'package:capsula/app/app.dart';
 import 'package:capsula/config/app_config.dart';
-import 'package:capsula/domain/auth/app_user.dart';
-import 'package:capsula/domain/bookmarks/bookmark.dart';
-import 'package:capsula/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/auth/app_user.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula/features/bookmarks/bookmark_detail_screen.dart';
 import 'package:capsula/features/bookmarks/library_screen.dart';
 import 'package:flutter/material.dart';

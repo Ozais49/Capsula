@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../domain/auth/app_user.dart';
-import '../../domain/auth/auth_repository.dart';
+import 'package:capsula_core/domain/auth/app_user.dart';
+import 'package:capsula_core/domain/auth/auth_repository.dart';
 
 class FirebaseAuthRepository implements AuthRepository {
   FirebaseAuthRepository(this._auth);

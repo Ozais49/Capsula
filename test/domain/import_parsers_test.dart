@@ -1,6 +1,6 @@
-import 'package:capsula/domain/import/bookmark_html_parser.dart';
-import 'package:capsula/domain/import/imported_item.dart';
-import 'package:capsula/domain/import/tabular_import.dart';
+import 'package:capsula_core/domain/import/bookmark_html_parser.dart';
+import 'package:capsula_core/domain/import/imported_item.dart';
+import 'package:capsula_core/domain/import/tabular_import.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Shape of a Chrome / Edge export.

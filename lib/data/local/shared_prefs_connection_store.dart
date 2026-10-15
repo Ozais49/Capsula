@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../domain/connection/backend.dart';
-import '../../domain/connection/firebase_connection.dart';
+import 'package:capsula_core/domain/connection/backend.dart';
+import 'package:capsula_core/domain/connection/firebase_connection.dart';
 
 class SharedPrefsConnectionStore implements ConnectionSettingsStore {
   SharedPrefsConnectionStore([SharedPreferencesAsync? prefs])

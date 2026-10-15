@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../app/dependencies.dart';
-import '../../domain/organization/label.dart';
+
+import 'package:capsula_core/domain/organization/label.dart';
 
 /// The user's tags and collections, kept up to date.
 class Labels {

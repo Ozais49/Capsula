@@ -1,6 +1,6 @@
 import 'package:capsula/app/app.dart';
 import 'package:capsula/config/app_config.dart';
-import 'package:capsula/domain/auth/app_user.dart';
+import 'package:capsula_core/domain/auth/app_user.dart';
 import 'package:capsula/features/bookmarks/library_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

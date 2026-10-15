@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../domain/auth/app_user.dart';
-import '../domain/auth/auth_repository.dart';
+import 'package:capsula_core/domain/auth/app_user.dart';
+import 'package:capsula_core/domain/auth/auth_repository.dart';
 
 enum AuthStatus { unknown, signedIn, signedOut }
 

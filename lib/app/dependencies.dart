@@ -1,11 +1,13 @@
 import 'package:flutter/widgets.dart';
 
 import '../config/app_config.dart';
-import '../domain/auth/auth_repository.dart';
-import '../domain/bookmarks/bookmark_service.dart';
-import '../domain/import/import_service.dart';
-import '../domain/reader/page_info_service.dart';
-import '../domain/reader/reader_service.dart';
+
+import 'package:capsula_core/domain/auth/auth_repository.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
+import 'package:capsula_core/domain/import/import_service.dart';
+import 'package:capsula_core/domain/reader/page_info_service.dart';
+import 'package:capsula_core/domain/reader/reader_service.dart';
+
 import '../platform/file_saver.dart';
 import '../platform/import_file_picker.dart';
 import '../platform/share_intake.dart';

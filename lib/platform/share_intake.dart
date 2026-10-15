@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import '../domain/bookmarks/shared_content.dart';
+import 'package:capsula_core/domain/bookmarks/shared_content.dart';
 
 /// Content shared into the app from other apps.
 abstract interface class ShareIntake {

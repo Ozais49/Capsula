@@ -1,6 +1,6 @@
 import 'package:capsula/app/backend_controller.dart';
-import 'package:capsula/domain/connection/backend.dart';
-import 'package:capsula/domain/connection/firebase_connection.dart';
+import 'package:capsula_core/domain/connection/backend.dart';
+import 'package:capsula_core/domain/connection/firebase_connection.dart';
 
 import 'fake_auth_repository.dart';
 import 'in_memory_bookmark_repository.dart';

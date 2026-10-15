@@ -1,10 +1,10 @@
 import 'package:capsula/data/firebase/firestore_bookmark_repository.dart';
 import 'package:capsula/data/firebase/firestore_label_repository.dart';
-import 'package:capsula/domain/bookmarks/bookmark.dart';
-import 'package:capsula/domain/bookmarks/bookmark_repository.dart';
-import 'package:capsula/domain/bookmarks/bookmark_source.dart';
-import 'package:capsula/domain/bookmarks/bookmark_view.dart';
-import 'package:capsula/domain/organization/label.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
+import 'package:capsula_core/domain/organization/label.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 

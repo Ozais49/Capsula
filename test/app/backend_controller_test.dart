@@ -1,5 +1,5 @@
 import 'package:capsula/app/backend_controller.dart';
-import 'package:capsula/domain/connection/firebase_connection.dart';
+import 'package:capsula_core/domain/connection/firebase_connection.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_auth_repository.dart';

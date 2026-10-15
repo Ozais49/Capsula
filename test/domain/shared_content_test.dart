@@ -1,4 +1,4 @@
-import 'package:capsula/domain/bookmarks/shared_content.dart';
+import 'package:capsula_core/domain/bookmarks/shared_content.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 SharedLinks _extract(String? text, [String? subject]) =>

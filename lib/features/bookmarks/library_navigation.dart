@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-import '../../domain/bookmarks/bookmark_source.dart';
-import '../../domain/bookmarks/bookmark_view.dart';
-import '../../domain/organization/label.dart';
+
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
+import 'package:capsula_core/domain/organization/label.dart';
+
 import '../export/export_dialog.dart';
 import '../organization/label_dialogs.dart';
 import '../organization/labels_builder.dart';

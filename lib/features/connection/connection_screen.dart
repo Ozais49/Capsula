@@ -7,7 +7,8 @@ import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../config/app_config.dart';
-import '../../domain/connection/firebase_connection.dart';
+
+import 'package:capsula_core/domain/connection/firebase_connection.dart';
 
 /// Lets the user connect the app to their Firebase project.
 class ConnectionScreen extends StatefulWidget {

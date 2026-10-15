@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:capsula/domain/auth/app_user.dart';
-import 'package:capsula/domain/auth/auth_repository.dart';
+import 'package:capsula_core/domain/auth/app_user.dart';
+import 'package:capsula_core/domain/auth/auth_repository.dart';
 
 /// In-memory [AuthRepository] for tests.
 class FakeAuthRepository implements AuthRepository {

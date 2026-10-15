@@ -1,5 +1,5 @@
-import 'package:capsula/domain/reader/article_extractor.dart';
-import 'package:capsula/domain/reader/reader_content.dart';
+import 'package:capsula_core/domain/reader/article_extractor.dart';
+import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:html/parser.dart' as html_parser;
 

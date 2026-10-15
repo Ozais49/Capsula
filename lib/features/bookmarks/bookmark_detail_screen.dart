@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-import '../../domain/bookmarks/bookmark.dart';
-import '../../domain/bookmarks/bookmark_service.dart';
-import '../../domain/bookmarks/bookmark_view.dart';
-import '../../domain/organization/label.dart';
+
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
+import 'package:capsula_core/domain/organization/label.dart';
+
 import '../common/open_link.dart';
 import '../common/text_prompt.dart';
 import '../organization/label_picker_sheet.dart';

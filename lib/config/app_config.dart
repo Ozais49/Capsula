@@ -1,4 +1,4 @@
-import '../domain/connection/firebase_connection.dart';
+import 'package:capsula_core/domain/connection/firebase_connection.dart';
 
 /// Build-time configuration, supplied with `--dart-define-from-file=config/<env>.json`.
 enum AppEnvironment { dev, prod }

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:capsula/data/http/http_content_fetcher.dart';
-import 'package:capsula/domain/reader/content_fetcher.dart';
+import 'package:capsula_core/domain/reader/content_fetcher.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

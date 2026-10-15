@@ -1,0 +1,14 @@
+name: capsula_core
+description: Capsula's domain model and logic, shared by the app and the API server. Pure Dart.
+publish_to: none
+version: 1.0.0
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  html: ^0.15.7
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.26.0

@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../../domain/reader/content_fetcher.dart';
+import 'package:capsula_core/domain/reader/content_fetcher.dart';
 
 class HttpContentFetcher implements ContentFetcher {
   HttpContentFetcher([http.Client? client]) : _client = client ?? http.Client();

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../app/dependencies.dart';
 import '../../app/theme.dart';
-import '../../domain/bookmarks/bookmark.dart';
-import '../../domain/reader/reader_content.dart';
-import '../../domain/reader/reader_service.dart';
+
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/reader/reader_content.dart';
+import 'package:capsula_core/domain/reader/reader_service.dart';
+
 import '../common/open_link.dart';
 import 'reader_blocks.dart';
 

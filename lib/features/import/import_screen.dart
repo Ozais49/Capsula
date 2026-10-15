@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
-import '../../domain/import/import_service.dart';
-import '../../domain/import/imported_item.dart';
-import '../../domain/import/tabular_import.dart';
+
+import 'package:capsula_core/domain/import/import_service.dart';
+import 'package:capsula_core/domain/import/imported_item.dart';
+import 'package:capsula_core/domain/import/tabular_import.dart';
+
 import '../organization/labels_builder.dart';
 import 'import_controller.dart';
 

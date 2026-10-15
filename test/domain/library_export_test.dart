@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:capsula/domain/bookmarks/bookmark.dart';
-import 'package:capsula/domain/bookmarks/bookmark_source.dart';
-import 'package:capsula/domain/export/library_export.dart';
-import 'package:capsula/domain/import/bookmark_html_parser.dart';
-import 'package:capsula/domain/organization/label.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/export/library_export.dart';
+import 'package:capsula_core/domain/import/bookmark_html_parser.dart';
+import 'package:capsula_core/domain/organization/label.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final _now = DateTime.utc(2026, 10, 14, 12);

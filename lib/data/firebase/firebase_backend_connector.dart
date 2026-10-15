@@ -3,8 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../../config/app_config.dart';
-import '../../domain/connection/backend.dart';
-import '../../domain/connection/firebase_connection.dart';
+
+import 'package:capsula_core/domain/connection/backend.dart';
+import 'package:capsula_core/domain/connection/firebase_connection.dart';
+
 import 'firebase_auth_repository.dart';
 import 'firestore_bookmark_repository.dart';
 import 'firestore_label_repository.dart';

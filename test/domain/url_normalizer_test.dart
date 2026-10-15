@@ -1,4 +1,4 @@
-import 'package:capsula/domain/bookmarks/url_normalizer.dart';
+import 'package:capsula_core/domain/bookmarks/url_normalizer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 String canon(String url) => canonicalizeUrl(parseWebUrl(url)!);

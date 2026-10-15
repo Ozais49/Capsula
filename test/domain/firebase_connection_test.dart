@@ -1,4 +1,4 @@
-import 'package:capsula/domain/connection/firebase_connection.dart';
+import 'package:capsula_core/domain/connection/firebase_connection.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _package = 'com.ygtech.capsula';
