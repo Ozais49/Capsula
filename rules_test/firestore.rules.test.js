@@ -322,3 +322,24 @@ describe('notes and highlights', () => {
     await assertFails(deleteDoc(hRef(alice, 'bob')));
   });
 });
+
+describe('public links', () => {
+  const cRef = (firestore, id = 'c1') => doc(firestore, `users/alice/collections/${id}`);
+
+  test('clients can\'t set or change a share ID', async () => {
+    const alice = db('alice');
+    await assertFails(setDoc(cRef(alice), { name: 'Work', shareId: 'mine', createdAt: Timestamp.now() }));
+
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(cRef(ctx.firestore()), { name: 'Work', shareId: 'server-set', createdAt: Timestamp.now() }),
+    );
+    await assertFails(updateDoc(cRef(alice), { shareId: 'hijacked' }));
+    await assertSucceeds(updateDoc(cRef(alice), { name: 'Renamed' }));
+  });
+
+  test('share records are server-only', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'publicShares/anything')));
+    await assertFails(setDoc(doc(db('alice'), 'publicShares/x'), { uid: 'alice' }));
+    await assertFails(getDoc(doc(db(null), 'publicShares/anything')));
+  });
+});

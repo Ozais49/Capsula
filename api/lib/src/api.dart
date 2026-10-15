@@ -17,6 +17,7 @@ import 'package:shelf_router/shelf_router.dart';
 
 import 'auth.dart';
 import 'http.dart';
+import 'sharing.dart';
 
 /// A user's data, scoped so callers can't reach anyone else's.
 class UserData {
@@ -37,6 +38,7 @@ class CapsulaApi {
     required this.authenticator,
     required this.userData,
     required this.tokens,
+    required this.shares,
     required this.pageInfo,
     required this.reader,
     required this.rateLimiter,
@@ -48,6 +50,7 @@ class CapsulaApi {
   final Authenticator authenticator;
   final UserDataFactory userData;
   final TokenStore tokens;
+  final ShareStore shares;
   final PageInfoSource pageInfo;
   final ReaderSource reader;
   final RateLimiter rateLimiter;
@@ -106,6 +109,12 @@ class CapsulaApi {
     // Server-side fetching (no browser CORS limits)
     r.get('/v1/page-info', _authed(_pageInfo));
     r.get('/v1/reader', _authed(_reader));
+
+    // Public collection links
+    r.post('/v1/collections/<id>/share', _authedWithId(_shareCollection));
+    r.delete('/v1/collections/<id>/share', _authedWithId(_unshareCollection));
+    r.get('/v1/public/<shareId>', _publicJson);
+    r.get('/p/<shareId>', _publicHtml);
 
     // Personal API tokens
     r.get('/v1/tokens', _authed(_listTokens));
@@ -595,6 +604,105 @@ class CapsulaApi {
       ),
     );
     return jsonResponse(readerContentToJson(content));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sharing
+
+  Future<Label> _collectionOf(Principal p, String id) async {
+    final all = await userData(p.uid).labels.watch(LabelKind.collection).first;
+    final label = all.where((l) => l.id == id).firstOrNull;
+    if (label == null) {
+      throw const ApiError.notFound('No collection with this ID');
+    }
+    return label;
+  }
+
+  /// Public URLs are built from the request, so they match how the server
+  /// is reached (e.g. behind a reverse proxy with X-Forwarded-* headers).
+  Uri _publicUrl(Request req, String shareId) {
+    final proto = req.headers['x-forwarded-proto'] ?? req.requestedUri.scheme;
+    final host = req.headers['x-forwarded-host'] ?? req.requestedUri.authority;
+    return Uri.parse('$proto://$host/p/$shareId');
+  }
+
+  Future<Response> _shareCollection(Request req, Principal p, String id) async {
+    final label = await _collectionOf(p, id);
+    var shareId = label.shareId;
+    if (shareId == null) {
+      shareId = generateShareId();
+      await shares.create(shareId, ShareTarget(p.uid, id));
+    }
+    return jsonResponse({
+      'shareId': shareId,
+      'url': _publicUrl(req, shareId).toString(),
+    });
+  }
+
+  Future<Response> _unshareCollection(
+    Request req,
+    Principal p,
+    String id,
+  ) async {
+    final label = await _collectionOf(p, id);
+    if (label.shareId case final shareId?) {
+      await shares.delete(shareId, ShareTarget(p.uid, id));
+    }
+    return Response(204);
+  }
+
+  /// The shared collection's name and visible bookmarks, or null when the
+  /// link doesn't exist (or was revoked).
+  Future<(String, List<Bookmark>)?> _shared(String shareId) async {
+    if (!rateLimiter.allow('public:$shareId')) {
+      throw const ApiError(429, 'rate_limited', 'Too many requests');
+    }
+    final target = await shares.find(shareId);
+    if (target == null) return null;
+    final data = userData(target.uid);
+    final collection = (await data.labels.watch(LabelKind.collection).first)
+        .where((l) => l.id == target.collectionId && l.shareId == shareId)
+        .firstOrNull;
+    if (collection == null) return null;
+    final bookmarks = await data.bookmarks
+        .watchList(
+          BookmarkQuery(view: LabelView(LabelKind.collection, collection.id)),
+          limit: _maxListLimit,
+        )
+        .first;
+    return (collection.name, bookmarks);
+  }
+
+  Future<Response> _publicJson(Request req, String shareId) async {
+    final shared = await _shared(shareId);
+    if (shared == null) throw const ApiError.notFound('This link was removed');
+    final (name, bookmarks) = shared;
+    return jsonResponse({
+      'collection': {'name': name},
+      'bookmarks': bookmarks.map(publicBookmarkJson).toList(),
+    });
+  }
+
+  Future<Response> _publicHtml(Request req, String shareId) async {
+    final shared = await _shared(shareId);
+    if (shared == null) {
+      return Response.notFound(
+        '<!doctype html><meta charset="utf-8"><title>Not found</title>'
+        '<p style="font-family:system-ui;padding:24px">This link was removed '
+        'or never existed.</p>',
+        headers: {'content-type': 'text/html; charset=utf-8'},
+      );
+    }
+    final (name, bookmarks) = shared;
+    return Response.ok(
+      publicCollectionHtml(name, bookmarks),
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'public, max-age=60',
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+      },
+    );
   }
 
   // ---------------------------------------------------------------------------

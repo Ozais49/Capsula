@@ -36,6 +36,7 @@ class FirestoreLabelRepository implements LabelRepository {
           kind: kind,
           name: d.data()['name'] as String? ?? '',
           parentId: d.data()['parentId'] as String?,
+          shareId: d.data()['shareId'] as String?,
         ),
       ),
     ),

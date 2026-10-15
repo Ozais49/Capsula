@@ -16,6 +16,7 @@ class Label {
     required this.kind,
     required this.name,
     this.parentId,
+    this.shareId,
   });
 
   final String id;
@@ -25,11 +26,33 @@ class Label {
   /// The parent collection, for nested collections. Always null for tags.
   final String? parentId;
 
-  Label rename(String newName) =>
-      Label(id: id, kind: kind, name: newName, parentId: parentId);
+  /// Set when the collection has a public read-only link. Only the API
+  /// server assigns it.
+  final String? shareId;
 
-  Label moveTo(String? newParentId) =>
-      Label(id: id, kind: kind, name: name, parentId: newParentId);
+  Label rename(String newName) => Label(
+    id: id,
+    kind: kind,
+    name: newName,
+    parentId: parentId,
+    shareId: shareId,
+  );
+
+  Label moveTo(String? newParentId) => Label(
+    id: id,
+    kind: kind,
+    name: name,
+    parentId: newParentId,
+    shareId: shareId,
+  );
+
+  Label withShare(String? newShareId) => Label(
+    id: id,
+    kind: kind,
+    name: name,
+    parentId: parentId,
+    shareId: newShareId,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -37,10 +60,11 @@ class Label {
       other.id == id &&
       other.kind == kind &&
       other.name == name &&
-      other.parentId == parentId;
+      other.parentId == parentId &&
+      other.shareId == shareId;
 
   @override
-  int get hashCode => Object.hash(id, kind, name, parentId);
+  int get hashCode => Object.hash(id, kind, name, parentId, shareId);
 }
 
 const maxLabelNameLength = 50;

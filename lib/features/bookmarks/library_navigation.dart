@@ -11,6 +11,7 @@ import 'package:capsula_core/domain/organization/label.dart';
 
 import '../export/export_dialog.dart';
 import '../organization/label_dialogs.dart';
+import '../organization/share_dialog.dart';
 import '../organization/labels_builder.dart';
 import 'bookmark_display.dart';
 
@@ -110,7 +111,11 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
               : [for (final l in labels) (l, 0)])
         _item(
           LabelView(kind, label.id),
-          depth > 0 ? Icons.subdirectory_arrow_right : icon,
+          label.shareId != null
+              ? Icons.public
+              : depth > 0
+              ? Icons.subdirectory_arrow_right
+              : icon,
           label.name,
           depth: depth,
           trailing: PopupMenuButton<String>(
@@ -129,6 +134,8 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
                   );
                 case 'move':
                   await moveCollectionWithPicker(context, label, labels);
+                case 'share':
+                  await showShareCollectionDialog(context, label);
                 case 'delete':
                   if (await deleteLabelWithConfirm(context, label) &&
                       widget.selected == LabelView(kind, label.id)) {
@@ -144,6 +151,7 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
                   child: Text('New collection inside'),
                 ),
                 PopupMenuItem(value: 'move', child: Text('Move to…')),
+                PopupMenuItem(value: 'share', child: Text('Share…')),
               ],
               const PopupMenuItem(value: 'delete', child: Text('Delete')),
             ],

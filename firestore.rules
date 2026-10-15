@@ -21,7 +21,7 @@ service cloud.firestore {
 
     function isValidLabel(data) {
       return data.keys().hasAll(['name', 'createdAt'])
-        && data.keys().hasOnly(['name', 'createdAt', 'parentId'])
+        && data.keys().hasOnly(['name', 'createdAt', 'parentId', 'shareId'])
         && isOptionalString(data, 'parentId', 100)
         && data.name is string
         && data.name.size() > 0 && data.name.size() <= 50
@@ -104,12 +104,16 @@ service cloud.firestore {
 
       allow create: if isOwner(userId)
         && labelKind in ['tags', 'collections']
-        && isValidLabel(request.resource.data);
+        && isValidLabel(request.resource.data)
+        && !('shareId' in request.resource.data);
 
       allow update: if isOwner(userId)
         && labelKind in ['tags', 'collections']
         && isValidLabel(request.resource.data)
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.createdAt == resource.data.createdAt
+        // Public links are managed by the API server only.
+        && request.resource.data.get('shareId', null)
+          == resource.data.get('shareId', null);
     }
 
     match /{document=**} {

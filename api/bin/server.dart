@@ -35,6 +35,7 @@ Future<void> main() async {
       AdminHighlightRepository(firestore, uid),
     ),
     tokens: FirestoreTokenStore(firestore),
+    shares: FirestoreShareStore(firestore),
     pageInfo: PageInfoService(fetcher),
     reader: ReaderService(fetcher),
     rateLimiter: RateLimiter(config.requestsPerMinute),

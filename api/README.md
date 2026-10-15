@@ -29,9 +29,12 @@ rate-limited per user (default 120 per minute).
 | GET | `/v1/bookmarks?view=&q=&limit=` | List. `view`: `inbox`, `all` (default), `archived`, `source:reddit`, `tag:<id>`, `collection:<id>`. `q`: search. `limit`: up to 500 |
 | GET | `/v1/bookmarks/export` | Every bookmark |
 | POST | `/v1/bookmarks` | Save `{url, title?, tags?, collections?, fetchDetails?}`. The real title is fetched from the source. Returns 409 with the existing bookmark if already saved |
-| GET / PATCH / DELETE | `/v1/bookmarks/{id}` | PATCH accepts `title`, `description`, `readingStatus`, `archived`, `inInbox`, `tags` / `collections` (names, created if missing) or `tagIds` / `collectionIds` |
+| GET / PATCH / DELETE | `/v1/bookmarks/{id}` | PATCH accepts `title`, `description`, `note`, `favorite`, `readingStatus`, `archived`, `inInbox`, `tags` / `collections` (names, created if missing) or `tagIds` / `collectionIds` |
 | GET / POST | `/v1/tags`, `/v1/collections` | List, or create `{name}` (returns the existing one for the same name) |
 | PATCH / DELETE | `/v1/tags/{id}`, `/v1/collections/{id}` | Rename `{name}`, or delete (bookmarks are kept) |
+| GET / POST / PATCH / DELETE | `/v1/highlights`, `/v1/highlights/{id}` | Highlights. List all, or `?bookmarkId=`. Create `{bookmarkId, text, note?, color?}`. PATCH `{note, color}` |
+| POST / DELETE | `/v1/collections/{id}/share` | Turn a collection's public read-only link on (returns `{shareId, url}`) or off |
+| GET | `/v1/public/{shareId}`, `/p/{shareId}` | The shared collection as JSON, or as a web page. No auth. Only titles, links, descriptions and images are shown |
 | GET | `/v1/page-info?url=` | Title, description and image of any link, fetched by the server |
 | GET | `/v1/reader?url=` | Reader view of any link (article blocks, video, preview, or reason it's unavailable) |
 | GET / POST | `/v1/tokens` | List or create API tokens (`{name}`). Firebase sign-in only |

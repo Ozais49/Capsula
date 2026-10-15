@@ -34,6 +34,33 @@ class _MemoryTokens implements TokenStore {
   Future<void> touch(String id, DateTime when) async {}
 }
 
+class _MemoryShares implements ShareStore {
+  _MemoryShares(this.labels);
+
+  final Map<String, InMemoryLabelRepository> labels;
+  final items = <String, ShareTarget>{};
+
+  void _mark(ShareTarget t, String? shareId) {
+    final repo = labels[t.uid]!;
+    repo.addAll([repo.items[t.collectionId]!.withShare(shareId)]);
+  }
+
+  @override
+  Future<ShareTarget?> find(String shareId) async => items[shareId];
+
+  @override
+  Future<void> create(String shareId, ShareTarget t) async {
+    items[shareId] = t;
+    _mark(t, shareId);
+  }
+
+  @override
+  Future<void> delete(String shareId, ShareTarget t) async {
+    items.remove(shareId);
+    _mark(t, null);
+  }
+}
+
 class _FakePageInfo implements PageInfoSource {
   final titles = <String, String>{};
 
@@ -64,6 +91,7 @@ class _Server {
         return UserData(b, l, h);
       },
       tokens: tokens,
+      shares: _MemoryShares(labels),
       pageInfo: pageInfo,
       reader: _FakeReader(),
       rateLimiter: RateLimiter(perMinute),
@@ -604,5 +632,111 @@ void main() {
     // Deleting the bookmark deletes its highlights.
     await s.call('DELETE', '/v1/bookmarks/$id');
     expect((await s.call('GET', '/v1/highlights')).$2['highlights'], isEmpty);
+  });
+
+  test('public collection links', () async {
+    final (_, work) = await s.call(
+      'POST',
+      '/v1/collections',
+      body: {'name': 'Reading <list>'},
+    );
+    final (_, other) = await s.call(
+      'POST',
+      '/v1/collections',
+      body: {'name': 'Private'},
+    );
+    await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {
+        'url': 'https://example.com/shared',
+        'collections': ['Reading <list>'],
+      },
+    );
+    final (_, private) = await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {
+        'url': 'https://example.com/private',
+        'collections': ['Private'],
+      },
+    );
+    await s.call(
+      'PATCH',
+      '/v1/bookmarks/${private['id']}',
+      body: {'note': 'secret'},
+    );
+
+    final (status, share) = await s.call(
+      'POST',
+      '/v1/collections/${work['id']}/share',
+    );
+    expect(status, 200);
+    final shareId = share['shareId'] as String;
+    expect(shareId.length, greaterThanOrEqualTo(16));
+    expect(share['url'], 'http://localhost/p/$shareId');
+
+    // Sharing twice keeps the same link.
+    expect(
+      (await s.call(
+        'POST',
+        '/v1/collections/${work['id']}/share',
+      )).$2['shareId'],
+      shareId,
+    );
+    expect(
+      ((await s.call('GET', '/v1/collections')).$2['collections'] as List)
+          .firstWhere((c) => (c as Map)['id'] == work['id'])['shareId'],
+      shareId,
+    );
+
+    // Anyone can view it, without signing in; only public fields appear.
+    final (publicStatus, page) = await s.call(
+      'GET',
+      '/v1/public/$shareId',
+      auth: null,
+    );
+    expect(publicStatus, 200);
+    expect((page['collection'] as Map)['name'], 'Reading <list>');
+    final items = page['bookmarks'] as List;
+    expect(items, hasLength(1));
+    expect((items.single as Map).keys, isNot(contains('note')));
+    expect((items.single as Map).keys, isNot(contains('tagIds')));
+
+    final html = await s.api.handler(
+      Request('GET', Uri.parse('http://localhost/p/$shareId')),
+    );
+    expect(html.statusCode, 200);
+    final body = await html.readAsString();
+    expect(body, contains('Reading &lt;list&gt;'), reason: 'escaped');
+    expect(body, contains('https://example.com/shared'));
+    expect(body, isNot(contains('example.com/private')));
+
+    // Others can't share or unshare someone else's collection.
+    expect(
+      (await s.call(
+        'POST',
+        '/v1/collections/${other['id']}/share',
+        auth: 'bob-id-token',
+      )).$1,
+      404,
+    );
+
+    // Revoking removes the page immediately.
+    expect(
+      (await s.call('DELETE', '/v1/collections/${work['id']}/share')).$1,
+      204,
+    );
+    expect((await s.call('GET', '/v1/public/$shareId', auth: null)).$1, 404);
+    expect(
+      (await s.api.handler(
+        Request('GET', Uri.parse('http://localhost/p/$shareId')),
+      )).statusCode,
+      404,
+    );
+    expect(
+      (await s.call('GET', '/v1/public/not-a-real-share-id', auth: null)).$1,
+      404,
+    );
   });
 }

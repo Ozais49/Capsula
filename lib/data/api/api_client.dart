@@ -99,6 +99,15 @@ class CapsulaApiClient {
     await _send('GET', '/v1/reader', query: {'url': url.toString()}),
   );
 
+  /// Turns on the collection's public link and returns its URL.
+  Future<Uri> shareCollection(String collectionId) async {
+    final json = await _send('POST', '/v1/collections/$collectionId/share');
+    return Uri.parse(json['url'] as String);
+  }
+
+  Future<void> unshareCollection(String collectionId) =>
+      _send('DELETE', '/v1/collections/$collectionId/share');
+
   Future<List<ApiTokenInfo>> tokens() async {
     final json = await _send('GET', '/v1/tokens');
     return [

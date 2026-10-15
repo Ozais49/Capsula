@@ -9,6 +9,7 @@ import 'package:dart_firebase_admin/auth.dart';
 import 'package:dart_firebase_admin/firestore.dart';
 
 import 'auth.dart';
+import 'sharing.dart';
 
 DateTime? _readTime(Object? value) => switch (value) {
   Timestamp(:final seconds, :final nanoseconds) =>
@@ -181,6 +182,7 @@ class AdminLabelRepository implements LabelRepository {
             kind: kind,
             name: d.data()['name'] as String? ?? '',
             parentId: d.data()['parentId'] as String?,
+            shareId: d.data()['shareId'] as String?,
           ),
         ),
       ),
@@ -350,5 +352,48 @@ class AdminHighlightRepository implements HighlightRepository {
     for (final d in s.docs) {
       await d.ref.delete();
     }
+  }
+}
+
+class FirestoreShareStore implements ShareStore {
+  FirestoreShareStore(this._db);
+
+  final Firestore _db;
+
+  CollectionReference<DocumentData> get _col => _db.collection('publicShares');
+
+  DocumentReference<DocumentData> _collection(ShareTarget t) => _db
+      .collection('users')
+      .doc(t.uid)
+      .collection('collections')
+      .doc(t.collectionId);
+
+  @override
+  Future<ShareTarget?> find(String shareId) async {
+    if (!isValidShareId(shareId)) return null;
+    final d = await _col.doc(shareId).get();
+    if (!d.exists) return null;
+    final data = d.data()!;
+    return ShareTarget(data['uid'] as String, data['collectionId'] as String);
+  }
+
+  @override
+  Future<void> create(String shareId, ShareTarget t) async {
+    await _col.doc(shareId).set({
+      'uid': t.uid,
+      'collectionId': t.collectionId,
+      'createdAt': _writeTime(DateTime.now()),
+    });
+    await _collection(t).update({
+      FieldPath(const ['shareId']): shareId,
+    });
+  }
+
+  @override
+  Future<void> delete(String shareId, ShareTarget t) async {
+    await _collection(t).update({
+      FieldPath(const ['shareId']): FieldValue.delete,
+    });
+    await _col.doc(shareId).delete();
   }
 }

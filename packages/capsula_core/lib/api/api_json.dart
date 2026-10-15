@@ -33,6 +33,7 @@ Map<String, Object?> labelToJson(Label l) => {
   'kind': l.kind.name,
   'name': l.name,
   'parentId': ?l.parentId,
+  'shareId': ?l.shareId,
 };
 
 String _iso(DateTime d) => d.toUtc().toIso8601String();
