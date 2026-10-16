@@ -56,7 +56,7 @@ curl -X POST https://api.example.com/v1/bookmarks \
 | Variable | Required | Description |
 |---|---|---|
 | `FIREBASE_PROJECT_ID` | yes | e.g. `capsula-ygtech` |
-| `GOOGLE_APPLICATION_CREDENTIALS` | yes, for production | Path to a Firebase service account key (JSON) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | yes, except on Google Cloud | Path to a Firebase service account key (JSON). When unset, the server uses Google Cloud's default credentials (for example the Cloud Run service's identity) |
 | `PORT` | no | Default `8787` |
 | `CORS_ORIGINS` | no | Comma-separated browser origins allowed to call the API, e.g. `https://capsula-ygtech.web.app`. Default `*` |
 | `RATE_LIMIT_PER_MINUTE` | no | Default `120` |
@@ -89,7 +89,8 @@ docker run -p 8787:8787 \
 ```
 
 Put it behind HTTPS (for example Caddy or nginx with Let's Encrypt). Browsers only send
-the web app's sign-in token to an `https://` API.
+the web app's sign-in token to an `https://` API. For full hosting options, including Google
+Cloud Run, see [docs/hosting.md](../docs/hosting.md#api-server).
 
 ## Tests
 

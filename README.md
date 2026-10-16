@@ -1,235 +1,83 @@
 # Capsula
 
-Universal personal bookmark and content library for Android and Web.
-See [plan.md](plan.md) for the product plan and development phases.
+A personal bookmark and content library for Android and the web, by YG Tech.
+Save links from any app, organize them with collections and tags, read them in a clean
+reader view, highlight passages, and search the text of saved pages.
 
-## Development environment (Windows)
+- **Web app:** https://capsula-ygtech.web.app
+- **Android package:** `com.ygtech.capsula`
+- **Repository:** https://github.com/Ozais49/Capsula (work happens on `develop`)
+- **Product plan:** [plan.md](plan.md)
 
-| Tool | Version | Location |
-|---|---|---|
-| Git | 2.56 | system install |
-| Flutter (stable) | 3.47.7 / Dart 3.13.5 | `C:\src\flutter` (git clone, `stable` branch) |
-| JDK | Microsoft OpenJDK 21 | `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot` |
-| Node.js + Firebase CLI | Node 24, firebase-tools 15 | `npm install -g firebase-tools` |
-| Android SDK | platform 36, build-tools 36.0.0, platform-tools | `%LOCALAPPDATA%\Android\Sdk` |
-| IDE | VS Code + Dart/Flutter extensions | |
+## Features
 
-Android Studio is not required.
+- **Save from anywhere.** Android share sheet (with a "Save to Capsula" Direct Share
+  shortcut), copied links (offered when you open the app), the add button, or browser
+  bookmark import.
+- **Real titles.** Titles come from the source (YouTube, Reddit, Instagram, X, TikTok,
+  Facebook, and any page's `og:title`), not from the URL.
+- **Organize.** Inbox, favorites, nested collections, tags, sources, content types,
+  reminders, archive. List, card or grid layout; bulk edit.
+- **Read.** Reader view for articles, YouTube, Reddit posts and GitHub READMEs, with
+  highlights and notes.
+- **Search.** Titles and links, plus the full text of pages you've opened or indexed.
+- **Maintain.** Find broken links and duplicates, rebuild indexes.
+- **Import / export.** Import from Chrome, Firefox, Edge, Safari, Raindrop, Pocket, or any
+  bookmark HTML, CSV or JSON file. Export a JSON backup or a browser bookmarks file.
+- **Share.** Public read-only links for collections (needs the API server).
+- **API.** A self-hosted REST API for scripts and integrations.
+- **Two ways to store your library:**
+  - **With an account:** Firebase sign-in, synced across devices.
+  - **Without an account:** kept on this device only. No Firebase, no sign-in.
 
-### Setup steps
+## Quick start
 
-1. Install Git and VS Code.
-2. Install the JDK: `winget install Microsoft.OpenJDK.21` (the Firebase emulator requires 21+)
-3. Clone Flutter: `git clone https://github.com/flutter/flutter.git -b stable C:\src\flutter`
-4. Download the Android command-line tools zip from
-   <https://developer.android.com/studio#command-line-tools-only> and extract it so that
-   `sdkmanager.bat` is at `%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest\bin`.
-5. Set user environment variables:
-   - `JAVA_HOME` = JDK folder
-   - `ANDROID_HOME` = `%LOCALAPPDATA%\Android\Sdk`
-   - Add to `Path`: `C:\src\flutter\bin`, `%ANDROID_HOME%\cmdline-tools\latest\bin`,
-     `%ANDROID_HOME%\platform-tools`, `%JAVA_HOME%\bin`
-6. Install SDK packages and accept licenses:
-   ```
-   sdkmanager --licenses
-   sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
-   ```
-7. Point Flutter at the SDK/JDK and disable unused targets:
-   ```
-   flutter config --android-sdk "%ANDROID_HOME%" --jdk-dir "%JAVA_HOME%"
-   flutter config --no-enable-windows-desktop --no-enable-linux-desktop --no-enable-macos-desktop --no-enable-ios
-   ```
-8. Install the VS Code extension: `code --install-extension Dart-Code.flutter`
-9. Verify: `flutter doctor` and `flutter devices`
-
-The first Android build downloads the NDK and Gradle dependencies and takes several minutes.
-
-### Known issue: Gradle download times out
-
-On some networks `release-assets.githubusercontent.com` (where `services.gradle.org`
-redirects) is unreachable, so the Gradle wrapper fails with `Connection timed out`.
-Workaround: download the same distribution from a mirror (for example
-`https://mirrors.cloud.tencent.com/gradle/gradle-<version>-all.zip`), verify its SHA-256
-against `https://services.gradle.org/distributions/gradle-<version>-all.zip.sha256`,
-and copy the zip into the directory the wrapper created under
-`%USERPROFILE%\.gradle\wrapper\dists\gradle-<version>-all\<hash>\` (delete the `.part`
-file first). Then rerun the build.
-
-## Running
-
-Build-time settings live in `config/<env>.json` and are passed with `--dart-define-from-file`.
-VS Code has matching launch configurations: **Capsula (dev)**, **Capsula (emulators)** and **Capsula (prod)**.
+With the [development environment](docs/setup.md) installed, from the repository root:
 
 ```
-flutter run -d <android-device-id> --dart-define-from-file=config/dev.json
-flutter run -d edge --dart-define-from-file=config/dev.json
+flutter pub get
+flutter run -d <device-id> --dart-define-from-file=config/dev.json
 ```
 
-| File | Use |
+Run `flutter devices` to find device IDs. Use `-d edge` or `-d chrome` for the web app.
+
+## Documentation
+
+| Guide | What it covers |
 |---|---|
-| `config/dev.json` | Development against the real Firebase project |
-| `config/emulators.json` | Local Firebase emulators (`firebase emulators:start`) |
-| `config/prod.json` | Release builds |
-
-When using the emulators from a physical Android device, set `FIREBASE_EMULATOR_HOST`
-in `config/emulators.json` to your computer's LAN IP (`10.0.2.2` from an Android emulator).
-
-## Firebase setup
-
-Firebase settings are entered in the app, not compiled in. On first launch the app opens
-**Firebase connection**. It can also be opened later from the sign-in screen
-(**Connection settings**) or the home screen's app bar.
-
-- **Android:** paste the contents of `google-services.json`. It must contain the
-  `com.ygtech.capsula` app.
-- **Web:** paste the Web app's `firebaseConfig` object.
-- Or fill in the fields by hand.
-
-Settings are stored on the device (`shared_preferences`). Changing them while connected
-takes effect after restarting the app, because Firebase can be initialized only once per run.
-
-To get the configs from the CLI:
-
-```
-firebase apps:list --project capsula-ygtech
-firebase apps:sdkconfig ANDROID <android-app-id> --project capsula-ygtech
-firebase apps:sdkconfig WEB <web-app-id> --project capsula-ygtech
-```
-
-In the Firebase console, enable **Email/Password** under Authentication → Sign-in method.
-
-## Architecture
-
-```
-lib/
-  main.dart          Composition root: reads config, initializes Firebase, starts the app
-  app/               App shell: routing, auth session, dependency scope, theme
-  config/            Build-time configuration
-  domain/            Provider-independent models and repository interfaces
-  data/firebase/     Firebase implementations (the only code that imports Firebase SDKs)
-  data/local/        On-device storage (saved connection settings)
-  features/          Screens, grouped by feature
-```
-
-UI code depends on the repository interfaces in `domain/`, never on Firebase directly.
-Tests use in-memory fakes of those interfaces (`test/fakes/`).
-
-## Checks
-
-```
-flutter analyze
-flutter test
-flutter build web
-flutter build apk --debug
-```
-
-Firestore security rules tests. These start the emulator and attempt cross-user reads and
-writes, which must all fail:
-
-```
-cd rules_test
-npm install
-npm test
-```
-
-## Android share target
-
-`ShareActivity` (Kotlin) receives `ACTION_SEND` `text/plain` shares, shows a transparent
-window over the sharing app, and passes the text to Flutter at `/share` over the
-`capsula/share` method channel. Flutter extracts the links, saves them to the Inbox,
-then closes.
-
-To simulate a share from the command line with a device connected:
-
-```
-adb shell am start -a android.intent.action.SEND -t text/plain -n com.ygtech.capsula/.ShareActivity --es android.intent.extra.TEXT "https://www.reddit.com/r/FlutterDev/" --es android.intent.extra.SUBJECT "FlutterDev"
-```
+| [Setup](docs/setup.md) | Installing Flutter, the JDK, the Android SDK and the Firebase CLI on Windows |
+| [Running](docs/running.md) | Running the app on a phone, in a browser or against the emulators; config files; storage modes |
+| [Building](docs/building.md) | Android APK / App Bundle and web release builds, versioning, signing |
+| [Hosting](docs/hosting.md) | Firebase project, web hosting, Firestore rules and indexes, hosting the API server |
+| [Architecture](docs/architecture.md) | Code layout, layers, data model, share target, reader, security |
+| [Testing](docs/testing.md) | App, API and security rules tests |
+| [Troubleshooting](docs/troubleshooting.md) | Known issues and fixes |
+| [API](api/README.md) | REST API endpoints, authentication and configuration |
 
 ## Repository layout
 
 | Path | What |
 |---|---|
-| `lib/` | Flutter app (Android and Web) |
-| `packages/capsula_core/` | Pure-Dart domain model and logic shared by the app and the API |
-| `api/` | Self-hosted REST API server (see [api/README.md](api/README.md)) |
-| `rules_test/` | Firestore security rules tests |
+| `lib/` | Flutter app (Android and web) |
+| `packages/capsula_core/` | Pure-Dart domain model and logic, shared by the app and the API |
+| `api/` | Self-hosted REST API server |
+| `rules_test/` | Firestore security rules tests (Node, run against the emulator) |
+| `test/` | App tests |
+| `android/`, `web/` | Platform projects |
+| `config/` | Build-time settings passed with `--dart-define-from-file` |
+| `firebase.json`, `.firebaserc` | Firebase CLI config: hosting, rules, indexes, emulators |
+| `firestore.rules`, `firestore.indexes.json` | Firestore security rules and composite indexes |
+| `docs/` | Documentation |
 
-## API and integrations
-
-`api/` is a self-hosted Dart server that exposes the library over REST, for scripts, browser
-extensions and other services. It authenticates with Firebase sign-in or personal API tokens.
-In the app, **API & integrations** (navigation menu) sets the server address and manages
-tokens. When an address is set, the app also uses the server to read pages and look up
-titles, which removes the web app's cross-origin limitation.
-
-## Web
-
-Live at **https://capsula-ygtech.web.app** (Firebase Hosting).
-
-- On Firebase Hosting the app reads the project's web config from `/__/firebase/init.json`
-  and connects without manual setup. Elsewhere, the connection screen is used, as on Android.
-- URLs are path-based (`/bookmarks/<id>`). `firebase.json` rewrites every route to `index.html`.
-- Firestore's offline cache is shared across browser tabs.
-- Keyboard: `/` focuses search and `n` adds a bookmark. Both are ignored while typing.
-
-Deploy:
+## Common commands
 
 ```
+flutter analyze                                     # static analysis
+flutter test                                        # app tests
+flutter build apk --release --dart-define-from-file=config/prod.json
 flutter build web --release --dart-define-from-file=config/prod.json
-firebase deploy --only hosting
+firebase deploy --only hosting                      # publish the web app
+firebase deploy --only firestore                    # publish rules and indexes
+cd api && dart test                                 # API tests
+cd rules_test && npm test                           # security rules tests
 ```
-
-## Reader
-
-`ReaderService` (`lib/domain/reader/`) picks a presentation per content type:
-
-| Content | Reader shows |
-|---|---|
-| Websites, blogs, docs | Article extracted from the page (`article_extractor.dart`) |
-| YouTube | Video card (thumbnail, title from oEmbed) |
-| Reddit posts | Post body from Reddit's public JSON |
-| GitHub repositories | README from the GitHub API |
-| Instagram, Facebook, TikTok, X, Amazon | Preview from page metadata |
-| Short pages | Preview from page metadata |
-| Login pages, 404s, PDFs, network errors | Explanation, plus Open in browser |
-
-Reading never changes or removes a bookmark. When the bookmark's title was derived from the
-URL, the page's real title, description and image are saved to it.
-
-On the web, many sites block cross-origin requests. The reader then explains this and offers
-Open in browser. Android has no such restriction.
-
-## Privacy and security
-
-- Every user's data lives under `users/{uid}` in Firestore. `firestore.rules` grants access
-  only to the signed-in owner and validates every write: allowed fields, types, sizes,
-  `http(s)` URLs only, and no changes to `createdAt`, `url` or `canonicalUrl`. Every other
-  path is denied. `rules_test/` attempts cross-user reads, writes and deletes against the
-  emulator, and all of them must fail.
-- The app doesn't log URLs or bookmark contents.
-- Firebase settings entered in the app are identifiers, not secrets. Access is enforced by
-  Auth and the rules.
-- **Backup:** Export library (navigation menu) saves a full JSON backup, or a browser HTML
-  file that any browser or bookmark app can import. Capsula re-imports its own HTML export.
-
-### Known limitations
-
-- **Offline cache after sign-out.** Firestore's offline cache stays on the device after
-  sign-out. The app only ever queries the signed-in user's path, but on a shared computer,
-  clear site data (web) or app storage (Android) to remove it.
-- **Not yet implemented** (listed in the plan as future work): account deletion,
-  delete-all-data, email verification, App Check, an Android release signing key and app icon.
-
-## Data
-
-```
-users/{uid}/bookmarks/{bookmarkId}       (Firestore, asia-south1 / Mumbai)
-  url, canonicalUrl, title, description?, imageUrl?, source, sourceDomain,
-  readingStatus, archived, inInbox, createdAt, updatedAt, searchTokens
-```
-
-- `firestore.rules` allows each signed-in user to access only their own `users/{uid}` data,
-  and validates every bookmark write.
-- `firestore.indexes.json` holds the composite indexes for listing and search.
-- Deploy both with `firebase deploy --only firestore`.
-- `canonicalUrl` is used for duplicate detection. `searchTokens` holds word prefixes for search.
