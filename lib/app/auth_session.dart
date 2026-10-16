@@ -14,12 +14,20 @@ class AuthSession extends ChangeNotifier {
   AuthStatus _status = AuthStatus.unknown;
   AppUser? _user;
 
+  AuthRepository? _repository;
+
   AuthStatus get status => _status;
   AppUser? get user => _user;
   bool get isAttached => _subscription != null;
 
+  /// The repository being followed.
+  AuthRepository? get repository => _repository;
+
+  /// Follows [repository], replacing any earlier one (switching between an
+  /// account and the on-device library).
   void attach(AuthRepository repository) {
-    assert(!isAttached, 'AuthSession is already attached');
+    _subscription?.cancel();
+    _repository = repository;
     _subscription = repository.authStateChanges().listen(_onUserChanged);
   }
 

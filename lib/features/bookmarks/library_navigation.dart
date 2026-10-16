@@ -161,8 +161,11 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
                   child: Text('New collection inside'),
                 ),
                 PopupMenuItem(value: 'move', child: Text('Move to…')),
-                PopupMenuItem(value: 'share', child: Text('Share…')),
               ],
+              // Public links are served by the API for account users.
+              if (kind == LabelKind.collection &&
+                  !AppDependencies.of(context).backend.deviceOnly)
+                const PopupMenuItem(value: 'share', child: Text('Share…')),
               const PopupMenuItem(value: 'delete', child: Text('Delete')),
             ],
           ),
@@ -235,7 +238,10 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
             Scaffold.maybeOf(context)?.closeDrawer();
             context.push(AppRoutes.settings);
           },
-          onSignOut: deps.authRepository.signOut,
+          // Nothing to log out of without an account.
+          onSignOut: deps.backend.deviceOnly
+              ? null
+              : deps.authRepository.signOut,
         ),
         const Divider(height: 1),
         Expanded(child: views),
@@ -253,7 +259,7 @@ class _AccountHeader extends StatelessWidget {
 
   final AppUser? user;
   final VoidCallback onSettings;
-  final VoidCallback onSignOut;
+  final VoidCallback? onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -279,7 +285,9 @@ class _AccountHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (user?.email case final email?)
+                if (onSignOut == null)
+                  Text('On this device', style: theme.textTheme.bodySmall)
+                else if (user?.email case final email?)
                   Text(
                     email,
                     style: theme.textTheme.bodySmall,
@@ -294,11 +302,12 @@ class _AccountHeader extends StatelessWidget {
             icon: const Icon(Icons.settings_outlined),
             onPressed: onSettings,
           ),
-          IconButton(
-            tooltip: 'Log out',
-            icon: const Icon(Icons.logout),
-            onPressed: onSignOut,
-          ),
+          if (onSignOut != null)
+            IconButton(
+              tooltip: 'Log out',
+              icon: const Icon(Icons.logout),
+              onPressed: onSignOut,
+            ),
         ],
       ),
     );

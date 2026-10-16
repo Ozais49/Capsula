@@ -2,7 +2,8 @@ import 'dart:async';
 
 import '../domain/highlights/highlight.dart';
 
-/// In-memory [HighlightRepository] for tests.
+/// In-memory [HighlightRepository], used by tests and to hold the on-device
+/// library.
 class InMemoryHighlightRepository implements HighlightRepository {
   final Map<String, Highlight> items = {};
   final _changes = StreamController<void>.broadcast();

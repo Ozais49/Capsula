@@ -4,7 +4,8 @@ import '../domain/organization/label.dart';
 
 import 'in_memory_bookmark_repository.dart';
 
-/// In-memory [LabelRepository] for tests. Deleting a label also removes it
+/// In-memory [LabelRepository], used by tests and to hold the on-device
+/// library. Deleting a label also removes it
 /// from bookmarks in [bookmarks], like the real implementation.
 class InMemoryLabelRepository implements LabelRepository {
   InMemoryLabelRepository(this.bookmarks);

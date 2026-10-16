@@ -1,3 +1,4 @@
+import 'package:capsula_core/domain/connection/backend.dart';
 import 'package:capsula_core/domain/maintenance/maintenance.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
@@ -97,7 +98,9 @@ class _CapsulaAppState extends State<CapsulaApp> {
     widget.linkChecker ?? FetcherLinkChecker(_fetcher),
   );
   late final GoRouter _router = createRouter(widget.backend, _session);
-  bool _backfilled = false;
+
+  /// The services titles were last backfilled for.
+  BackendServices? _backfilled;
   (Uri, CapsulaApiClient)? _client;
 
   @override
@@ -113,7 +116,8 @@ class _CapsulaAppState extends State<CapsulaApp> {
   CapsulaApiClient? _apiClient() {
     final url = _apiSettings.baseUrl;
     final auth = widget.backend.services?.authRepository;
-    if (url == null || auth == null) return null;
+    // The API identifies users by their account.
+    if (url == null || auth == null || widget.backend.deviceOnly) return null;
     if (_client case (final cachedUrl, final client) when cachedUrl == url) {
       return client;
     }
@@ -124,22 +128,22 @@ class _CapsulaAppState extends State<CapsulaApp> {
     return client;
   }
 
-  /// Once per run, fetch real titles for links saved without them (for
-  /// example shared while offline).
+  /// Once per run (and library), fetch real titles for links saved without
+  /// them (for example shared while offline).
   void _backfillOnceSignedIn() {
     final services = widget.backend.services;
-    if (_backfilled ||
-        services == null ||
+    if (services == null ||
+        identical(services, _backfilled) ||
         _session.status != AuthStatus.signedIn) {
       return;
     }
-    _backfilled = true;
+    _backfilled = services;
     services.bookmarks.backfillDetails(_pageInfo).ignore();
   }
 
   void _attachSessionWhenConnected() {
     final services = widget.backend.services;
-    if (services != null && !_session.isAttached) {
+    if (services != null && _session.repository != services.authRepository) {
       _session.attach(services.authRepository);
     }
   }

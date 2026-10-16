@@ -7,6 +7,7 @@ import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../config/app_config.dart';
+import 'use_device_button.dart';
 
 import 'package:capsula_core/domain/connection/firebase_connection.dart';
 
@@ -154,6 +155,10 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                     listenable: _backend,
                     builder: (context, _) => _StatusPanel(backend: _backend),
                   ),
+                  if (!_backend.deviceOnly) ...[
+                    const SizedBox(height: Gap.md),
+                    const UseDeviceButton(),
+                  ],
                   const SizedBox(height: Gap.lg),
                   Text(
                     'Paste configuration',
@@ -270,6 +275,12 @@ class _StatusPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final (icon, color, message) = switch (backend.status) {
+      BackendStatus.connected when backend.deviceOnly => (
+        Icons.phone_android,
+        scheme.primary,
+        'Using the library on this device, without an account. Saving '
+            'settings below connects to Firebase instead.',
+      ),
       BackendStatus.connected when backend.restartRequired => (
         Icons.restart_alt,
         scheme.tertiary,
@@ -298,7 +309,8 @@ class _StatusPanel extends StatelessWidget {
       BackendStatus.notConfigured => (
         Icons.cloud_off_outlined,
         scheme.onSurfaceVariant,
-        'Not connected. Enter your Firebase project settings to continue.',
+        'Not connected. Enter your Firebase project settings, or use '
+            'Capsula without an account.',
       ),
     };
 

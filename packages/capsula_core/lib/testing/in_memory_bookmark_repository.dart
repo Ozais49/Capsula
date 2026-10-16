@@ -5,7 +5,8 @@ import '../domain/bookmarks/bookmark_repository.dart';
 import '../domain/bookmarks/bookmark_view.dart';
 import '../domain/bookmarks/search_tokens.dart';
 
-/// In-memory [BookmarkRepository] for tests.
+/// In-memory [BookmarkRepository], used by tests and to hold the on-device
+/// library.
 class InMemoryBookmarkRepository implements BookmarkRepository {
   final Map<String, Bookmark> items = {};
   final _changes = StreamController<void>.broadcast();

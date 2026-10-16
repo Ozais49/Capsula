@@ -32,4 +32,14 @@ class SharedPrefsConnectionStore implements ConnectionSettingsStore {
 
   @override
   Future<void> clear() => _prefs.remove(_key);
+
+  static const _deviceOnlyKey = 'device_only';
+
+  @override
+  Future<bool> loadDeviceOnly() async =>
+      await _prefs.getBool(_deviceOnlyKey) ?? false;
+
+  @override
+  Future<void> saveDeviceOnly(bool deviceOnly) =>
+      _prefs.setBool(_deviceOnlyKey, deviceOnly);
 }

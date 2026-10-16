@@ -29,6 +29,14 @@ class FakeConnectionStore implements ConnectionSettingsStore {
 
   @override
   Future<void> clear() async => saved = null;
+
+  bool deviceOnly = false;
+
+  @override
+  Future<bool> loadDeviceOnly() async => deviceOnly;
+
+  @override
+  Future<void> saveDeviceOnly(bool value) async => deviceOnly = value;
 }
 
 class FakeBackendConnector implements BackendConnector {

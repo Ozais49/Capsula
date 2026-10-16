@@ -49,4 +49,9 @@ abstract interface class ConnectionSettingsStore {
   Future<void> save(FirebaseConnection connection);
 
   Future<void> clear();
+
+  /// Whether the library is kept on this device only, with no backend.
+  Future<bool> loadDeviceOnly();
+
+  Future<void> saveDeviceOnly(bool deviceOnly);
 }

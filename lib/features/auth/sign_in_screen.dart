@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../connection/use_device_button.dart';
 import '../../app/dependencies.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
@@ -198,6 +199,8 @@ class _SignInScreenState extends State<SignInScreen> {
                         icon: const Icon(Icons.settings_ethernet, size: 18),
                         label: const Text('Connection settings'),
                       ),
+                      const SizedBox(height: Gap.md),
+                      UseDeviceButton(enabled: !_busy),
                     ],
                   ),
                 ),

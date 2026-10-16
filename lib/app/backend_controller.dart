@@ -11,7 +11,11 @@ class BackendController extends ChangeNotifier {
     required this._store,
     required this._connector,
     this._fallbackSettings,
+    this._deviceLibrary,
   });
+
+  /// Opens the library kept on this device, for use without a backend.
+  final Future<BackendServices> Function()? _deviceLibrary;
 
   /// Settings to use when none are saved, such as the config Firebase
   /// Hosting serves for the site. Never saved to the device.
@@ -28,6 +32,7 @@ class BackendController extends ChangeNotifier {
   FirebaseConnection? _savedAtConnect;
   BackendServices? _services;
   String? _error;
+  bool _deviceOnly = false;
 
   BackendStatus get status => _status;
   BackendServices? get services => _services;
@@ -40,7 +45,14 @@ class BackendController extends ChangeNotifier {
   /// Settings of the current connection.
   FirebaseConnection? get activeSettings => _active;
 
-  bool get restartRequired => _active != null && _saved != _savedAtConnect;
+  /// The library is kept on this device only, without an account.
+  bool get deviceOnly => _deviceOnly;
+
+  /// Whether this build can keep a library on the device.
+  bool get canUseDevice => _deviceLibrary != null;
+
+  bool get restartRequired =>
+      !_deviceOnly && _active != null && _saved != _savedAtConnect;
 
   /// Connected with settings that aren't saved on this device (from the
   /// hosting site).
@@ -48,6 +60,9 @@ class BackendController extends ChangeNotifier {
 
   Future<void> start() async {
     _saved = await _store.load();
+    if (canUseDevice && await _store.loadDeviceOnly()) {
+      return _openDeviceLibrary();
+    }
     final settings = _saved ?? await _loadFallback();
     if (settings == null) {
       _setStatus(BackendStatus.notConfigured);
@@ -69,7 +84,11 @@ class BackendController extends ChangeNotifier {
   Future<void> save(FirebaseConnection settings) async {
     await _store.save(settings);
     _saved = settings;
-    if (_status == BackendStatus.connected) {
+    if (_deviceOnly) {
+      await _store.saveDeviceOnly(false);
+      _deviceOnly = false;
+      await _connect(settings);
+    } else if (_status == BackendStatus.connected) {
       notifyListeners();
     } else {
       await _connect(settings);
@@ -96,6 +115,43 @@ class BackendController extends ChangeNotifier {
       _setStatus(BackendStatus.connected);
     } on Object catch (e) {
       _error = 'Could not connect: $e';
+      _setStatus(BackendStatus.failed);
+    }
+  }
+
+  /// Keeps the library on this device only, with no account. Takes effect
+  /// right away.
+  Future<void> useDevice() async {
+    await _store.saveDeviceOnly(true);
+    await _openDeviceLibrary();
+  }
+
+  /// Stops using the on-device library and connects with the saved (or
+  /// built-in) settings, or asks for them when there are none. The
+  /// on-device library stays on the device.
+  Future<void> useAccount() async {
+    await _store.saveDeviceOnly(false);
+    _deviceOnly = false;
+    _services = null;
+    _active = null;
+    final settings = _saved ?? await _loadFallback();
+    if (settings == null) {
+      _setStatus(BackendStatus.notConfigured);
+    } else {
+      await _connect(settings);
+    }
+  }
+
+  Future<void> _openDeviceLibrary() async {
+    _error = null;
+    _setStatus(BackendStatus.connecting);
+    try {
+      _services = await _deviceLibrary!();
+      _deviceOnly = true;
+      _active = null;
+      _setStatus(BackendStatus.connected);
+    } on Object catch (e) {
+      _error = 'Could not open the library on this device: $e';
       _setStatus(BackendStatus.failed);
     }
   }
