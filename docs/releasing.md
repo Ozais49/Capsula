@@ -7,7 +7,7 @@ workflow:
 |---|---|---|---|---|
 | Android app | `app/` | `.github/workflows/app.yml` | `app-v1.2.0` | builds a signed APK and App Bundle, attaches them to a GitHub release, and sends the APK to testers (Firebase App Distribution, when set up) |
 | Web app | `web/` | `.github/workflows/web.yml` | `web-v1.2.0` | builds the site and deploys it to Firebase Hosting |
-| API server | `api/` | `.github/workflows/api.yml` | `api-v1.2.0` | builds the Docker image and publishes it to GitHub Container Registry |
+| API server | `api/` | `.github/workflows/api.yml` | `api-v1.2.0` | builds the Docker image, publishes it to GitHub Container Registry, and deploys it to your server (when set up) |
 | Firestore rules and indexes | repository root | `.github/workflows/firebase.yml` | `firebase-v1.2.0` | deploys `firestore.rules` and `firestore.indexes.json` |
 
 On every push and pull request, each workflow also runs its part's checks (analysis and
@@ -83,8 +83,11 @@ Testers get an email for each release and can install it through the App Tester 
 
 API releases need no secrets: they publish to GitHub Container Registry with the
 workflow's own token, as `ghcr.io/<owner>/capsula-api:<version>` and `:latest`. The first
-image is private; to let a server pull it without signing in, open the package on GitHub
-(your profile → Packages → capsula-api → Package settings) and make it public. Running the
+image is private; the deploy to your own server signs in for the pull, so it can stay that
+way. To let other servers pull it without signing in, open the package on GitHub
+(your profile → Packages → capsula-api → Package settings) and make it public. Deploying to
+your server needs `VPS_HOST`, `VPS_SSH_KEY` and optionally `VPS_KNOWN_HOSTS`: see
+[Hosting → Your own server](hosting.md#option-a-your-own-server). Running the
 image: [Hosting → API server](hosting.md#api-server).
 
 ## Versions

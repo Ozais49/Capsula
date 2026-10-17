@@ -4,6 +4,7 @@
 # Release: push a tag api-v<version> (scripts\release.ps1 -Component api). Builds
 # the Docker image and publishes it to GitHub Container Registry as
 # ghcr.io/<owner>/capsula-api:<version> and :latest, with a GitHub release.
+# Then, when the variable VPS_HOST is set, deploys it to your server (deploy/vps).
 # Running it: docs/hosting.md. Setup: docs/releasing.md.
 name: API
 
@@ -14,12 +15,14 @@ on:
       - 'api/**'
       - 'packages/**'
       - '.github/workflows/api.yml'
+      - 'deploy/vps/**'
     tags: ['api-v*']
   pull_request:
     paths:
       - 'api/**'
       - 'packages/**'
       - '.github/workflows/api.yml'
+      - 'deploy/vps/**'
   workflow_dispatch:
 
 env:
@@ -44,6 +47,15 @@ jobs:
           dart pub get
           dart analyze
           dart test
+      - name: Server files
+        working-directory: deploy/vps
+        run: |
+          shellcheck setup.sh deploy.sh
+          cp env.example .env
+          mkdir -p secrets && echo '{}' > secrets/service-account.json
+          docker compose config --quiet
+          docker run --rm -e API_DOMAIN=api.example.com -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.8 caddy validate --config /etc/caddy/Caddyfile
 
   release:
     if: startsWith(github.ref, 'refs/tags/api-v')
@@ -94,3 +106,64 @@ jobs:
             ```
             docker pull ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
             ```
+
+  # Deploys the new image to your own server (deploy/vps). Runs only when the
+  # repository variable VPS_HOST is set. Setup: docs/hosting.md#option-a-your-own-server.
+  deploy:
+    if: startsWith(github.ref, 'refs/tags/api-v') && vars.VPS_HOST != ''
+    needs: release
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: { group: api-deploy, cancel-in-progress: false }
+    permissions:
+      contents: read
+      packages: read
+    env:
+      HOST: ${{ vars.VPS_HOST }}
+      DEPLOY_USER: ${{ vars.VPS_USER || 'capsula' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH key
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then echo "::error::Secret VPS_SSH_KEY is not set"; exit 1; fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+            check=yes
+          else
+            echo "::warning::Secret VPS_KNOWN_HOSTS is not set; trusting the server's key on first contact"
+            check=accept-new
+          fi
+          cat > ~/.ssh/config <<CONFIG
+          Host vps
+            HostName $HOST
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/id_deploy
+            StrictHostKeyChecking $check
+          CONFIG
+
+      - name: Copy the server files
+        run: scp deploy/vps/compose.yaml deploy/vps/Caddyfile deploy/vps/deploy.sh deploy/vps/env.example vps:/opt/capsula/
+
+      - name: Deploy
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#api-v}"
+          # Sign in to the registry for this pull only (the image may be private).
+          echo "$TOKEN" | ssh vps docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          status=0
+          ssh vps "chmod 750 /opt/capsula/deploy.sh && /opt/capsula/deploy.sh '$version'" || status=$?
+          ssh vps docker logout ghcr.io || true
+          exit $status
+
+      - name: Check it answers
+        run: |
+          domain=$(ssh vps "grep '^API_DOMAIN=' /opt/capsula/.env | cut -d= -f2")
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 "https://$domain/v1/health"

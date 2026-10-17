@@ -1,0 +1,50 @@
+# Capsula API on a single server: two API containers behind Caddy.
+#
+# Caddy gets the HTTPS certificate for API_DOMAIN and sends each request to a
+# healthy container, so one can restart (or crash) without the API going down.
+# Settings are in .env next to this file (see env.example).
+
+name: capsula
+
+x-api: &api
+  image: ${API_IMAGE}:${API_VERSION:-latest}
+  restart: unless-stopped
+  environment:
+    FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+    GOOGLE_APPLICATION_CREDENTIALS: /secrets/service-account.json
+    CORS_ORIGINS: ${CORS_ORIGINS}
+    RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
+  volumes:
+    # ",z" lets the container read the file with SELinux enforcing (AlmaLinux).
+    - ./secrets/service-account.json:/secrets/service-account.json:ro,z
+  # Give in-flight requests time to finish (the server waits up to 8 seconds).
+  stop_grace_period: 10s
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: '3' }
+
+services:
+  api1: *api
+  api2: *api
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro,z
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api1, api2]
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+
+volumes:
+  caddy_data:
+  caddy_config:

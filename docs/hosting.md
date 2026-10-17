@@ -6,7 +6,7 @@ What runs where:
 |---|---|---|
 | Web app | Firebase Hosting: https://capsula-ygtech.web.app | Using Capsula in a browser |
 | Database and sign-in | Firebase (Firestore in `asia-south1` / Mumbai, Firebase Auth) | Using Capsula with an account |
-| API server | Self-hosted (Docker on a server, or Google Cloud Run) | Optional: REST API, public collection links, reading pages from the web app without cross-origin limits |
+| API server | Your own server (`deploy/vps`), or Google Cloud Run | Optional: REST API, public collection links, reading pages from the web app without cross-origin limits |
 | Android app | Installed APK (later Google Play) | — |
 
 Using Capsula without an account needs none of these except the web app (for the browser
@@ -125,31 +125,80 @@ The server needs permission to use the project's Firestore:
 
 All settings are listed in [api/README.md → Configuration](../api/README.md#configuration).
 
-### Option A: Docker on a server
+### Option A: Your own server
 
-Build from the repository root, because the image includes `packages/capsula_core`:
+`deploy/vps/` runs the API on a Linux server: two API containers behind
+[Caddy](https://caddyserver.com), which gets the HTTPS certificate and sends each request
+to a container that's up. One container can restart or fail without the API going down.
+The setup script targets AlmaLinux 9 (Rocky Linux and RHEL 9 work the same). The server
+needs about 300 MB of memory for all three containers.
+
+| File | What it is |
+|---|---|
+| `setup.sh` | One-time setup, run as root: Docker, firewall (SSH, HTTP, HTTPS), automatic security updates, the `capsula` deploy user, and `/opt/capsula` |
+| `compose.yaml` | The API containers and Caddy |
+| `Caddyfile` | HTTPS and load balancing |
+| `env.example` | Settings; copied to `/opt/capsula/.env` |
+| `deploy.sh` | Updates to a version, one container at a time |
+
+#### 1. A domain
+
+Point a DNS `A` record, such as `api.example.com`, at the server's IP address. Without a
+domain, use `<ip>.sslip.io` (for example `203.0.113.7.sslip.io`), which points at that
+IP and also gets a certificate.
+
+#### 2. Set up the server
+
+Copy the folder to the server and run the setup as root:
 
 ```
-docker build -f api/Dockerfile -t capsula-api .
-docker run -d --restart unless-stopped -p 8787:8787 \
-  -e FIREBASE_PROJECT_ID=capsula-ygtech \
-  -e GOOGLE_APPLICATION_CREDENTIALS=/secrets/key.json \
-  -e CORS_ORIGINS=https://capsula-ygtech.web.app \
-  -v /path/to/key.json:/secrets/key.json:ro \
-  --name capsula-api capsula-api
+scp -r deploy/vps root@<server-ip>:/root/capsula-setup
+ssh root@<server-ip> bash /root/capsula-setup/setup.sh
 ```
 
-Put HTTPS in front of it. Browsers only send sign-in tokens to `https://` addresses. With
-[Caddy](https://caddyserver.com), which gets certificates automatically, a `Caddyfile` like
-this is enough:
+Then, on the server:
+
+1. Set `API_DOMAIN` in `/opt/capsula/.env`.
+2. Copy the service account key (see [Credentials](#credentials)) to
+   `/opt/capsula/secrets/service-account.json`, owned by `capsula` with mode `600`. It
+   stays on the server only.
+
+#### 3. Let GitHub deploy
+
+Create an SSH key for deploys on your PC, without a passphrase:
 
 ```
-api.example.com {
-    reverse_proxy localhost:8787
-}
+ssh-keygen -t ed25519 -f capsula-deploy -N "" -C capsula-deploy
 ```
 
-Check it's running: `curl https://api.example.com/v1/health`.
+- Add `capsula-deploy.pub` to `/home/capsula/.ssh/authorized_keys` on the server.
+- On GitHub, **Settings → Secrets and variables → Actions**:
+  - secret `VPS_SSH_KEY`: the contents of `capsula-deploy` (the private key)
+  - secret `VPS_KNOWN_HOSTS`: the output of `ssh-keyscan <server-ip>`. Optional, but
+    without it the workflow trusts whichever server answers first.
+  - variable `VPS_HOST`: the server's IP address or name
+  - variable `VPS_USER`: only if the user isn't `capsula`
+- Delete the private key from your PC once it's in GitHub.
+
+From then on, each API release (`scripts\release.cmd -Component api -Version 1.2.0
+-Push`) builds the image, deploys it to the server and checks that
+`https://<API_DOMAIN>/v1/health` answers. The first release starts everything. The image
+can stay private: the workflow signs the server in to GitHub's registry just for the pull.
+
+#### Running it by hand
+
+On the server, as `capsula`, in `/opt/capsula`:
+
+| Task | Command |
+|---|---|
+| Status | `docker compose ps` |
+| Logs | `docker compose logs -f api1 api2` |
+| Restart | `docker compose restart` |
+| Go back to a version | `./deploy.sh 1.1.0` |
+
+The containers start again by themselves after a reboot. A private image can only be pulled
+after `docker login ghcr.io` with a GitHub token that has `read:packages`, or make the
+package public (see [Releasing → API image](releasing.md#api-image)).
 
 ### Option B: Google Cloud Run
 
@@ -188,7 +237,8 @@ To serve the API from the web app's own domain (no CORS, same address), add a re
 ### Running more than one instance
 
 The server keeps no state of its own, so any number of instances can run at once (Cloud
-Run scales them automatically; with Docker, run several containers behind a load
+Run scales them automatically; `deploy/vps` runs two behind Caddy, and you can add more to
+`compose.yaml` and the `Caddyfile`; elsewhere, run several containers behind a load
 balancer). Each instance:
 
 - finishes requests in flight when it receives `SIGTERM` (sent by Cloud Run and

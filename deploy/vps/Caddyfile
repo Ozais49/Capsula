@@ -1,0 +1,15 @@
+# HTTPS for the API. Caddy gets and renews the certificate for API_DOMAIN itself;
+# the domain must point at this server and ports 80 and 443 must be open.
+{$API_DOMAIN} {
+	encode gzip
+
+	reverse_proxy api1:8787 api2:8787 {
+		# Send requests to a container that is up; try the other one when a
+		# request can't reach the first.
+		lb_policy round_robin
+		lb_try_duration 5s
+		health_uri /v1/health
+		health_interval 10s
+		health_timeout 3s
+	}
+}
