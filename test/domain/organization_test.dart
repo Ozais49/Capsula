@@ -60,7 +60,8 @@ void main() {
         tagIds: ['ai'],
         collectionIds: ['research'],
       );
-      expect(bookmarkInView(b, BookmarkView.inbox), isTrue);
+      // Organized, so not unsorted.
+      expect(bookmarkInView(b, BookmarkView.inbox), isFalse);
       expect(bookmarkInView(b, BookmarkView.all), isTrue);
       expect(
         bookmarkInView(b, const SourceView(BookmarkSource.reddit)),
@@ -86,10 +87,16 @@ void main() {
       expect(bookmarkInView(b, const LabelView(LabelKind.tag, 'ai')), isFalse);
     });
 
-    test('out of the Inbox is still in All', () {
-      final b = _b(inInbox: false);
-      expect(bookmarkInView(b, BookmarkView.inbox), isFalse);
-      expect(bookmarkInView(b, BookmarkView.all), isTrue);
+    test('Unsorted holds bookmarks without tags or collections', () {
+      expect(bookmarkInView(_b(), BookmarkView.inbox), isTrue);
+      expect(bookmarkInView(_b(tagIds: ['ai']), BookmarkView.inbox), isFalse);
+      expect(
+        bookmarkInView(_b(collectionIds: ['c']), BookmarkView.inbox),
+        isFalse,
+      );
+      // The old Inbox flag no longer matters.
+      expect(bookmarkInView(_b(inInbox: false), BookmarkView.inbox), isTrue);
+      expect(bookmarkInView(_b(tagIds: ['ai']), BookmarkView.all), isTrue);
     });
   });
 

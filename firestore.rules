@@ -39,7 +39,7 @@ service cloud.firestore {
           'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
           'updatedAt', 'searchTokens', 'tagIds', 'collectionIds',
           'importedFrom', 'importedAt', 'favorite', 'note', 'type', 'remindAt', 'contentIndexedAt',
-          'deletedAt', 'customSourceId'
+          'deletedAt', 'customSourceId', 'unsorted'
         ])
         && data.url is string && data.url.size() <= 4096
         && data.url.matches('^https?://.+')
@@ -67,6 +67,7 @@ service cloud.firestore {
         && (!('contentIndexedAt' in data) || data.contentIndexedAt is timestamp)
         && (!('deletedAt' in data) || data.deletedAt is timestamp)
         && isOptionalString(data, 'customSourceId', 100)
+        && (!('unsorted' in data) || data.unsorted is bool)
         && (!('type' in data) || data.type in
           ['article', 'video', 'image', 'document', 'post', 'product']);
     }

@@ -203,7 +203,7 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
   Query<Map<String, Object?>> _viewQuery(BookmarkView view) {
     final active = _collection.where('archived', isEqualTo: false);
     return switch (view) {
-      InboxView() => active.where('inInbox', isEqualTo: true),
+      InboxView() => active.where('unsorted', isEqualTo: true),
       AllView() => active,
       FavoritesView() => active.where('favorite', isEqualTo: true),
       RemindersView() => active,

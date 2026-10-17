@@ -128,8 +128,6 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
             onOpen: () => openExternal(context, Uri.parse(bookmark.url)),
             onRead: () => context.push(AppRoutes.reader(bookmark.id)),
             onStatus: (s) => _run(() => _service.setReadingStatus(bookmark, s)),
-            onInbox: (inInbox) =>
-                _run(() => _service.setInInbox(bookmark, inInbox)),
             onEditLabels: (kind, labels) => _editLabels(bookmark, kind, labels),
           );
         }
@@ -204,7 +202,6 @@ class _Details extends StatelessWidget {
     required this.onOpen,
     required this.onRead,
     required this.onStatus,
-    required this.onInbox,
     required this.onEditLabels,
   });
 
@@ -212,7 +209,6 @@ class _Details extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onRead;
   final ValueChanged<ReadingStatus> onStatus;
-  final ValueChanged<bool> onInbox;
   final void Function(LabelKind kind, List<Label> available) onEditLabels;
 
   @override
@@ -285,20 +281,6 @@ class _Details extends StatelessWidget {
             if (bookmark.archived) const Chip(label: Text('Archived')),
           ],
         ),
-        if (!bookmark.archived) ...[
-          const SizedBox(height: Gap.md),
-          bookmark.inInbox
-              ? OutlinedButton.icon(
-                  onPressed: () => onInbox(false),
-                  icon: const Icon(Icons.done),
-                  label: const Text('Done, remove from Inbox'),
-                )
-              : TextButton.icon(
-                  onPressed: () => onInbox(true),
-                  icon: const Icon(Icons.move_to_inbox_outlined),
-                  label: const Text('Move back to Inbox'),
-                ),
-        ],
         const SizedBox(height: Gap.sm),
         Text(
           'Saved ${formatSavedDate(bookmark.createdAt).toLowerCase()}',

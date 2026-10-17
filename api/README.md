@@ -26,10 +26,10 @@ rate-limited per user (default 120 per minute).
 |---|---|---|
 | GET | `/v1/health` | Liveness check, no auth |
 | GET | `/v1/me` | The caller's user ID and auth type |
-| GET | `/v1/bookmarks?view=&q=&limit=` | List. `view`: `inbox`, `all` (default), `archived`, `trash`, `source:reddit`, `tag:<id>`, `collection:<id>`. `q`: search. `limit`: up to 500. Filters, comma-separated, any value matching: `source` (e.g. `reddit,youtube`), `tag` (IDs), `kind` (`article`, `video`, …), `status` (`saved`, `readLater`, `reading`, `read`) |
+| GET | `/v1/bookmarks?view=&q=&limit=` | List. `view`: `inbox` (unsorted: no tags and no collections), `all` (default), `archived`, `trash`, `source:reddit`, `tag:<id>`, `collection:<id>`. `q`: search. `limit`: up to 500. Filters, comma-separated, any value matching: `source` (e.g. `reddit,youtube`), `tag` (IDs), `kind` (`article`, `video`, …), `status` (`saved`, `readLater`, `reading`, `read`) |
 | GET | `/v1/bookmarks/export` | Every bookmark, except those in the Trash |
 | POST | `/v1/bookmarks` | Save `{url, title?, tags?, collections?, fetchDetails?}`. The real title is fetched from the source. Returns 409 with the existing bookmark if already saved. Saving a link that is in the Trash restores it |
-| GET / PATCH / DELETE | `/v1/bookmarks/{id}` | PATCH accepts `title`, `description`, `note`, `favorite`, `readingStatus`, `archived`, `inInbox`, `tags` / `collections` (names, created if missing) or `tagIds` / `collectionIds`. DELETE moves the bookmark to the Trash; `?permanent=true` deletes it for good, with its highlights and page text |
+| GET / PATCH / DELETE | `/v1/bookmarks/{id}` | PATCH accepts `title`, `description`, `note`, `favorite`, `readingStatus`, `archived`, `inInbox` (kept for older clients; Unsorted no longer uses it), `tags` / `collections` (names, created if missing) or `tagIds` / `collectionIds`. DELETE moves the bookmark to the Trash; `?permanent=true` deletes it for good, with its highlights and page text |
 | POST | `/v1/bookmarks/{id}/restore` | Take a bookmark out of the Trash |
 | DELETE | `/v1/trash` | Delete everything in the Trash for good. Returns `{deleted}` |
 | GET / POST | `/v1/rules` | List rules, or add one `{name, conditions: [{field, op, value}], matchAll?, enabled?, tagIds?, collectionId?, favorite?}`. Fields: `source`, `domain`, `url`, `title`, `kind`, `importedFrom`; ops: `isEqual`, `contains`, `startsWith`, `matches` |

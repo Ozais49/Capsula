@@ -291,7 +291,6 @@ class _PlanPreview extends StatefulWidget {
 }
 
 class _PlanPreviewState extends State<_PlanPreview> {
-  bool _inbox = true;
   bool _folders = true;
   bool _tags = true;
 
@@ -327,12 +326,6 @@ class _PlanPreviewState extends State<_PlanPreview> {
           ),
         ),
         if (count > 0) ...[
-          SwitchListTile(
-            title: const Text('Add to Inbox'),
-            subtitle: const Text('Review imported bookmarks later'),
-            value: _inbox,
-            onChanged: (v) => setState(() => _inbox = v),
-          ),
           if (plan.folders.isNotEmpty)
             SwitchListTile(
               title: const Text('Keep folders as collections'),
@@ -367,11 +360,7 @@ class _PlanPreviewState extends State<_PlanPreview> {
           const SizedBox(height: Gap.lg),
           FilledButton(
             onPressed: () => widget.onImport(
-              ImportOptions(
-                addToInbox: _inbox,
-                foldersAsCollections: _folders,
-                keepTags: _tags,
-              ),
+              ImportOptions(foldersAsCollections: _folders, keepTags: _tags),
             ),
             child: Text(
               'Import $count ${count == 1 ? 'bookmark' : 'bookmarks'}',

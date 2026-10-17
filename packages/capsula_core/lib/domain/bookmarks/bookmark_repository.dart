@@ -107,7 +107,7 @@ abstract interface class BookmarkRepository {
 /// Whether [bookmark] belongs in [view]. Shared by implementations that
 /// filter in memory.
 bool bookmarkInView(Bookmark bookmark, BookmarkView view) => switch (view) {
-  InboxView() => !bookmark.archived && bookmark.inInbox,
+  InboxView() => !bookmark.archived && bookmark.isUnsorted,
   AllView() => !bookmark.archived,
   FavoritesView() => !bookmark.archived && bookmark.favorite,
   RemindersView() => !bookmark.archived && bookmark.remindAt != null,

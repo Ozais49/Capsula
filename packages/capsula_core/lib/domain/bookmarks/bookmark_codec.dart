@@ -22,6 +22,8 @@ Map<String, Object?> encodeBookmark(
   'readingStatus': b.readingStatus.name,
   'archived': b.archived,
   'inInbox': b.inInbox,
+  // Derived, and stored so Unsorted can be queried.
+  'unsorted': b.isUnsorted,
   if (b.favorite) 'favorite': true,
   'note': ?b.note,
   if (b.remindAt case final at?) 'remindAt': timestamp(at),

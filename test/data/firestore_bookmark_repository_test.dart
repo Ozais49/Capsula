@@ -5,6 +5,10 @@ import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
+import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
+import 'package:capsula_core/testing/in_memory_label_repository.dart';
+import 'package:capsula_core/testing/in_memory_rule_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Bookmark _bookmark(
@@ -238,5 +242,46 @@ void main() {
     expect(await ids(BookmarkView.all), ['active']);
     expect(await ids(BookmarkView.archived), ['archived']);
     expect(await ids(BookmarkView.trash), ['new', 'old']);
+  });
+
+  group('Unsorted', () {
+    DocumentReference<Map<String, Object?>> doc(String id) =>
+        db.collection('users').doc('alice').collection('bookmarks').doc(id);
+
+    test('the stored flag follows tags and collections', () async {
+      await repo.create(_bookmark('a'));
+      expect((await doc('a').get()).data()!['unsorted'], isTrue);
+
+      await repo.modify('a', (b) => b.copyWith(tagIds: ['t']));
+      expect((await doc('a').get()).data()!['unsorted'], isFalse);
+
+      await repo.modify('a', (b) => b.copyWith(tagIds: []));
+      expect((await doc('a').get()).data()!['unsorted'], isTrue);
+    });
+
+    test('older bookmarks get the flag from the migration', () async {
+      await repo.create(_bookmark('old'));
+      await doc('old').update({'unsorted': FieldValue.delete()});
+      Future<List<String>> unsorted() async => [
+        for (final b
+            in await repo
+                .watchList(
+                  const BookmarkQuery(view: BookmarkView.inbox),
+                  limit: 10,
+                )
+                .first)
+          b.id,
+      ];
+      expect(await unsorted(), isEmpty);
+
+      final repoLabels = InMemoryLabelRepository(InMemoryBookmarkRepository());
+      final service = BookmarkService(
+        repo,
+        repoLabels,
+        rules: InMemoryRuleRepository(),
+      );
+      await service.upgradeLibrary(InMemoryLibraryMeta(2));
+      expect(await unsorted(), ['old']);
+    });
   });
 }

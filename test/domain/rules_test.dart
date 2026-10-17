@@ -311,7 +311,10 @@ void main() {
     await services.bookmarks.upgradeLibrary(services.libraryMeta);
 
     final reopened = (await LocalLibrary.open(storage)).services();
-    expect(await reopened.libraryMeta.schemaVersion(), 2);
+    expect(
+      await reopened.libraryMeta.schemaVersion(),
+      BookmarkService.schemaVersion,
+    );
     expect(
       (await reopened.ruleRepository.watch().first).map((r) => r.id),
       contains('kind-video'),

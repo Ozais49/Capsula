@@ -77,7 +77,7 @@ class _AddBookmarkSheetState extends State<_AddBookmarkSheet> {
       case Saved(:final bookmark, :final committed):
         service.fetchDetails(bookmark, pageInfo).ignore();
         Navigator.of(context).pop();
-        messenger.showSnackBar(const SnackBar(content: Text('Saved to Inbox')));
+        messenger.showSnackBar(const SnackBar(content: Text('Saved')));
         committed.catchError((Object e) {
           messenger.hideCurrentSnackBar();
           messenger.showSnackBar(

@@ -65,7 +65,7 @@ Future<_Harness> _share(
 }
 
 void main() {
-  testWidgets('saves a shared link to the Inbox and closes', (tester) async {
+  testWidgets('saves a shared link and closes', (tester) async {
     final h = await _share(
       tester,
       const SharedContent(
@@ -74,11 +74,11 @@ void main() {
       ),
     );
 
-    expect(find.text('Saved to Inbox'), findsOneWidget);
+    expect(find.text('Saved'), findsOneWidget);
     final saved = h.repo.items.values.single;
     expect(saved.source, BookmarkSource.reddit);
     expect(saved.title, 'Hot reload explained');
-    expect(saved.inInbox, isTrue);
+    expect(saved.isUnsorted, isTrue);
 
     expect(h.intake.finishCalls, 0);
     await tester.pump(ShareScreen.autoCloseDelay);
@@ -93,7 +93,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Saved 2 links to Inbox'), findsOneWidget);
+    expect(find.text('Saved 2 links'), findsOneWidget);
     expect(h.repo.items, hasLength(2));
     await tester.pump(ShareScreen.autoCloseDelay);
   });
@@ -167,7 +167,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ShareScreen), findsOneWidget);
-    expect(find.text('Saved to Inbox'), findsOneWidget);
+    expect(find.text('Saved'), findsOneWidget);
     expect(h.repo.items.values.single.url, 'https://example.com/later');
     await tester.pump(ShareScreen.autoCloseDelay);
   });
@@ -186,7 +186,7 @@ void main() {
       fetcher: fetcher,
     );
 
-    expect(find.text('Saved to Inbox'), findsOneWidget);
+    expect(find.text('Saved'), findsOneWidget);
     expect(find.text('Flutter in 100 Seconds'), findsOneWidget);
     expect(h.repo.items.values.single.title, 'Flutter in 100 Seconds');
     await tester.pump(ShareScreen.autoCloseDelay);

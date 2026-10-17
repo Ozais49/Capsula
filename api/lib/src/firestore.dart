@@ -157,7 +157,7 @@ class AdminBookmarkRepository implements BookmarkRepository {
     final view = query.view;
     final active = _col.where('archived', WhereFilter.equal, false);
     var q = switch (view) {
-      InboxView() => active.where('inInbox', WhereFilter.equal, true),
+      InboxView() => active.where('unsorted', WhereFilter.equal, true),
       AllView() => active,
       FavoritesView() => active.where('favorite', WhereFilter.equal, true),
       RemindersView() => active,

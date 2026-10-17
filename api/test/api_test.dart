@@ -1134,4 +1134,25 @@ void main() {
     expect((await s.call('GET', '/v1/rules')).$2['rules'], hasLength(1));
     expect((await s.call('DELETE', '/v1/rules/$ruleId')).$1, 204);
   });
+
+  test('view=inbox lists unsorted bookmarks', () async {
+    await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {'url': 'https://example.com/a', 'fetchDetails': false},
+    );
+    await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {
+        'url': 'https://example.com/b',
+        'tags': ['Read'],
+        'fetchDetails': false,
+      },
+    );
+    final (_, body) = await s.call('GET', '/v1/bookmarks?view=inbox');
+    final list = body['bookmarks']! as List;
+    expect(list.map((b) => (b! as Map)['url']), ['https://example.com/a']);
+    expect((list.single! as Map)['unsorted'], isTrue);
+  });
 }

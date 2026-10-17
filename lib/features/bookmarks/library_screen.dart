@@ -137,9 +137,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                       fallbackTitle: links.title,
                     )
                     .ignore();
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Saved to Inbox')),
-                );
+                messenger.showSnackBar(const SnackBar(content: Text('Saved')));
               }
             } on Object catch (e) {
               messenger.showSnackBar(
@@ -236,20 +234,21 @@ class _LibraryScreenState extends State<LibraryScreen>
     if (_selected.remove(b.id) == null) _selected[b.id] = b;
   });
 
-  Future<void> _removeFromInbox(Bookmark bookmark) async {
+  /// Archives a bookmark from Unsorted (swiped away), offering Undo.
+  Future<void> _archive(Bookmark bookmark) async {
     final service = AppDependencies.of(context).bookmarks;
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        content: const Text('Removed from Inbox'),
+        content: const Text('Archived'),
         action: SnackBarAction(
           label: 'Undo',
-          onPressed: () => service.setInInbox(bookmark, true).ignore(),
+          onPressed: () => service.setArchived(bookmark, false).ignore(),
         ),
       ),
     );
-    service.setInInbox(bookmark, false).catchError((Object e) {
+    service.setArchived(bookmark, true).catchError((Object e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not update: $e')));
     });
   }
@@ -412,11 +411,6 @@ class _LibraryScreenState extends State<LibraryScreen>
         PopupMenuButton<String>(
           tooltip: 'More actions',
           onSelected: (action) => switch (action) {
-            'done' => _bulk(
-              'Removed from Inbox:',
-              () =>
-                  service.updateMany(items, (b) => b.copyWith(inInbox: false)),
-            ),
             'archive' => _bulk(
               'Archived',
               () => service.updateMany(
@@ -433,10 +427,6 @@ class _LibraryScreenState extends State<LibraryScreen>
             _ => null,
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(
-              value: 'done',
-              child: Text('Remove from Inbox'),
-            ),
             if (widget.view is ArchivedView)
               const PopupMenuItem(value: 'unarchive', child: Text('Unarchive'))
             else
@@ -780,12 +770,12 @@ class _LibraryScreenState extends State<LibraryScreen>
     return Dismissible(
       key: ValueKey(bookmark.id),
       background: const _SwipeBackground(),
-      onDismissed: (_) => _removeFromInbox(bookmark),
+      onDismissed: (_) => _archive(bookmark),
       // Swiping isn't available to screen reader users.
       child: Semantics(
         customSemanticsActions: {
-          const CustomSemanticsAction(label: 'Remove from Inbox'): () =>
-              _removeFromInbox(bookmark),
+          const CustomSemanticsAction(label: 'Archive'): () =>
+              _archive(bookmark),
         },
         child: tile,
       ),
@@ -808,7 +798,9 @@ class _LibraryScreenState extends State<LibraryScreen>
     return switch (widget.view) {
       InboxView() => const _Message(
         icon: Icons.inbox_outlined,
-        text: 'Inbox is empty.\nShare a link to Capsula or tap Add.',
+        text:
+            'Nothing unsorted.\nLinks without tags or a collection land '
+            'here. Rules can sort new links for you.',
       ),
       AllView() => const _Message(
         icon: Icons.bookmark_border,

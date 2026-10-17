@@ -1375,8 +1375,9 @@ with the central principle:
 
 # 38. Organization v2, Concurrency and Failover
 
-Approved 2026-10-17. Phases 9–15 rework how bookmarks are organized, and make every write
-safe when several devices, browser tabs, the API and background jobs change the same data.
+Approved and implemented 2026-10-17. Phases 9–15 rework how bookmarks are organized, and
+make every write safe when several devices, browser tabs, the API and background jobs
+change the same data.
 
 ## Decisions
 

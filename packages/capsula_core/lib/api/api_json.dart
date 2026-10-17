@@ -19,6 +19,7 @@ Map<String, Object?> bookmarkToJson(Bookmark b) => {
   'readingStatus': b.readingStatus.name,
   'archived': b.archived,
   'inInbox': b.inInbox,
+  'unsorted': b.isUnsorted,
   'favorite': b.favorite,
   'note': ?b.note,
   if (b.remindAt case final at?) 'remindAt': _iso(at),

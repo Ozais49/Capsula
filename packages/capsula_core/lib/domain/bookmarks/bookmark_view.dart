@@ -50,6 +50,8 @@ sealed class BookmarkView {
   int get hashCode => key.hashCode;
 }
 
+/// Unsorted: bookmarks with no tags and no collections. (Once called the
+/// Inbox, and still under the key `inbox` so old links keep working.)
 class InboxView extends BookmarkView {
   const InboxView();
 

@@ -14,7 +14,7 @@ import '../organization/label_dialogs.dart';
 import '../organization/share_dialog.dart';
 import '../organization/labels_builder.dart';
 
-/// Lists the library views: Inbox, All, Favorites, Archived, Trash, and the
+/// Lists the library views: Unsorted, All, Favorites, Archived, Trash, and the
 /// user's collections and tags. Sources and kinds are filters in the list.
 class LibraryNavigation extends StatefulWidget {
   const LibraryNavigation({
@@ -263,7 +263,7 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
         _item(
           BookmarkView.inbox,
           Icons.inbox_outlined,
-          'Inbox',
+          'Unsorted',
           trailing: FutureBuilder<int?>(
             future: _inboxCount,
             builder: (context, count) => count.data == null || count.data == 0
@@ -407,7 +407,7 @@ String userHandle(AppUser? user) {
 
 /// Display name of [view].
 String viewTitle(BookmarkView view, Labels labels) => switch (view) {
-  InboxView() => 'Inbox',
+  InboxView() => 'Unsorted',
   AllView() => 'All bookmarks',
   FavoritesView() => 'Favorites',
   RemindersView() => 'Reminders',

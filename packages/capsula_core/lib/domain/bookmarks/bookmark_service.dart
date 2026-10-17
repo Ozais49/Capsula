@@ -317,18 +317,36 @@ class BookmarkService {
   }
 
   /// The shape of library data this version of the app writes.
-  static const schemaVersion = 2;
+  static const schemaVersion = 3;
 
-  /// Brings a library up to [schemaVersion]. Version 2 turns the fixed
-  /// content types into tags: a tag and an editable rule for each kind
-  /// (Video, Image, Document, Post, Product), and existing bookmarks
-  /// tagged by their kind.
+  /// Brings a library up to [schemaVersion]:
+  ///
+  /// - 2: the fixed content types become tags: a tag and an editable rule
+  ///   for each kind (Video, Image, Document, Post, Product), and existing
+  ///   bookmarks tagged by their kind.
+  /// - 3: every bookmark stores whether it is unsorted, so Unsorted can be
+  ///   queried.
   ///
   /// Every step can run again harmlessly, so a migration interrupted by a
   /// crash or lost connection, or running on two devices at once, finishes
   /// correctly next time. Returns whether anything was done.
   Future<bool> upgradeLibrary(LibraryMetaRepository meta) async {
-    if (await meta.schemaVersion() >= schemaVersion) return false;
+    final from = await meta.schemaVersion();
+    if (from >= schemaVersion) return false;
+    if (from < 2) await _typesToTags();
+    if (from < 3) {
+      // Rewrites stored fields derived from each bookmark, adding
+      // `unsorted`.
+      await _repository.modifyMany(
+        (await _repository.fetchAll()).map((b) => b.id),
+        (b) => b,
+      );
+    }
+    await meta.setSchemaVersion(schemaVersion);
+    return true;
+  }
+
+  Future<void> _typesToTags() async {
     final tags = await _labels.watch(LabelKind.tag).first;
     final existingRules = await rules.watch().first;
     final tagFor = <ContentType, String>{};
@@ -366,8 +384,6 @@ class BookmarkService {
           ? b
           : b.copyWith(tagIds: [...b.tagIds, tag], updatedAt: _now());
     });
-    await meta.setSchemaVersion(schemaVersion);
-    return true;
   }
 
   // ---------------------------------------------------------------------------
@@ -703,11 +719,11 @@ class BookmarkService {
     return applyMetadata(bookmark, metadata, fallbackTitle: fallbackTitle);
   }
 
-  /// Fetches details for recent Inbox bookmarks that still have a title
+  /// Fetches details for recent bookmarks that still have a title
   /// made up from the URL, e.g. ones saved while offline.
   Future<int> backfillDetails(PageInfoSource pageInfo, {int limit = 25}) async {
     final recent = await _repository
-        .watchList(const BookmarkQuery(view: BookmarkView.inbox), limit: limit)
+        .watchList(const BookmarkQuery(view: BookmarkView.all), limit: limit)
         .first;
     var updated = 0;
     for (final bookmark in recent.where(

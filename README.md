@@ -16,13 +16,14 @@ reader view, highlight passages, and search the text of saved pages.
   bookmark import.
 - **Real titles.** Titles come from the source (YouTube, Reddit, Instagram, X, TikTok,
   Facebook, and any page's `og:title`), not from the URL.
-- **Organize.** Inbox, favorites, nested collections (collapsible), tags, reminders,
-  archive, and filters by source, tag, kind of content and reading status. Built-in
-  sources (Reddit, YouTube, Instagram, Facebook, X, TikTok, Telegram, GitHub, Webpage),
-  plus your own by domain.
+- **Organize.** Unsorted (links without tags or a collection), favorites, nested
+  collections (collapsible), tags, reminders and archive, with filters by source, tag and
+  reading status. List, card or grid layout; bulk edit.
+- **Sources.** Built in: Reddit, YouTube, Instagram, Facebook, X, TikTok, Telegram, GitHub
+  and Webpage. Add your own by domain.
 - **Rules.** Tag, file and star links automatically as they are saved or imported, by
-  source, domain, link, title or kind of content (video, post, product, …).
-  List, card or grid layout; bulk edit.
+  source, domain, link, title or kind of content (video, post, product, …). Links no rule
+  recognizes stay in Unsorted.
 - **Trash.** Deleted bookmarks go to the Trash, where they can be restored for 30 days.
 - **Read.** Reader view for articles, YouTube, Reddit posts and GitHub READMEs, with
   highlights and notes.

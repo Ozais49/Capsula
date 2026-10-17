@@ -13,7 +13,7 @@ import 'package:capsula_core/domain/bookmarks/shared_content.dart';
 import '../bookmarks/bookmark_display.dart';
 
 /// Shown over the sharing app when a link is shared to Capsula. Saves to
-/// the Inbox without asking anything, then closes.
+/// the library without asking anything, then closes.
 class ShareScreen extends StatefulWidget {
   const ShareScreen({super.key});
 
@@ -215,8 +215,7 @@ class _ShareScreenState extends State<ShareScreen> {
     }
 
     final parts = [
-      if (saved > 0)
-        saved == 1 ? 'Saved to Inbox' : 'Saved $saved links to Inbox',
+      if (saved > 0) saved == 1 ? 'Saved' : 'Saved $saved links',
       if (duplicates.isNotEmpty) '${duplicates.length} already saved',
       if (invalid > 0) '$invalid not saved',
     ];

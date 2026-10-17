@@ -94,7 +94,8 @@ void main() {
       _bookmark('c', source: BookmarkSource.reddit, minute: 3),
     );
 
-    expect(await ids(BookmarkView.inbox), ['c', 'a']);
+    // Unsorted: no tags and no collections.
+    expect(await ids(BookmarkView.inbox), ['c']);
     expect(await ids(BookmarkView.all), ['c', 'b', 'a']);
     expect(await ids(const SourceView(BookmarkSource.reddit)), ['c']);
     expect(await ids(const LabelView(LabelKind.tag, 't1')), ['a']);
@@ -117,10 +118,10 @@ void main() {
     expect(results.map((b) => b.id), ['flutter-tips']);
   });
 
-  test('counts the Inbox', () async {
+  test('counts Unsorted', () async {
     await bookmarks.create(_bookmark('a'));
     await bookmarks.create(_bookmark('b'));
-    await bookmarks.create(_bookmark('c', inInbox: false));
+    await bookmarks.create(_bookmark('c', tagIds: ['t1']));
     expect(await bookmarks.countInbox(), 2);
   });
 

@@ -80,7 +80,7 @@ reachable.
 
 The library URL holds the view and any filters, for example
 `/?view=collection:abc&source=reddit,youtube&tag=t1`. A view (`BookmarkView`) picks the
-bookmarks: Inbox, All, Favorites, Reminders, Archived, Trash, a tag or a collection.
+bookmarks: Unsorted (no tags and no collections; key `inbox`), All, Favorites, Reminders, Archived, Trash, a tag or a collection.
 Filters (`BookmarkFilters`: sources, tags, kind of content, reading status) narrow it, and
 stay on when moving between views. Firestore queries the view; filters are applied on the
 device, fetching up to four times the page size so pages stay full. Old links to source
@@ -92,7 +92,7 @@ All user data is under `users/{uid}`. Only the owner can read or write it.
 
 | Path | Fields |
 |---|---|
-| `users/{uid}/bookmarks/{id}` | `url`, `canonicalUrl`, `title`, `description?`, `imageUrl?`, `source`, `sourceDomain`, `customSourceId?`, `readingStatus`, `archived`, `inInbox`, `favorite?`, `note?`, `remindAt?`, `contentIndexedAt?`, `deletedAt?`, `tagIds`, `collectionIds`, `importedFrom?`, `importedAt?`, `createdAt`, `updatedAt`, `searchTokens` |
+| `users/{uid}/bookmarks/{id}` | `url`, `canonicalUrl`, `title`, `description?`, `imageUrl?`, `source`, `sourceDomain`, `customSourceId?`, `readingStatus`, `archived`, `inInbox` (no longer used), `unsorted` (no tags and no collections, kept in step by every update), `favorite?`, `note?`, `remindAt?`, `contentIndexedAt?`, `deletedAt?`, `tagIds`, `collectionIds`, `importedFrom?`, `importedAt?`, `createdAt`, `updatedAt`, `searchTokens` |
 | `users/{uid}/tags/{id}` | `name`, `createdAt`, `updatedAt?` |
 | `users/{uid}/rules/{id}` | `name`, `enabled`, `matchAll`, `conditions` (`{field, op, value}`), `tagIds`, `collectionId?`, `favorite?`, `createdAt` |
 | `users/{uid}/meta/schema` | `version` (data migrations done), `updatedAt` |

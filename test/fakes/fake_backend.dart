@@ -56,7 +56,7 @@ class FakeBackendConnector implements BackendConnector {
   final InMemoryRuleRepository rules = InMemoryRuleRepository();
 
   /// Up to date, so tests start without the types-to-tags migration.
-  final InMemoryLibraryMeta meta = InMemoryLibraryMeta(2);
+  final InMemoryLibraryMeta meta = InMemoryLibraryMeta(3);
   final List<FirebaseConnection> attempts = [];
 
   /// When set, the next connect attempt throws this.

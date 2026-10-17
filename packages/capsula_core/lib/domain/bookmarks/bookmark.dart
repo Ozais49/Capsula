@@ -85,6 +85,10 @@ class Bookmark {
   /// null for a built-in source. [source] still decides how it is read.
   final String? customSourceId;
 
+  /// Not in any collection and without tags: no rule recognized it and
+  /// nobody has organized it yet. Shown in Unsorted.
+  bool get isUnsorted => tagIds.isEmpty && collectionIds.isEmpty;
+
   /// The source shown and filtered on: the custom one, else the built-in.
   String get sourceKey => customSourceId ?? source.id;
 

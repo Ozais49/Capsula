@@ -42,7 +42,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "inInbox",
+          "fieldPath": "unsorted",
           "order": "ASCENDING"
         },
         {
@@ -64,7 +64,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "inInbox",
+          "fieldPath": "unsorted",
           "order": "ASCENDING"
         },
         {
@@ -230,7 +230,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "inInbox",
+          "fieldPath": "unsorted",
           "order": "ASCENDING"
         },
         {
@@ -252,7 +252,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "inInbox",
+          "fieldPath": "unsorted",
           "order": "ASCENDING"
         },
         {

@@ -78,7 +78,7 @@ void main() {
     await _pumpSignedIn(tester);
 
     expect(find.byType(LibraryScreen), findsOneWidget);
-    expect(find.textContaining('Inbox is empty'), findsOneWidget);
+    expect(find.textContaining('Nothing unsorted'), findsOneWidget);
   });
 
   testWidgets('lists bookmarks newest first and hides archived', (
@@ -121,14 +121,14 @@ void main() {
     expect(find.textContaining('No bookmarks match'), findsOneWidget);
   });
 
-  testWidgets('adding a link saves it to the Inbox', (tester) async {
+  testWidgets('adding a link saves it to Unsorted', (tester) async {
     final repo = await _pumpSignedIn(tester);
 
     await _addLink(tester, 'https://www.youtube.com/watch?v=abc123&si=x');
 
-    expect(find.text('Saved to Inbox'), findsOneWidget);
+    expect(find.text('Saved'), findsOneWidget);
     expect(repo.items.values.single.source, BookmarkSource.youtube);
-    expect(repo.items.values.single.inInbox, isTrue);
+    expect(repo.items.values.single.isUnsorted, isTrue);
     expect(find.text('youtube.com'), findsWidgets);
   });
 

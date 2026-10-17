@@ -97,16 +97,16 @@ const _research = Label(
 );
 
 void main() {
-  testWidgets('starts on the Inbox and shows the Inbox count', (tester) async {
+  testWidgets('starts on Unsorted and shows its count', (tester) async {
     await _pump(
       tester,
       bookmarks: [
         _bookmark('a', 'New one'),
-        _bookmark('b', 'Organized', inInbox: false),
+        _bookmark('b', 'Organized', tagIds: ['t-ai']),
       ],
     );
 
-    expect(find.widgetWithText(AppBar, 'Inbox'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Unsorted'), findsOneWidget);
     expect(find.text('New one'), findsOneWidget);
     expect(find.text('Organized'), findsNothing);
 
@@ -171,20 +171,18 @@ void main() {
     expect(find.widgetWithText(FilterChip, 'AI'), findsOneWidget);
   });
 
-  testWidgets('swiping in the Inbox removes from Inbox, with undo', (
-    tester,
-  ) async {
+  testWidgets('swiping in Unsorted archives, with undo', (tester) async {
     final app = await _pump(tester, bookmarks: [_bookmark('a', 'Swipe me')]);
 
     await tester.drag(find.text('Swipe me'), const Offset(500, 0));
     await tester.pumpAndSettle();
 
-    expect(app.bookmarks.items['a']!.inInbox, isFalse);
+    expect(app.bookmarks.items['a']!.archived, isTrue);
     expect(find.text('Swipe me'), findsNothing);
 
     await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
-    expect(app.bookmarks.items['a']!.inInbox, isTrue);
+    expect(app.bookmarks.items['a']!.archived, isFalse);
     expect(find.text('Swipe me'), findsOneWidget);
   });
 
@@ -211,18 +209,11 @@ void main() {
     expect(tag.name, 'AI');
     expect(app.bookmarks.items['a']!.tagIds, [tag.id]);
     expect(find.widgetWithText(ActionChip, 'AI'), findsOneWidget);
-  });
 
-  testWidgets('remove from Inbox from detail', (tester) async {
-    final app = await _pump(tester, bookmarks: [_bookmark('a', 'Paper')]);
-
-    await tester.tap(find.text('Paper'));
+    // Tagged, so it has left Unsorted.
+    await tester.pageBack();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Done, remove from Inbox'));
-    await tester.pumpAndSettle();
-
-    expect(app.bookmarks.items['a']!.inInbox, isFalse);
-    expect(find.text('Move back to Inbox'), findsOneWidget);
+    expect(find.text('Paper'), findsNothing);
   });
 
   testWidgets('search suggests matching tags and collections', (tester) async {
