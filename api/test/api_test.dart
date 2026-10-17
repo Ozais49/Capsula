@@ -11,6 +11,7 @@ import 'package:capsula_core/testing/in_memory_content_index.dart';
 import 'package:capsula_core/testing/in_memory_highlight_repository.dart';
 import 'package:capsula_core/testing/in_memory_label_repository.dart';
 import 'package:capsula_core/testing/in_memory_source_repository.dart';
+import 'package:capsula_core/testing/in_memory_rule_repository.dart';
 import 'package:dart_firebase_admin/firestore.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
@@ -105,7 +106,8 @@ class _Server {
         final h = highlights.putIfAbsent(uid, InMemoryHighlightRepository.new);
         final c = contents.putIfAbsent(uid, InMemoryContentIndex.new);
         final src = sources.putIfAbsent(uid, InMemorySourceRepository.new);
-        return UserData(b, l, h, c, src);
+        final r = rules.putIfAbsent(uid, InMemoryRuleRepository.new);
+        return UserData(b, l, h, c, src, r);
       },
       tokens: tokens,
       shares: _MemoryShares(labels),
@@ -122,6 +124,7 @@ class _Server {
   final highlights = <String, InMemoryHighlightRepository>{};
   final contents = <String, InMemoryContentIndex>{};
   final sources = <String, InMemorySourceRepository>{};
+  final rules = <String, InMemoryRuleRepository>{};
   final tokens = _MemoryTokens();
   final pageInfo = _FakePageInfo();
 
@@ -1078,5 +1081,57 @@ void main() {
       (await s.call('GET', '/v1/bookmarks/$bookmarkId')).$2['customSourceId'],
       isNull,
     );
+  });
+
+  test('rules organize links saved through the API', () async {
+    final (_, tag) = await s.call('POST', '/v1/tags', body: {'name': 'Shop'});
+    var (status, body) = await s.call(
+      'POST',
+      '/v1/rules',
+      body: {
+        'name': 'Amazon',
+        'conditions': [
+          {'field': 'domain', 'op': 'isEqual', 'value': 'amazon.com'},
+        ],
+        'tagIds': [tag['id']],
+      },
+    );
+    expect(status, 201);
+    final ruleId = body['id']! as String;
+    expect(
+      (await s.call(
+        'POST',
+        '/v1/rules',
+        body: {
+          'name': 'Bad',
+          'conditions': [
+            {'field': 'nope'},
+          ],
+        },
+      )).$1,
+      400,
+    );
+
+    // Tags in the request add to the rule's.
+    (_, body) = await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {
+        'url': 'https://amazon.com/dp/1',
+        'tags': ['Wishlist'],
+        'fetchDetails': false,
+      },
+    );
+    expect(body['tagIds'], hasLength(2));
+
+    (status, body) = await s.call(
+      'PATCH',
+      '/v1/rules/$ruleId',
+      body: {'enabled': false},
+    );
+    expect(body['enabled'], isFalse);
+    expect((await s.call('POST', '/v1/rules/apply')).$2, {'changed': 0});
+    expect((await s.call('GET', '/v1/rules')).$2['rules'], hasLength(1));
+    expect((await s.call('DELETE', '/v1/rules/$ruleId')).$1, 204);
   });
 }

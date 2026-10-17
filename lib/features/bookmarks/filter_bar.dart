@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_filters.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
-import 'package:capsula_core/domain/bookmarks/content_type.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 import 'package:capsula_core/domain/sources/custom_source.dart';
 
@@ -12,8 +11,9 @@ import 'bookmark_display.dart';
 
 typedef _Option = ({String key, String label, IconData icon});
 
-/// Chips above the library list for narrowing it by source, tags, kind of
-/// content and reading status. Each opens a list to pick from.
+/// Chips above the library list for narrowing it by source, tags and
+/// reading status. Each opens a list to pick from. (Kinds of content are
+/// tags now, added by rules.)
 class FilterBar extends StatelessWidget {
   const FilterBar({
     super.key,
@@ -37,11 +37,6 @@ class FilterBar extends StatelessWidget {
       (key: s.id, label: s.name, icon: customSourceIcon),
   ];
 
-  static final List<_Option> _kinds = [
-    for (final k in ContentType.values)
-      (key: k.name, label: k.label, icon: typeIcon(k)),
-  ];
-
   static const List<_Option> _statuses = [
     (key: 'saved', label: 'Saved', icon: Icons.bookmark_border),
     (key: 'readLater', label: 'Read later', icon: Icons.schedule),
@@ -56,7 +51,6 @@ class FilterBar extends StatelessWidget {
         (key: t.id, label: t.name, icon: Icons.label_outline),
     ];
     final statuses = ReadingStatus.values.asNameMap();
-    final kinds = ContentType.values.asNameMap();
     return SizedBox(
       height: 48,
       child: ListView(
@@ -85,14 +79,6 @@ class FilterBar extends StatelessWidget {
             selected: filters.tagIds,
             emptyText: 'No tags yet.',
             onChanged: (s) => onChanged(filters.copyWith(tagIds: s)),
-          ),
-          _FilterChip(
-            name: 'Kind',
-            options: _kinds,
-            selected: {for (final k in filters.kinds) k.name},
-            onChanged: (s) => onChanged(
-              filters.copyWith(kinds: {...s.map((k) => kinds[k]).nonNulls}),
-            ),
           ),
           _FilterChip(
             name: 'Status',

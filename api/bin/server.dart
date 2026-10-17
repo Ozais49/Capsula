@@ -36,6 +36,7 @@ Future<void> main() async {
       AdminHighlightRepository(firestore, uid),
       AdminContentIndex(firestore, uid),
       AdminSourceRepository(firestore, uid),
+      AdminRuleRepository(firestore, uid),
     ),
     tokens: FirestoreTokenStore(firestore),
     shares: FirestoreShareStore(firestore),

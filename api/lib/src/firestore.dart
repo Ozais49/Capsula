@@ -7,6 +7,7 @@ import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
 import 'package:capsula_core/domain/highlights/highlight.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 import 'package:capsula_core/domain/search/full_text.dart';
+import 'package:capsula_core/domain/rules/rule.dart';
 import 'package:capsula_core/domain/sources/custom_source.dart';
 import 'package:dart_firebase_admin/auth.dart';
 import 'package:dart_firebase_admin/firestore.dart';
@@ -168,11 +169,8 @@ class AdminBookmarkRepository implements BookmarkRepository {
         WhereFilter.equal,
         source.id,
       ),
-      TypeView(:final type) => active.where(
-        'type',
-        WhereFilter.equal,
-        type.name,
-      ),
+      // Kind is no longer stored; it is worked out from the link.
+      TypeView() => active,
       LabelView(:final kind, :final labelId) => active.where(
         labelField(kind),
         WhereFilter.arrayContains,
@@ -189,7 +187,11 @@ class AdminBookmarkRepository implements BookmarkRepository {
     final searching = searchWords(query.search).isNotEmpty;
     // Trashed bookmarks are archived too; fetch extra for the Archived view
     // so a page is still full after leaving them out.
-    final fetch = query.fetchSize(view is ArchivedView ? limit + 50 : limit);
+    final fetch = query.fetchSize(switch (view) {
+      ArchivedView() => limit + 50,
+      TypeView() => (limit * 4).clamp(limit, 500),
+      _ => limit,
+    });
     return Stream.fromFuture(
       switch (view) {
             RemindersView() => q.orderBy('remindAt'),
@@ -583,6 +585,47 @@ class AdminSourceRepository implements SourceRepository {
   @override
   Future<void> update(CustomSource source) =>
       withRetry(() => _col.doc(source.id).update(encodeSource(source)));
+
+  @override
+  Future<void> delete(String id) => withRetry(() => _col.doc(id).delete());
+}
+
+/// The user's rules, through the admin SDK.
+class AdminRuleRepository implements RuleRepository {
+  AdminRuleRepository(this._db, this._uid);
+
+  final Firestore _db;
+  final String _uid;
+
+  CollectionReference<DocumentData> get _col =>
+      _db.collection('users').doc(_uid).collection('rules');
+
+  @override
+  String newId() => _col.doc().id;
+
+  @override
+  Stream<List<Rule>> watch() => Stream.fromFuture(
+    _col.get().then(
+      (s) => sortRules(s.docs.map((d) => Rule.fromJson(d.id, d.data()))),
+    ),
+  );
+
+  @override
+  Future<void> create(Rule rule) => withRetry(
+    () => _col.doc(rule.id).set({
+      ...rule.toJson(),
+      'createdAt': _writeTime(DateTime.now()),
+    }),
+  );
+
+  @override
+  Future<void> update(Rule rule) => withRetry(
+    () => _col.doc(rule.id).update({
+      ...rule.toJson(),
+      if (rule.collectionId == null) 'collectionId': FieldValue.delete,
+      if (!rule.favorite) 'favorite': FieldValue.delete,
+    }),
+  );
 
   @override
   Future<void> delete(String id) => withRetry(() => _col.doc(id).delete());

@@ -122,9 +122,8 @@ class SourcesScreen extends StatelessWidget {
   Future<void> _redetect(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final changed = await AppDependencies.of(
-        context,
-      ).bookmarks.redetectSources();
+      final changed = await AppDependencies.of(context).bookmarks
+          .redetectSources();
       messenger.showSnackBar(
         SnackBar(
           content: Text(

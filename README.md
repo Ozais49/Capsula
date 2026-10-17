@@ -20,6 +20,8 @@ reader view, highlight passages, and search the text of saved pages.
   archive, and filters by source, tag, kind of content and reading status. Built-in
   sources (Reddit, YouTube, Instagram, Facebook, X, TikTok, Telegram, GitHub, Webpage),
   plus your own by domain.
+- **Rules.** Tag, file and star links automatically as they are saved or imported, by
+  source, domain, link, title or kind of content (video, post, product, …).
   List, card or grid layout; bulk edit.
 - **Trash.** Deleted bookmarks go to the Trash, where they can be restored for 30 days.
 - **Read.** Reader view for articles, YouTube, Reddit posts and GitHub READMEs, with

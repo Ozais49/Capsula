@@ -137,6 +137,12 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => showExportDialog(context),
               ),
               ListTile(
+                leading: const Icon(Icons.rule),
+                title: const Text('Rules'),
+                subtitle: const Text('Tag and file new links automatically'),
+                onTap: () => context.push(AppRoutes.rules),
+              ),
+              ListTile(
                 leading: const Icon(Icons.travel_explore),
                 title: const Text('Sources'),
                 subtitle: const Text('Add your own, by domain'),

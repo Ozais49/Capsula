@@ -126,6 +126,40 @@ service cloud.firestore {
         && data.createdAt is timestamp;
     }
 
+    function isValidRule(data) {
+      return data.keys().hasAll(['name', 'enabled', 'matchAll', 'conditions', 'tagIds', 'createdAt'])
+        && data.keys().hasOnly([
+          'name', 'enabled', 'matchAll', 'conditions', 'tagIds', 'collectionId',
+          'favorite', 'createdAt'
+        ])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 50
+        && data.enabled is bool
+        && data.matchAll is bool
+        && data.conditions is list && data.conditions.size() <= 10
+        && data.tagIds is list && data.tagIds.size() <= 100
+        && isOptionalString(data, 'collectionId', 100)
+        && (!('favorite' in data) || data.favorite is bool)
+        && data.createdAt is timestamp;
+    }
+
+    // Rules that organize new bookmarks.
+    match /users/{userId}/rules/{ruleId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidRule(request.resource.data);
+      allow update: if isOwner(userId)
+        && isValidRule(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // Which data migrations the library has had.
+    match /users/{userId}/meta/schema {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(['version', 'updatedAt'])
+        && request.resource.data.version is int
+        && request.resource.data.updatedAt is timestamp;
+    }
+
     // Sources the user adds on top of the built-in ones.
     match /users/{userId}/sources/{sourceId} {
       allow read, delete: if isOwner(userId);

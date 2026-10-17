@@ -3,6 +3,9 @@ import '../organization/label.dart';
 import '../reader/page_info_service.dart';
 import '../search/full_text.dart';
 import '../sources/custom_source.dart';
+import '../meta/library_meta.dart';
+import '../rules/rule.dart';
+import 'content_type.dart';
 import '../reader/reader_content.dart';
 import 'bookmark.dart';
 import 'bookmark_patch.dart';
@@ -43,8 +46,14 @@ class BookmarkService {
     this._highlights,
     this._contentIndex,
     this._sources,
+    this._rules,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
+
+  final RuleRepository? _rules;
+
+  RuleRepository get rules =>
+      _rules ?? (throw StateError('No rule repository'));
 
   final SourceRepository? _sources;
 
@@ -82,18 +91,22 @@ class BookmarkService {
 
     final now = _now();
     final host = displayHost(uri);
-    final bookmark = Bookmark(
-      id: bookmarkIdFor(canonicalUrl),
-      url: uri.toString(),
-      canonicalUrl: canonicalUrl,
-      title: (title?.trim().isNotEmpty ?? false)
-          ? title!.trim()
-          : titleFromUrl(uri),
-      source: BookmarkSource.fromHost(host),
-      customSourceId: detectCustomSource(host, await _customSources()),
-      sourceDomain: host,
-      createdAt: now,
-      updatedAt: now,
+    final rules = await _activeRules();
+    final bookmark = applyRules(
+      Bookmark(
+        id: bookmarkIdFor(canonicalUrl),
+        url: uri.toString(),
+        canonicalUrl: canonicalUrl,
+        title: (title?.trim().isNotEmpty ?? false)
+            ? title!.trim()
+            : titleFromUrl(uri),
+        source: BookmarkSource.fromHost(host),
+        customSourceId: detectCustomSource(host, await _customSources()),
+        sourceDomain: host,
+        createdAt: now,
+        updatedAt: now,
+      ),
+      rules,
     );
     // Callers may not wait for the backend; ignore() keeps an unobserved
     // failure from surfacing as an unhandled error.
@@ -214,6 +227,148 @@ class BookmarkService {
         LabelKind.tag => b.copyWith(tagIds: ids),
         LabelKind.collection => b.copyWith(collectionIds: ids),
       };
+
+  // ---------------------------------------------------------------------------
+  // Rules
+
+  /// The rules last read, for work that can't wait to read them.
+  List<Rule> _cachedRules = const [];
+
+  /// The user's enabled rules, or none when they can't be read quickly (so
+  /// saving never waits on them).
+  Future<List<Rule>> _activeRules() async {
+    final rules = _rules;
+    if (rules == null) return const [];
+    try {
+      final all = await rules.watch().first.timeout(const Duration(seconds: 2));
+      return _cachedRules = [
+        for (final r in all)
+          if (r.enabled) r,
+      ];
+    } on Object {
+      return _cachedRules;
+    }
+  }
+
+  /// Checks a rule. Returns the cleaned-up rule, or a message saying
+  /// what's wrong.
+  (Rule?, String?) _validRule(Rule rule) {
+    final name = normalizeLabelName(rule.name);
+    if (name == null) return (null, 'Enter a name');
+    final conditions = [
+      for (final c in rule.conditions)
+        if (c.value.trim().isNotEmpty)
+          RuleCondition(c.field, c.op, c.value.trim()),
+    ];
+    if (conditions.isEmpty) return (null, 'Add a condition');
+    if (conditions.length > maxRuleConditions) {
+      return (null, 'At most $maxRuleConditions conditions');
+    }
+    for (final c in conditions) {
+      if (c.value.length > maxRuleValueLength) {
+        return (
+          null,
+          'Conditions are limited to $maxRuleValueLength characters',
+        );
+      }
+      if (c.op == RuleOp.matches) {
+        try {
+          RegExp(c.value);
+        } on FormatException {
+          return (null, '"${c.value}" is not a valid pattern');
+        }
+      }
+    }
+    final valid = rule.copyWith(name: name, conditions: conditions);
+    if (!valid.hasActions) {
+      return (null, 'Choose tags, a collection or a star to add');
+    }
+    return (valid, null);
+  }
+
+  /// Creates or updates [rule]. Returns an error message, or null when it
+  /// was saved. Saved bookmarks only get its actions with
+  /// [applyRulesToAll].
+  Future<String?> saveRule(Rule rule, {bool isNew = false}) async {
+    final (valid, error) = _validRule(rule);
+    if (valid == null) return error;
+    await (isNew ? rules.create(valid) : rules.update(valid));
+    return null;
+  }
+
+  Future<void> deleteRule(Rule rule) => rules.delete(rule.id);
+
+  /// Runs the enabled rules over every bookmark not in the Trash. Rules
+  /// only add, so running this again changes nothing more. Returns how many
+  /// bookmarks changed.
+  Future<int> applyRulesToAll({
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final active = await _activeRules();
+    if (active.isEmpty) return 0;
+    final changed = (await _repository.fetchAll())
+        .where((b) => !b.isTrashed && !identical(applyRules(b, active), b))
+        .toList();
+    await _repository.modifyMany(changed.map((b) => b.id), (b) {
+      final ruled = applyRules(b, active);
+      return identical(ruled, b) ? b : ruled.copyWith(updatedAt: _now());
+    }, onProgress: onProgress);
+    return changed.length;
+  }
+
+  /// The shape of library data this version of the app writes.
+  static const schemaVersion = 2;
+
+  /// Brings a library up to [schemaVersion]. Version 2 turns the fixed
+  /// content types into tags: a tag and an editable rule for each kind
+  /// (Video, Image, Document, Post, Product), and existing bookmarks
+  /// tagged by their kind.
+  ///
+  /// Every step can run again harmlessly, so a migration interrupted by a
+  /// crash or lost connection, or running on two devices at once, finishes
+  /// correctly next time. Returns whether anything was done.
+  Future<bool> upgradeLibrary(LibraryMetaRepository meta) async {
+    if (await meta.schemaVersion() >= schemaVersion) return false;
+    final tags = await _labels.watch(LabelKind.tag).first;
+    final existingRules = await rules.watch().first;
+    final tagFor = <ContentType, String>{};
+    for (final kind in kindsWithDefaultRules) {
+      final name = kindTagName(kind);
+      final existing = tags
+          .where((t) => t.name.toLowerCase() == name.toLowerCase())
+          .firstOrNull;
+      // Fixed IDs, so two devices migrating at once create one tag.
+      final tagId = existing?.id ?? defaultRuleId(kind);
+      if (existing == null) {
+        await _labels.create(Label(id: tagId, kind: LabelKind.tag, name: name));
+      }
+      tagFor[kind] = tagId;
+      if (!existingRules.any((r) => r.id == defaultRuleId(kind))) {
+        await rules.create(
+          Rule(
+            id: defaultRuleId(kind),
+            name: '${name}s',
+            conditions: [
+              RuleCondition(RuleField.kind, RuleOp.isEqual, kind.name),
+            ],
+            tagIds: [tagId],
+          ),
+        );
+      }
+    }
+    final toTag = (await _repository.fetchAll())
+        .where((b) => tagFor.containsKey(b.type))
+        .where((b) => !b.tagIds.contains(tagFor[b.type]))
+        .map((b) => b.id);
+    await _repository.modifyMany(toTag, (b) {
+      final tag = tagFor[b.type];
+      return tag == null || b.tagIds.contains(tag)
+          ? b
+          : b.copyWith(tagIds: [...b.tagIds, tag], updatedAt: _now());
+    });
+    await meta.setSchemaVersion(schemaVersion);
+    return true;
+  }
 
   // ---------------------------------------------------------------------------
   // Sources
@@ -490,15 +645,17 @@ class BookmarkService {
     PageMetadata metadata, {
     String? fallbackTitle,
   }) {
+    final rules = _cachedRules;
     final updated = _withMetadata(bookmark, metadata, fallbackTitle);
     if (updated == null) return null;
     // Re-checked against the stored copy, so a title the user typed
-    // meanwhile on another device is never replaced.
+    // meanwhile on another device is never replaced. Rules run again, as
+    // some look at the title.
     _modify(
       bookmark,
-      (b) => _withMetadata(b, metadata, fallbackTitle) ?? b,
+      (b) => applyRules(_withMetadata(b, metadata, fallbackTitle) ?? b, rules),
     ).ignore();
-    return updated.copyWith(updatedAt: _now());
+    return applyRules(updated, rules).copyWith(updatedAt: _now());
   }
 
   Bookmark? _withMetadata(
@@ -542,6 +699,7 @@ class BookmarkService {
     final uri = Uri.tryParse(bookmark.url);
     if (uri == null) return null;
     final metadata = await pageInfo.lookup(uri) ?? const PageMetadata();
+    await _activeRules();
     return applyMetadata(bookmark, metadata, fallbackTitle: fallbackTitle);
   }
 

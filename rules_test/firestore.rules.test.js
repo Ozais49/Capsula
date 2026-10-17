@@ -411,6 +411,36 @@ describe('custom sources', () => {
   });
 });
 
+describe('rules and library version', () => {
+  const rule = (overrides = {}) => ({
+    name: 'Videos',
+    enabled: true,
+    matchAll: true,
+    conditions: [{ field: 'kind', op: 'isEqual', value: 'video' }],
+    tagIds: ['t1'],
+    createdAt: Timestamp.now(),
+    ...overrides,
+  });
+
+  test('owner can keep rules; others cannot', async () => {
+    const mine = doc(db('alice'), 'users/alice/rules/r1');
+    await assertSucceeds(setDoc(mine, rule()));
+    await assertSucceeds(updateDoc(mine, { enabled: false }));
+    await assertFails(getDoc(doc(db('bob'), 'users/alice/rules/r1')));
+    await assertFails(setDoc(mine, rule({ name: '' })));
+    await assertFails(setDoc(mine, rule({ conditions: 'video' })));
+    await assertFails(setDoc(mine, rule({ unknown: 1 })));
+  });
+
+  test('schema version is the owner\'s to read and set', async () => {
+    const mine = doc(db('alice'), 'users/alice/meta/schema');
+    await assertSucceeds(setDoc(mine, { version: 2, updatedAt: Timestamp.now() }));
+    await assertFails(setDoc(mine, { version: '2', updatedAt: Timestamp.now() }));
+    await assertFails(getDoc(doc(db('bob'), 'users/alice/meta/schema')));
+    await assertFails(setDoc(doc(db('alice'), 'users/alice/meta/other'), { version: 1 }));
+  });
+});
+
 describe('concurrent changes', () => {
   test('field updates and label merges are allowed', async () => {
     await seed('alice');

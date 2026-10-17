@@ -6,6 +6,8 @@ import 'package:capsula/platform/clipboard_reader.dart';
 import 'package:capsula_core/domain/auth/app_user.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
+import 'package:capsula_core/domain/organization/label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -197,6 +199,54 @@ void main() {
 
     final amazon = connector.sources.items.values.single;
     expect(connector.bookmarks.items['a']!.customSourceId, amazon.id);
+  });
+
+  testWidgets('make a rule that tags links from a site', (tester) async {
+    final connector = await _pump(tester);
+    connector.labels.addAll([
+      const Label(id: 'shop', kind: LabelKind.tag, name: 'Shopping'),
+    ]);
+    await openSettingsItem(tester, 'Rules');
+    expect(find.text('No rules yet'), findsOneWidget);
+
+    await tester.tap(find.text('Add rule'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Amazon');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'amazon.com'),
+      'amazon.com',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Choose tags, a collection or a star to add',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Add tags'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Shopping'));
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    final rule = connector.rules.items.values.single;
+    expect(rule.name, 'Amazon');
+    expect(rule.tagIds, ['shop']);
+    expect(find.text('Domain is amazon.com → #Shopping'), findsOneWidget);
+
+    // New links follow it.
+    final service = BookmarkService(
+      connector.bookmarks,
+      connector.labels,
+      rules: connector.rules,
+    );
+    final saved = await service.save('https://amazon.com/dp/1') as Saved;
+    expect(saved.bookmark.tagIds, ['shop']);
   });
 }
 

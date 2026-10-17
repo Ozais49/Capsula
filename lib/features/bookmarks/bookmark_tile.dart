@@ -83,11 +83,7 @@ class _Leading extends StatelessWidget {
     final icon = CircleAvatar(
       backgroundColor: scheme.secondaryContainer,
       foregroundColor: scheme.onSecondaryContainer,
-      child: Icon(
-        source.icon,
-        size: 20,
-        semanticLabel: source.name,
-      ),
+      child: Icon(source.icon, size: 20, semanticLabel: source.name),
     );
     final image = bookmark.imageUrl;
     if (image == null) return icon;

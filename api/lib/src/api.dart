@@ -16,6 +16,7 @@ import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:capsula_core/domain/search/full_text.dart';
+import 'package:capsula_core/domain/rules/rule.dart';
 import 'package:capsula_core/domain/sources/custom_source.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -32,6 +33,7 @@ class UserData {
     this.highlights,
     this.contents,
     this.sources,
+    this.rules,
   );
 
   final BookmarkRepository bookmarks;
@@ -39,6 +41,7 @@ class UserData {
   final HighlightRepository highlights;
   final ContentIndex contents;
   final SourceRepository sources;
+  final RuleRepository rules;
 }
 
 typedef UserDataFactory = UserData Function(String uid);
@@ -103,6 +106,13 @@ class CapsulaApi {
     r.post('/v1/bookmarks/<id>/restore', _authedWithId(_restoreBookmark));
     r.delete('/v1/trash', _authed(_emptyTrash));
     r.delete('/v1/bookmarks/<id>', _authedWithId(_deleteBookmark));
+
+    // Rules
+    r.get('/v1/rules', _authed(_listRules));
+    r.post('/v1/rules', _authed(_createRule));
+    r.post('/v1/rules/apply', _authed(_applyRules));
+    r.patch('/v1/rules/<id>', _authedWithId(_updateRule));
+    r.delete('/v1/rules/<id>', _authedWithId(_deleteRule));
 
     // Sources
     r.get('/v1/sources', _authed(_listSources));
@@ -186,6 +196,7 @@ class CapsulaApi {
       highlights: data.highlights,
       contentIndex: data.contents,
       sources: data.sources,
+      rules: data.rules,
       now: _now,
     );
   }
@@ -274,7 +285,7 @@ class CapsulaApi {
       case Saved(:final bookmark, :final committed):
         await committed;
         var saved = bookmark;
-        saved = await _applyChanges(service, p, saved, body);
+        saved = await _applyChanges(service, p, saved, body, addLabels: true);
         if (body['fetchDetails'] != false) {
           saved =
               await service
@@ -339,6 +350,10 @@ class CapsulaApi {
     Bookmark b,
     Map<String, Object?> body, {
     DateTime? unmodifiedSince,
+
+    /// Adds the given tags and collections instead of replacing them (for
+    /// new bookmarks, which rules may already have organized).
+    bool addLabels = false,
   }) async {
     // Each edit is applied to the latest stored copy, so fields the request
     // doesn't mention keep any change made meanwhile by another client.
@@ -401,8 +416,14 @@ class CapsulaApi {
       if (ids != null) {
         edits.add(
           (b) => switch (kind) {
-            LabelKind.tag => b.copyWith(tagIds: ids),
-            LabelKind.collection => b.copyWith(collectionIds: ids),
+            LabelKind.tag => b.copyWith(
+              tagIds: addLabels ? {...b.tagIds, ...ids}.toList() : ids,
+            ),
+            LabelKind.collection => b.copyWith(
+              collectionIds: addLabels
+                  ? {...b.collectionIds, ...ids}.toList()
+                  : ids,
+            ),
           },
         );
       }
@@ -521,6 +542,66 @@ class CapsulaApi {
   Future<Response> _emptyTrash(Request req, Principal p) async {
     final deleted = await _service(p).emptyTrash();
     return jsonResponse({'deleted': deleted});
+  }
+
+  // ---------------------------------------------------------------------------
+  // Rules
+
+  static Map<String, Object?> _ruleJson(Rule r) => {'id': r.id, ...r.toJson()};
+
+  Future<Response> _listRules(Request req, Principal p) async {
+    final rules = await userData(p.uid).rules.watch().first;
+    return jsonResponse({'rules': rules.map(_ruleJson).toList()});
+  }
+
+  Rule _ruleFrom(String id, Map<String, Object?> body, [Rule? current]) {
+    final base = current?.toJson() ?? const <String, Object?>{};
+    final merged = {...base, ...body};
+    final conditions = merged['conditions'];
+    if (conditions is! List ||
+        conditions.any((c) => RuleCondition.fromJson(c) == null)) {
+      throw const ApiError.badRequest(
+        '"conditions" must be a list of {field, op, value}',
+      );
+    }
+    return Rule.fromJson(id, merged);
+  }
+
+  Future<Response> _createRule(Request req, Principal p) async {
+    final repo = userData(p.uid).rules;
+    final rule = _ruleFrom(repo.newId(), await readJson(req));
+    final error = await _service(p).saveRule(rule, isNew: true);
+    if (error != null) throw ApiError.badRequest(error);
+    final saved = (await repo.watch().first).firstWhere((r) => r.id == rule.id);
+    return jsonResponse(_ruleJson(saved), status: 201);
+  }
+
+  Future<Response> _updateRule(Request req, Principal p, String id) async {
+    final repo = userData(p.uid).rules;
+    final current = (await repo.watch().first)
+        .where((r) => r.id == id)
+        .firstOrNull;
+    if (current == null) throw const ApiError.notFound('No rule with this ID');
+    final rule = _ruleFrom(id, await readJson(req), current);
+    final error = await _service(p).saveRule(rule);
+    if (error != null) throw ApiError.badRequest(error);
+    final saved = (await repo.watch().first).firstWhere((r) => r.id == id);
+    return jsonResponse(_ruleJson(saved));
+  }
+
+  Future<Response> _deleteRule(Request req, Principal p, String id) async {
+    final repo = userData(p.uid).rules;
+    final current = (await repo.watch().first)
+        .where((r) => r.id == id)
+        .firstOrNull;
+    if (current == null) throw const ApiError.notFound('No rule with this ID');
+    await _service(p).deleteRule(current);
+    return Response(204);
+  }
+
+  Future<Response> _applyRules(Request req, Principal p) async {
+    final changed = await _service(p).applyRulesToAll();
+    return jsonResponse({'changed': changed});
   }
 
   // ---------------------------------------------------------------------------

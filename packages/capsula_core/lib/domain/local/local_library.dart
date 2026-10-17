@@ -7,6 +7,7 @@ import '../../testing/in_memory_content_index.dart';
 import '../../testing/in_memory_highlight_repository.dart';
 import '../../testing/in_memory_label_repository.dart';
 import '../../testing/in_memory_source_repository.dart';
+import '../../testing/in_memory_rule_repository.dart';
 import '../auth/app_user.dart';
 import '../auth/auth_repository.dart';
 import '../bookmarks/bookmark.dart';
@@ -17,6 +18,8 @@ import '../highlights/highlight.dart';
 import '../organization/label.dart';
 import '../search/full_text.dart';
 import '../sources/custom_source.dart';
+import '../meta/library_meta.dart';
+import '../rules/rule.dart';
 
 /// Where an on-device library is kept: a file on Android, browser storage
 /// on the web.
@@ -72,6 +75,8 @@ class LocalLibrary {
   late final _labels = InMemoryLabelRepository(_bookmarks);
   final _highlights = InMemoryHighlightRepository();
   final _sources = InMemorySourceRepository();
+  final _rules = InMemoryRuleRepository();
+  int _schemaVersion = 1;
   final _content = InMemoryContentIndex();
 
   /// The user of an on-device library: always signed in, no account.
@@ -87,6 +92,8 @@ class LocalLibrary {
     highlightRepository: _LocalHighlights(this),
     contentIndex: _LocalContent(this),
     sourceRepository: _LocalSources(this),
+    ruleRepository: _LocalRules(this),
+    libraryMeta: _LocalMeta(this),
   );
 
   // ---------------------------------------------------------------------------
@@ -109,9 +116,18 @@ class LocalLibrary {
     'labels',
     'highlights',
     'sources',
+    'rules',
+    'meta',
     'content',
   ];
-  static const _libraryParts = ['bookmarks', 'labels', 'highlights', 'sources'];
+  static const _libraryParts = [
+    'bookmarks',
+    'labels',
+    'highlights',
+    'sources',
+    'rules',
+    'meta',
+  ];
 
   /// Revision of the stored library this copy last read or wrote.
   int _revision = 0;
@@ -223,10 +239,15 @@ class LocalLibrary {
     merge(_labels.items, theirs.labels, 'labels');
     merge(_highlights.items, theirs.highlights, 'highlights');
     merge(_sources.items, theirs.sources, 'sources');
+    merge(_rules.items, theirs.rules, 'rules');
+    if (theirs.schemaVersion > _schemaVersion) {
+      _schemaVersion = theirs.schemaVersion;
+    }
     _bookmarks.addAll(const []);
     _labels.addAll(const []);
     _highlights.addAll(const []);
     _sources.addAll(const []);
+    _rules.addAll(const []);
   }
 
   void _mergeContent(Map<String, Object?> stored) {
@@ -262,6 +283,8 @@ class LocalLibrary {
       for (final h in _highlights.items.values) h.id: encodeHighlight(h, _time),
     },
     'sources': {for (final s in _sources.items.values) s.id: encodeSource(s)},
+    'rules': {for (final r in _rules.items.values) r.id: r.toJson()},
+    'schemaVersion': _schemaVersion,
   };
 
   Future<void> _load() async {
@@ -281,6 +304,8 @@ class LocalLibrary {
         _labels.addAll(data.labels.values);
         _highlights.addAll(data.highlights.values);
         _sources.addAll(data.sources.values);
+        _rules.addAll(data.rules.values);
+        _schemaVersion = data.schemaVersion;
         _revision = _revisionOf(json);
       }
     }
@@ -328,12 +353,19 @@ class _LibraryData {
       sources = {
         for (final MapEntry(:key, :value) in _entries(json['sources']))
           key: decodeSource(key, value),
-      };
+      },
+      rules = {
+        for (final MapEntry(:key, :value) in _entries(json['rules']))
+          key: Rule.fromJson(key, value),
+      },
+      schemaVersion = json['schemaVersion'] as int? ?? 1;
 
   final Map<String, Bookmark> bookmarks;
   final Map<String, Label> labels;
   final Map<String, Highlight> highlights;
   final Map<String, CustomSource> sources;
+  final Map<String, Rule> rules;
+  final int schemaVersion;
 
   static Iterable<MapEntry<String, Map<String, Object?>>> _entries(
     Object? map,
@@ -620,5 +652,51 @@ class _LocalSources implements SourceRepository {
   Future<void> delete(String id) async {
     await _inner.delete(id);
     await _library._changed('sources', [id]);
+  }
+}
+
+class _LocalRules implements RuleRepository {
+  _LocalRules(this._library);
+
+  final LocalLibrary _library;
+  InMemoryRuleRepository get _inner => _library._rules;
+
+  @override
+  String newId() => _newId();
+
+  @override
+  Stream<List<Rule>> watch() => _inner.watch();
+
+  @override
+  Future<void> create(Rule rule) async {
+    await _inner.create(rule);
+    await _library._changed('rules', [rule.id]);
+  }
+
+  @override
+  Future<void> update(Rule rule) async {
+    await _inner.update(rule);
+    await _library._changed('rules', [rule.id]);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _inner.delete(id);
+    await _library._changed('rules', [id]);
+  }
+}
+
+class _LocalMeta implements LibraryMetaRepository {
+  _LocalMeta(this._library);
+
+  final LocalLibrary _library;
+
+  @override
+  Future<int> schemaVersion() async => _library._schemaVersion;
+
+  @override
+  Future<void> setSchemaVersion(int version) async {
+    _library._schemaVersion = version;
+    await _library._changed('meta', ['schema']);
   }
 }

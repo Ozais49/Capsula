@@ -32,6 +32,9 @@ rate-limited per user (default 120 per minute).
 | GET / PATCH / DELETE | `/v1/bookmarks/{id}` | PATCH accepts `title`, `description`, `note`, `favorite`, `readingStatus`, `archived`, `inInbox`, `tags` / `collections` (names, created if missing) or `tagIds` / `collectionIds`. DELETE moves the bookmark to the Trash; `?permanent=true` deletes it for good, with its highlights and page text |
 | POST | `/v1/bookmarks/{id}/restore` | Take a bookmark out of the Trash |
 | DELETE | `/v1/trash` | Delete everything in the Trash for good. Returns `{deleted}` |
+| GET / POST | `/v1/rules` | List rules, or add one `{name, conditions: [{field, op, value}], matchAll?, enabled?, tagIds?, collectionId?, favorite?}`. Fields: `source`, `domain`, `url`, `title`, `kind`, `importedFrom`; ops: `isEqual`, `contains`, `startsWith`, `matches` |
+| PATCH / DELETE | `/v1/rules/{id}` | Change any of those fields, or delete |
+| POST | `/v1/rules/apply` | Run the rules over saved bookmarks. Returns `{changed}` |
 | GET / POST | `/v1/sources` | List the built-in sources and your own (`{builtIn, sources}`), or add one `{name, domains}` |
 | PATCH / DELETE | `/v1/sources/{id}` | Change `{name?, domains?}`, or delete (its bookmarks go back to their built-in source) |
 | POST | `/v1/sources/redetect` | Apply your sources to saved bookmarks. Returns `{changed}` |

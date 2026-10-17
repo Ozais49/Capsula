@@ -92,8 +92,10 @@ All user data is under `users/{uid}`. Only the owner can read or write it.
 
 | Path | Fields |
 |---|---|
-| `users/{uid}/bookmarks/{id}` | `url`, `canonicalUrl`, `title`, `description?`, `imageUrl?`, `source`, `sourceDomain`, `customSourceId?`, `type`, `readingStatus`, `archived`, `inInbox`, `favorite?`, `note?`, `remindAt?`, `contentIndexedAt?`, `deletedAt?`, `tagIds`, `collectionIds`, `importedFrom?`, `importedAt?`, `createdAt`, `updatedAt`, `searchTokens` |
+| `users/{uid}/bookmarks/{id}` | `url`, `canonicalUrl`, `title`, `description?`, `imageUrl?`, `source`, `sourceDomain`, `customSourceId?`, `readingStatus`, `archived`, `inInbox`, `favorite?`, `note?`, `remindAt?`, `contentIndexedAt?`, `deletedAt?`, `tagIds`, `collectionIds`, `importedFrom?`, `importedAt?`, `createdAt`, `updatedAt`, `searchTokens` |
 | `users/{uid}/tags/{id}` | `name`, `createdAt`, `updatedAt?` |
+| `users/{uid}/rules/{id}` | `name`, `enabled`, `matchAll`, `conditions` (`{field, op, value}`), `tagIds`, `collectionId?`, `favorite?`, `createdAt` |
+| `users/{uid}/meta/schema` | `version` (data migrations done), `updatedAt` |
 | `users/{uid}/sources/{id}` | `name`, `domains` (the user's own sources), `createdAt` |
 | `users/{uid}/collections/{id}` | `name`, `parentId?` (nested collections), `shareId?` (set only by the API), `createdAt`, `updatedAt?` |
 | `users/{uid}/highlights/{id}` | `bookmarkId`, `text`, `note?`, `color`, `createdAt` |
@@ -111,14 +113,37 @@ All user data is under `users/{uid}`. Only the owner can read or write it.
 
 1. A link arrives from the share sheet, a copied link, the add button, an import or the API.
 2. `BookmarkService.save` normalizes it, checks for a duplicate by `canonicalUrl`, detects
-   the source and type, and saves it to the Inbox right away, with a title taken from the
-   URL.
+   the source (built-in, plus the user's own sources by domain), applies the user's rules,
+   and saves it right away, with a title taken from the URL.
 3. `fetchDetails` then looks up the real title, description and image (`PageInfoService`):
    oEmbed for YouTube, TikTok and X; Reddit's JSON or RSS; a crawler user agent for
    Instagram and Facebook; and `og:title` or `<title>` for everything else. Generic titles
-   such as "Instagram" are rejected.
+   such as "Instagram" are rejected. Rules run again, since some look at the title.
 4. On sign-in, links saved without a real title (for example while offline) are looked up
    again.
+
+## Rules and kinds of content
+
+The kind of content (video, image, document, post, product, article) is still detected from
+the URL, but is no longer a fixed field or a view. Kinds are ordinary tags, added by rules.
+
+A rule (`domain/rules/rule.dart`) has conditions on the source, domain, link, title,
+detected kind or import origin (is, contains, starts with, matches a pattern), matched all
+or any, and actions: add tags, add to a collection, add to favorites. Rules only add, so
+they never undo the user's changes and running them twice changes nothing. They run when a
+link is saved, after its title is found, on import, and on demand from **Settings → Rules**.
+
+Links no rule recognizes get no tags. Detection falls back to "article" when it can't tell,
+so there is no default rule for articles: those links stay unsorted.
+
+### Data migrations
+
+`BookmarkService.upgradeLibrary` brings a library to the current `schemaVersion`, recorded
+in `users/{uid}/meta/schema` (or in the on-device library file). It runs when the app
+starts. Version 2 creates a tag and an editable rule for each kind except article (with
+fixed IDs such as `kind-video`, so two devices migrating at once create one of each), tags
+existing bookmarks by kind, and stops writing the old `type` field. Every step can run
+again harmlessly, so an interrupted migration finishes on the next start.
 
 ## Concurrent changes
 

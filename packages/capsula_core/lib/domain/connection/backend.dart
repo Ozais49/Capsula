@@ -1,4 +1,6 @@
 import '../sources/custom_source.dart';
+import '../meta/library_meta.dart';
+import '../rules/rule.dart';
 import '../auth/auth_repository.dart';
 import '../bookmarks/bookmark_repository.dart';
 import '../bookmarks/bookmark_service.dart';
@@ -17,6 +19,8 @@ class BackendServices {
     required this.highlightRepository,
     required this.contentIndex,
     required this.sourceRepository,
+    required this.ruleRepository,
+    required this.libraryMeta,
   });
 
   final AuthRepository authRepository;
@@ -25,6 +29,8 @@ class BackendServices {
   final HighlightRepository highlightRepository;
   final ContentIndex contentIndex;
   final SourceRepository sourceRepository;
+  final RuleRepository ruleRepository;
+  final LibraryMetaRepository libraryMeta;
 
   late final BookmarkService bookmarks = BookmarkService(
     bookmarkRepository,
@@ -32,12 +38,14 @@ class BackendServices {
     highlights: highlightRepository,
     contentIndex: contentIndex,
     sources: sourceRepository,
+    rules: ruleRepository,
   );
 
   late final ImportService importer = ImportService(
     bookmarkRepository,
     labelRepository,
     sources: sourceRepository,
+    rules: ruleRepository,
   );
 }
 

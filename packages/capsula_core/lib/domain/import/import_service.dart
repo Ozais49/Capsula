@@ -4,6 +4,7 @@ import '../bookmarks/bookmark_repository.dart';
 import '../bookmarks/bookmark_source.dart';
 import '../bookmarks/url_normalizer.dart';
 import '../organization/label.dart';
+import '../rules/rule.dart';
 import '../sources/custom_source.dart';
 import 'imported_item.dart';
 
@@ -80,10 +81,12 @@ class ImportService {
     this._bookmarks,
     this._labels, {
     this._sources,
+    this._rules,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
   final SourceRepository? _sources;
+  final RuleRepository? _rules;
   final BookmarkRepository _bookmarks;
   final LabelRepository _labels;
   final DateTime Function() _now;
@@ -142,9 +145,17 @@ class ImportService {
         : const <String, String>{};
 
     final custom = await _sources?.watch().first ?? const <CustomSource>[];
+    final rules = [
+      for (final r in await _rules?.watch().first ?? const <Rule>[])
+        if (r.enabled) r,
+    ];
+    // Rules organize imported links as they do saved ones.
     final bookmarks = [
       for (final p in plan.newItems)
-        _toBookmark(p, origin, options, now, collections, tags, custom),
+        applyRules(
+          _toBookmark(p, origin, options, now, collections, tags, custom),
+          rules,
+        ),
     ];
 
     var imported = 0;

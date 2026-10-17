@@ -12,6 +12,7 @@ import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 
 import 'trash_actions.dart';
+import '../settings/rules_screen.dart';
 import '../common/open_link.dart';
 import '../common/text_prompt.dart';
 import '../highlights/highlight_widgets.dart';
@@ -164,6 +165,12 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
                   tooltip: 'Edit title',
                   icon: const Icon(Icons.edit_outlined),
                   onPressed: () => _editTitle(bookmark),
+                ),
+                IconButton(
+                  tooltip: 'Make a rule from this link',
+                  icon: const Icon(Icons.rule),
+                  onPressed: () =>
+                      openRuleEditor(context, draft: ruleDraftFor(bookmark)),
                 ),
                 IconButton(
                   tooltip: bookmark.archived ? 'Unarchive' : 'Archive',
