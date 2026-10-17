@@ -92,12 +92,17 @@ export PATH="/c/src/flutter/bin:/c/Users/<you>/AppData/Local/Android/Sdk/platfor
 git clone https://github.com/Ozais49/Capsula.git
 cd Capsula
 git checkout develop
+cd app
 flutter pub get
 ```
 
-The API server and the rules tests have their own dependencies:
+The web project, the API server and the rules tests have their own dependencies (from
+the repository root):
 
 ```
+cd web && flutter pub get
 cd api && dart pub get
 cd rules_test && npm install
 ```
+
+The scripts in `scripts\` get dependencies themselves.

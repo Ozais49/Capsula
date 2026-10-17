@@ -38,7 +38,7 @@ To run your own copy of Capsula:
    users.
 3. Enable **Email/Password** under Authentication → Sign-in method.
 4. Register an Android app with package `com.ygtech.capsula` and a Web app.
-5. Put the Android app's values in `config/dev.json` and `config/prod.json` (see
+5. Put the Android app's values in `app/config/dev.json` and `app/config/prod.json` (see
    [Running → Build-time config](running.md#build-time-config)), or paste
    `google-services.json` into the app's connection screen.
 6. Deploy the rules, indexes and web app as described below.
@@ -60,16 +60,19 @@ Run the [rules tests](testing.md#security-rules) before deploying rule changes.
 
 ## Web app
 
-Build, then deploy to Firebase Hosting:
+Releases deploy automatically: push a `web-v<version>` tag (see [Releasing](releasing.md)).
+To deploy by hand, build in `web/`, then deploy from the repository root:
 
 ```
-flutter build web --release --dart-define-from-file=config/prod.json
+cd web
+flutter build web --release --dart-define-from-file=../app/config/prod.json
+cd ..
 firebase deploy --only hosting
 ```
 
 `firebase.json` configures hosting:
 
-- **Public folder:** `build/web`.
+- **Public folder:** `web/build/web`.
 - **Rewrites:** every path goes to `index.html`, so app links like `/bookmarks/<id>` work
   when opened directly.
 - **Caching:** `index.html` is never cached, so a deploy reaches users on their next visit.

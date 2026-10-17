@@ -2,26 +2,55 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Capsula (dev)",
+      "name": "Capsula app (dev)",
       "request": "launch",
       "type": "dart",
+      "cwd": "app",
       "program": "lib/main.dart",
       "args": ["--dart-define-from-file=config/dev.json"]
     },
     {
-      "name": "Capsula (emulators)",
+      "name": "Capsula app (emulators)",
       "request": "launch",
       "type": "dart",
+      "cwd": "app",
       "program": "lib/main.dart",
-      "args": ["--dart-define-from-file=config/emulators.json"]
+      "args": [
+        "--dart-define-from-file=config/dev.json",
+        "--dart-define-from-file=config/emulators.json"
+      ]
     },
     {
-      "name": "Capsula (prod)",
+      "name": "Capsula app (prod)",
       "request": "launch",
       "type": "dart",
+      "cwd": "app",
       "program": "lib/main.dart",
       "flutterMode": "release",
       "args": ["--dart-define-from-file=config/prod.json"]
+    },
+    {
+      "name": "Capsula web (dev)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "web",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "args": [
+        "--dart-define-from-file=../app/config/dev.json",
+        "--web-port=5050"
+      ]
+    },
+    {
+      "name": "Capsula API (emulators)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "api",
+      "program": "bin/server.dart",
+      "env": {
+        "FIREBASE_PROJECT_ID": "capsula-ygtech",
+        "USE_FIREBASE_EMULATORS": "true"
+      }
     }
   ]
 }

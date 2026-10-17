@@ -26,16 +26,15 @@ key.properties
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
-api/build/
+build/
 coverage/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 
 # Android Studio places build artifacts here.
-/android/app/debug
-/android/app/profile
-/android/app/release
+/app/android/app/debug
+/app/android/app/profile
+/app/android/app/release
 
 # Built packages outside build/.
 *.apk

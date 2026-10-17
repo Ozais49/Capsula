@@ -1,0 +1,25 @@
+name: capsula_web
+description: "Capsula for the browser. Builds the app in ../app for the web and holds the site's own files (web/)."
+publish_to: 'none'
+
+# The web site's own release version (tags web-v<version>).
+version: 1.0.0
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Every screen and service comes from the app; this project adds the
+  # browser entry point and the site's files.
+  capsula:
+    path: ../app
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

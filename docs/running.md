@@ -1,7 +1,8 @@
 # Running Capsula
 
-Run all commands from the repository root (the folder with `pubspec.yaml`). Running
-`flutter run` anywhere else fails with `Target file "lib\main.dart" not found`.
+Run Android app commands from `app\` and web commands from `web\` (each has its own
+`pubspec.yaml`). Running `flutter run` anywhere else fails with
+`Target file "lib\main.dart" not found`. The scripts below work from any folder.
 
 ## Scripts
 
@@ -25,13 +26,14 @@ and API server all see the same local data. The emulators need Java.
 ## On an Android phone
 
 ```
+cd app
 flutter devices                      # find the device ID
 flutter run -d <device-id> --dart-define-from-file=config/dev.json
 ```
 
 While it runs, press `r` to hot reload, `R` to hot restart, and `q` to quit.
 
-To install a release build without keeping a debug session open:
+To install a release build without keeping a debug session open (from `app`):
 
 ```
 flutter build apk --release --dart-define-from-file=config/prod.json
@@ -40,9 +42,12 @@ adb -s <device-id> install -r build\app\outputs\flutter-apk\app-release.apk
 
 ## In a browser
 
+The web project in `web` builds the app for the browser; it uses the app's config files.
+
 ```
-flutter run -d edge --dart-define-from-file=config/dev.json
-flutter run -d chrome --dart-define-from-file=config/dev.json
+cd web
+flutter run -d edge --dart-define-from-file=../app/config/dev.json
+flutter run -d chrome --dart-define-from-file=../app/config/dev.json
 ```
 
 When it runs locally, the web app isn't on Firebase Hosting, so it can't read the
@@ -52,14 +57,14 @@ the Web app's `firebaseConfig` there, or choose **Use without an account**. See
 
 ## Build-time config
 
-Settings that are compiled in live in `config/<env>.json`. Pass them with
-`--dart-define-from-file`.
+Settings that are compiled in live in `app/config/<env>.json`, for both the app and the web
+project. Pass them with `--dart-define-from-file`.
 
 | File | Use |
 |---|---|
-| `config/dev.json` | Development against the real Firebase project (`capsula-ygtech`) |
-| `config/emulators.json` | Local Firebase emulators |
-| `config/prod.json` | Release builds |
+| `app/config/dev.json` | Development against the real Firebase project (`capsula-ygtech`) |
+| `app/config/emulators.json` | Local Firebase emulators (switches the emulators on; use it after `dev.json`) |
+| `app/config/prod.json` | Release builds |
 
 | Key | Meaning |
 |---|---|
@@ -71,20 +76,22 @@ Settings that are compiled in live in `config/<env>.json`. Pass them with
 
 The Firebase values are identifiers, not secrets: access is controlled by Firebase Auth and
 `firestore.rules`, so the files are committed. Never put service account keys or other
-secrets in `config/`.
+secrets in `app/config/`.
 
-VS Code has matching launch configurations in `.vscode/launch.json`: **Capsula (dev)**,
-**Capsula (emulators)** and **Capsula (prod)**. Pick one in Run and Debug and press F5.
+VS Code has launch configurations in `.vscode/launch.json`: **Capsula app (dev)**,
+**(emulators)** and **(prod)**, **Capsula web (dev)** and **Capsula API (emulators)**. Pick
+one in Run and Debug and press F5.
 
 ## Against the local emulators
 
 ```
-firebase emulators:start --only auth,firestore
-flutter run -d <device-id> --dart-define-from-file=config/emulators.json
+firebase emulators:start --only auth,firestore      # from the repository root
+cd app
+flutter run -d <device-id> --dart-define-from-file=config/dev.json --dart-define-from-file=config/emulators.json
 ```
 
 The Emulator UI is at http://localhost:4000. From a physical phone, set
-`FIREBASE_EMULATOR_HOST` in `config/emulators.json` to your computer's LAN IP. From an
+`FIREBASE_EMULATOR_HOST` in `app/config/emulators.json` to your computer's LAN IP. From an
 Android emulator, use `10.0.2.2`.
 
 ## Storage: with or without an account
@@ -108,7 +115,7 @@ site data deletes it.
 
 ## Firebase connection
 
-Android builds include the project from `config/*.json`. The hosted web app reads it from
+Android builds include the project from `app/config/*.json`. The hosted web app reads it from
 Firebase Hosting (`/__/firebase/init.json`). To use a different Firebase project, open
 **Settings → Connection settings** (or **Connection settings** on the sign-in screen):
 

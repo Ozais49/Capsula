@@ -26,14 +26,15 @@
   (bookmarks, labels, highlights), the repository interfaces, and the logic both clients
   share: URL normalization, source and type detection, search tokens, import parsers,
   export, the reader and title lookups, and maintenance.
-- **The app** (`lib/`) provides the UI and the storage implementations.
+- **The app** (`app/lib/`) provides the UI and the storage implementations. The web
+  project (`web/`) builds the same code for the browser and adds the site's own files.
 - **The API server** (`api/`) uses the same core with the Firebase Admin SDK, so data it
   writes looks exactly like data the app writes.
 
 ## App code layout
 
 ```
-lib/
+app/lib/
   main.dart            Composition root: config, backend choice, starts the app
   app/                 App shell: router, dependency scope, auth session, backend
                        controller, display preferences, theme

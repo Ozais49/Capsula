@@ -8,8 +8,8 @@ and tools started before the change keep the old `Path`, so restart them too.
 
 ## `Target file "lib\main.dart" not found`
 
-`flutter run` was started outside the repository root. Run `cd` to the folder that contains
-`pubspec.yaml` first.
+`flutter run` was started outside the project folder. Run `cd app` (the Android app) or
+`cd web` (the web app) first, or use the scripts in `scripts\`, which work from anywhere.
 
 ## Gradle download times out
 

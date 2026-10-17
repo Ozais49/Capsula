@@ -1,24 +1,29 @@
 # Testing
 
-There are three test suites. Run all three before merging or releasing.
+There are four test suites, one per part. Run them before merging or releasing; the GitHub
+Actions workflows run them on every push.
 
 | Suite | Command | Runs |
 |---|---|---|
-| App | `flutter test` (repository root) | Unit and widget tests for the app and `capsula_core` |
+| App | `cd app && flutter test` | Unit and widget tests for the app and `capsula_core` |
+| Web | `cd web && flutter test` | The web entry point (the screens are tested in the app) |
 | API | `cd api && dart test` | The real HTTP handlers, with in-memory storage |
 | Security rules | `cd rules_test && npm test` | `firestore.rules` against the Firestore emulator |
 
 Static analysis:
 
 ```
-flutter analyze
+cd app && flutter analyze
+cd web && flutter analyze
 cd api && dart analyze
 cd packages/capsula_core && dart analyze
 ```
 
-Formatting: `dart format lib test packages api`.
+Formatting: `dart format app web packages api`.
 
 ## App tests
+
+From `app/`:
 
 ```
 flutter test                                    # everything
@@ -26,7 +31,7 @@ flutter test test/features/settings             # one folder
 flutter test --name "copied link"               # tests whose name matches
 ```
 
-- Tests never touch Firebase or the network. `test/fakes/` has fakes for auth, the backend,
+- Tests never touch Firebase or the network. `app/test/fakes/` has fakes for auth, the backend,
   page fetching, the share intake, the API and storage.
 - Most screen tests pump the whole app (`CapsulaApp`) with a `FakeBackendConnector`, whose
   in-memory repositories the test can fill and inspect.

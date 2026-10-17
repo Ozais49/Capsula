@@ -34,12 +34,12 @@ param(
 
 $adb = Find-Adb
 $serial = Select-AndroidDevice $Device
-$apk = Join-Path $RepoRoot 'build\app\outputs\flutter-apk\app-release.apk'
+$apk = Join-Path $AppDir 'build\app\outputs\flutter-apk\app-release.apk'
 
 if (-not $SkipBuild) {
     Install-AppDependencies
     Write-Step "Building the release APK ($Config)"
-    Push-Location $RepoRoot
+    Push-Location $AppDir
     try {
         Invoke-Tool (Find-Flutter) (@('build', 'apk', '--release') + (Get-DartDefineArgs $Config))
     } finally { Pop-Location }

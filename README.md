@@ -39,14 +39,16 @@ reader view, highlight passages, and search the text of saved pages.
 
 ## Quick start
 
-With the [development environment](docs/setup.md) installed, from the repository root:
+With the [development environment](docs/setup.md) installed:
 
 ```
+cd app
 flutter pub get
 flutter run -d <device-id> --dart-define-from-file=config/dev.json
 ```
 
-Run `flutter devices` to find device IDs. Use `-d edge` or `-d chrome` for the web app.
+Run `flutter devices` to find device IDs. The web app runs from `web\` (see
+[Running](docs/running.md#in-a-browser)).
 
 Or use the scripts, which find the tools, get dependencies and start everything:
 
@@ -67,36 +69,36 @@ See [Running](docs/running.md#scripts) for their options.
 | [Setup](docs/setup.md) | Installing Flutter, the JDK, the Android SDK and the Firebase CLI on Windows |
 | [Running](docs/running.md) | Running the app on a phone, in a browser or against the emulators; config files; storage modes |
 | [Building](docs/building.md) | Android APK / App Bundle and web release builds, versioning, signing |
+| [Releasing](docs/releasing.md) | GitHub Actions, release tags for each part, secrets |
 | [Hosting](docs/hosting.md) | Firebase project, web hosting, Firestore rules and indexes, hosting the API server |
 | [Architecture](docs/architecture.md) | Code layout, layers, data model, share target, reader, security |
-| [Testing](docs/testing.md) | App, API and security rules tests |
+| [Testing](docs/testing.md) | App, web, API and security rules tests |
 | [Troubleshooting](docs/troubleshooting.md) | Known issues and fixes |
 | [API](api/README.md) | REST API endpoints, authentication and configuration |
 
 ## Repository layout
 
-| Path | What |
-|---|---|
-| `lib/` | Flutter app (Android and web) |
-| `packages/capsula_core/` | Pure-Dart domain model and logic, shared by the app and the API |
-| `api/` | Self-hosted REST API server |
-| `rules_test/` | Firestore security rules tests (Node, run against the emulator) |
-| `test/` | App tests |
-| `android/`, `web/` | Platform projects |
-| `config/` | Build-time settings passed with `--dart-define-from-file` |
-| `firebase.json`, `.firebaserc` | Firebase CLI config: hosting, rules, indexes, emulators |
-| `firestore.rules`, `firestore.indexes.json` | Firestore security rules and composite indexes |
-| `docs/` | Documentation |
+One repository, with each part in its own folder, its own GitHub Actions workflow and its
+own releases.
+
+| Path | What | Released by tag |
+|---|---|---|
+| `app/` | Flutter app: `lib/` (all screens and services), `test/`, `android/`, `config/` (build settings) | `app-v*` |
+| `web/` | The web site: builds `app/` for the browser, plus the site's own files in `web/web/` | `web-v*` |
+| `api/` | Self-hosted REST API server | `api-v*` |
+| `packages/capsula_core/` | Pure-Dart model and logic, shared by the app, web and API | (with each part) |
+| `firestore.rules`, `firestore.indexes.json`, `rules_test/` | Firestore security rules, indexes and their tests | `firebase-v*` |
+| `firebase.json`, `.firebaserc` | Firebase CLI config: hosting, rules, indexes, emulators | |
+| `.github/workflows/` | `app.yml`, `web.yml`, `api.yml`, `firebase.yml` | |
+| `scripts/` | Run, install, serve and release scripts | |
+| `docs/` | Documentation | |
 
 ## Common commands
 
 ```
-flutter analyze                                     # static analysis
-flutter test                                        # app tests
-flutter build apk --release --dart-define-from-file=config/prod.json
-flutter build web --release --dart-define-from-file=config/prod.json
-firebase deploy --only hosting                      # publish the web app
-firebase deploy --only firestore                    # publish rules and indexes
+cd app && flutter analyze && flutter test           # app checks
+cd web && flutter test                              # web checks
 cd api && dart test                                 # API tests
 cd rules_test && npm test                           # security rules tests
+scripts\release.cmd -Component app -Version 1.1.0   # release one part (see docs/releasing.md)
 ```

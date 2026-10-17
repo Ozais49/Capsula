@@ -1,6 +1,8 @@
 # Building releases
 
-Run from the repository root. Release builds use `config/prod.json`.
+Run Android builds from `app\` and web builds from `web\`. Release builds use
+`app/config/prod.json`. To publish a release, use the GitHub Actions workflows instead
+(see [Releasing](releasing.md)); these commands are for local builds.
 
 ## Android
 
@@ -36,9 +38,11 @@ signed with your own key, so set up [release signing](#release-signing) first.
 
 ### Version numbers
 
-The version is `version:` in `pubspec.yaml`, for example `1.0.0+1`. The part before `+` is
-the version name users see. The number after `+` is the version code, which must go up
-with every Play Store upload. Change it in `pubspec.yaml`, or override it for one build:
+The version is `version:` in `app/pubspec.yaml`, for example `1.0.0+1`. The part before `+`
+is the version name users see. The number after `+` is the version code, which must go up
+with every Play Store upload. Releases from GitHub Actions take the name from the tag and
+use the workflow's run number as the code. Change it in `app/pubspec.yaml`, or override it
+for one build:
 
 ```
 flutter build appbundle --release --build-name=1.1.0 --build-number=2 --dart-define-from-file=config/prod.json
@@ -46,7 +50,7 @@ flutter build appbundle --release --build-name=1.1.0 --build-number=2 --dart-def
 
 ### Release signing
 
-Without a key, `android/app/build.gradle.kts` signs release builds with the debug key.
+Without a key, `app/android/app/build.gradle.kts` signs release builds with the debug key.
 That's fine for installing on your own phones, but Google Play rejects it, and a phone
 won't update an app signed with a different key without uninstalling it first.
 
@@ -55,7 +59,7 @@ won't update an app signed with a different key without uninstalling it first.
    ```
    keytool -genkey -v -keystore C:\Users\<you>\keys\capsula-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
    ```
-2. Create `android/key.properties`. It's ignored by git; never commit it.
+2. Create `app/android/key.properties`. It's ignored by git; never commit it.
    ```properties
    storePassword=<keystore password>
    keyPassword=<key password>
@@ -63,8 +67,8 @@ won't update an app signed with a different key without uninstalling it first.
    storeFile=C:/Users/<you>/keys/capsula-upload.jks
    ```
    Use forward slashes in `storeFile`, because backslashes are escape characters in
-   `.properties` files. A relative path is resolved from `android/app/`.
-3. Build as usual. When `android/key.properties` exists, release builds are signed with
+   `.properties` files. A relative path is resolved from `app/android/app/`.
+3. Build as usual. When `app/android/key.properties` exists, release builds are signed with
    that key.
 
 Switching from debug-signed to release-signed builds means uninstalling the old app from
@@ -72,29 +76,26 @@ test phones once. Uninstalling deletes data kept without an account; export it f
 
 ### App icon and name
 
-The launcher name is `Capsula`, set in `android/app/src/main/AndroidManifest.xml`. The icon
-is the default Flutter icon in `android/app/src/main/res/mipmap-*`. Replace those images,
+The launcher name is `Capsula`, set in `app/android/app/src/main/AndroidManifest.xml`. The icon
+is the default Flutter icon in `app/android/app/src/main/res/mipmap-*`. Replace those images,
 or generate them with the `flutter_launcher_icons` package.
 
 ## Web
 
+The web project in `web\` builds the app for the browser. Its own files (`index.html`,
+icons, manifest) are in `web\web\`.
+
 ```
-flutter build web --release --dart-define-from-file=config/prod.json
+cd web
+flutter build web --release --dart-define-from-file=../app/config/prod.json
 ```
 
-Output: `build\web`. It's a static site: serve it from any static host that sends every
+Output: `web\build\web`. It's a static site: serve it from any static host that sends every
 path to `index.html`, so links like `/bookmarks/<id>` work. To publish on Firebase Hosting,
 see [Hosting](hosting.md#web-app).
 
-To try the release build locally:
-
-```
-cd build\web
-npx serve -s .
-```
-
-Served this way, the app isn't on Firebase Hosting, so it asks for Firebase settings or
-offers **Use without an account**.
+To try the release build locally the way Firebase Hosting serves it, run
+`scripts\web\serve.cmd`.
 
 ## API server
 
@@ -108,11 +109,13 @@ dart compile exe bin/server.dart -o build/capsula-api.exe
 ## Before releasing
 
 ```
-flutter analyze
-flutter test
+cd app && flutter analyze && flutter test
+cd web && flutter analyze && flutter test
 cd api && dart analyze && dart test
 cd rules_test && npm test
 ```
+
+The workflows run the same checks on every push.
 
 Then build, install on a phone, and check signing in, saving a link through the share
 sheet, opening the reader, and using the app without an account.

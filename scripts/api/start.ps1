@@ -39,14 +39,13 @@ param(
 . "$PSScriptRoot\..\common.ps1"
 
 $dart = Find-Dart
-$apiDir = Join-Path $RepoRoot 'api'
 
 if (Test-Port $Port) {
     Stop-WithError "Port $Port is in use (is the server already running?). Use -Port to pick another."
 }
 
 Write-Step 'Getting API dependencies'
-Push-Location $apiDir
+Push-Location $ApiDir
 try { Invoke-Tool $dart @('pub', 'get') } finally { Pop-Location }
 
 # Settings for the server process (see api/README.md).
@@ -60,7 +59,7 @@ if ($Mode -eq 'emulators') {
 } else {
     if (-not $Credentials) { $Credentials = $env:GOOGLE_APPLICATION_CREDENTIALS }
     if (-not $Credentials) {
-        $Credentials = Get-ChildItem (Join-Path $apiDir 'secrets') -Filter '*.json' -ErrorAction SilentlyContinue |
+        $Credentials = Get-ChildItem (Join-Path $ApiDir 'secrets') -Filter '*.json' -ErrorAction SilentlyContinue |
             Select-Object -First 1 -ExpandProperty FullName
     }
     if (-not $Credentials -or -not (Test-Path $Credentials)) {
@@ -75,5 +74,5 @@ if ($Mode -eq 'emulators') {
 
 Write-Step "Starting the API server ($Mode) on http://localhost:$Port. Press Ctrl+C to stop."
 Write-Host "Check it: http://localhost:$Port/v1/health"
-Push-Location $apiDir
+Push-Location $ApiDir
 try { Invoke-Tool $dart @('run', 'bin/server.dart') } finally { Pop-Location }

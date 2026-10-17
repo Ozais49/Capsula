@@ -1,0 +1,99 @@
+# Web app (web/, which builds the app in app/ for the browser).
+#
+# Checks: on changes to the web project, the app's code or the shared package.
+# Release: push a tag web-v<version> (scripts\release.ps1 -Component web). Builds
+# the site and deploys it to Firebase Hosting (https://capsula-ygtech.web.app).
+# Secrets and setup: docs/releasing.md.
+name: Web
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'web/**'
+      - 'app/lib/**'
+      - 'app/pubspec.*'
+      - 'app/config/**'
+      - 'packages/**'
+      - 'firebase.json'
+      - '.github/workflows/web.yml'
+    tags: ['web-v*']
+  pull_request:
+    paths:
+      - 'web/**'
+      - 'app/lib/**'
+      - 'app/pubspec.*'
+      - 'app/config/**'
+      - 'packages/**'
+      - 'firebase.json'
+      - '.github/workflows/web.yml'
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.47.7'
+  FIREBASE_PROJECT: capsula-ygtech
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release --dart-define-from-file=../app/config/prod.json
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/web-v')
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches web/pubspec.yaml
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#web-v}"
+          pubspec=$(grep -E '^version:' web/pubspec.yaml | sed -E 's/version: *([^+ ]+).*/\1/')
+          if [ "$tag" != "$pubspec" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match web/pubspec.yaml version $pubspec"
+            exit 1
+          fi
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Build
+        working-directory: web
+        run: |
+          flutter pub get
+          flutter build web --release --dart-define-from-file=../app/config/prod.json
+          (cd build/web && zip -qr "$GITHUB_WORKSPACE/capsula-web-${{ steps.version.outputs.version }}.zip" .)
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ env.FIREBASE_PROJECT }}
+          channelId: live
+
+      - name: GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Web ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: capsula-web-*.zip

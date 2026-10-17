@@ -7,6 +7,11 @@ $ErrorActionPreference = 'Stop'
 # was started from. This file lives in scripts\.
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 
+# The projects in the repository.
+$AppDir = Join-Path $RepoRoot 'app'
+$WebDir = Join-Path $RepoRoot 'web'
+$ApiDir = Join-Path $RepoRoot 'api'
+
 $AppId = 'com.ygtech.capsula'
 
 # Project the local emulators run as. The app (dev config) and the API use the
@@ -159,13 +164,21 @@ function Start-FirebaseEmulators([string] $Project) {
 # `flutter pub get` for the app (and the shared package it uses).
 function Install-AppDependencies {
     Write-Step 'Getting app dependencies'
-    Push-Location $RepoRoot
+    Push-Location $AppDir
     try { Invoke-Tool (Find-Flutter) @('pub', 'get') } finally { Pop-Location }
 }
 
-# The config file for an environment: config/<env>.json.
+# `flutter pub get` for the web project (which uses the app).
+function Install-WebDependencies {
+    Write-Step 'Getting web dependencies'
+    Push-Location $WebDir
+    try { Invoke-Tool (Find-Flutter) @('pub', 'get') } finally { Pop-Location }
+}
+
+# The config file for an environment: app/config/<env>.json (used by the
+# app and the web project).
 function Get-ConfigFile([string] $Name) {
-    $file = Join-Path $RepoRoot "config\$Name.json"
+    $file = Join-Path $AppDir "config\$Name.json"
     if (-not (Test-Path $file)) { Stop-WithError "No config file $file" }
     return $file
 }

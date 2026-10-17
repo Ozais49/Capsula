@@ -44,5 +44,5 @@ $flutterArgs = @('run', '-d', $serial) + (Get-DartDefineArgs $Config)
 if ($Release) { $flutterArgs += '--release' }
 
 Write-Step "Starting Capsula ($Config) on the phone. Press q to quit."
-Push-Location $RepoRoot
+Push-Location $AppDir
 try { Invoke-Tool $flutter $flutterArgs } finally { Pop-Location }

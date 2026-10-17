@@ -43,11 +43,11 @@ if (-not $Browser) {
 }
 if (Test-Port $Port) { Stop-WithError "Port $Port is in use. Use -Port to pick another." }
 
-Install-AppDependencies
+Install-WebDependencies
 if ($Config -eq 'emulators') { Start-FirebaseEmulators $EmulatorProject }
 
 Write-Step "Starting Capsula ($Config) in $Browser at http://localhost:$Port. Press q to quit."
-Push-Location $RepoRoot
+Push-Location $WebDir
 try {
     Invoke-Tool $flutter (@('run', '-d', $Browser, '--web-port', "$Port") + (Get-DartDefineArgs $Config))
 } finally { Pop-Location }
