@@ -172,7 +172,7 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
     if (token != null) q = q.where('searchTokens', arrayContains: token);
     // The Archived query also returns trashed bookmarks (they are archived
     // too); fetch some extra so a page is still full after leaving them out.
-    final fetch = view is ArchivedView ? limit + 50 : limit;
+    final fetch = query.fetchSize(view is ArchivedView ? limit + 50 : limit);
     q = switch (view) {
       RemindersView() => q.orderBy('remindAt'),
       TrashView() => q.orderBy('deletedAt', descending: true),
@@ -187,6 +187,7 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
       (snapshot) => snapshot.docs
           .map((d) => bookmarkFromFirestore(d.id, d.data()))
           .where((b) => bookmarkInView(b, view))
+          .where(query.filters.matches)
           .where(
             (b) => !searching || matchesSearch(b.searchableText, query.search),
           )

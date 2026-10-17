@@ -1,4 +1,5 @@
 import 'bookmark.dart';
+import 'bookmark_filters.dart';
 import 'bookmark_view.dart';
 
 enum BookmarkSort {
@@ -15,21 +16,29 @@ class BookmarkQuery {
     this.view = BookmarkView.inbox,
     this.search = '',
     this.sort = BookmarkSort.newest,
+    this.filters = BookmarkFilters.none,
   });
 
   final BookmarkView view;
   final String search;
   final BookmarkSort sort;
+  final BookmarkFilters filters;
+
+  /// How many results to fetch from a backend for a page of [limit],
+  /// when filters (applied after fetching) may leave some out.
+  int fetchSize(int limit) =>
+      filters.isEmpty ? limit : (limit * 4).clamp(limit, 500);
 
   @override
   bool operator ==(Object other) =>
       other is BookmarkQuery &&
       other.view == view &&
       other.search == search &&
-      other.sort == sort;
+      other.sort == sort &&
+      other.filters == filters;
 
   @override
-  int get hashCode => Object.hash(view, search, sort);
+  int get hashCode => Object.hash(view, search, sort, filters);
 }
 
 /// Most writes sent together in one batch (Firestore allows 500).

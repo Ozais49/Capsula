@@ -78,6 +78,14 @@ the new repository, and the router sends the user to the library or the sign-in 
 until a backend is ready, then to sign-in until signed in. The connection screen is always
 reachable.
 
+The library URL holds the view and any filters, for example
+`/?view=collection:abc&source=reddit,youtube&tag=t1`. A view (`BookmarkView`) picks the
+bookmarks: Inbox, All, Favorites, Reminders, Archived, Trash, a tag or a collection.
+Filters (`BookmarkFilters`: sources, tags, kind of content, reading status) narrow it, and
+stay on when moving between views. Firestore queries the view; filters are applied on the
+device, fetching up to four times the page size so pages stay full. Old links to source
+and type views (`?view=source:reddit`) open All bookmarks with that filter.
+
 ## Data model (Firestore)
 
 All user data is under `users/{uid}`. Only the owner can read or write it.

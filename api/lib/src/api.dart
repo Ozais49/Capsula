@@ -3,6 +3,7 @@ import 'dart:io' show HttpDate;
 
 import 'package:capsula_core/api/api_json.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_filters.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
@@ -185,6 +186,7 @@ class CapsulaApi {
     final query = BookmarkQuery(
       view: BookmarkView.parse(params['view'] ?? 'all'),
       search: params['q'] ?? '',
+      filters: BookmarkFilters.fromQuery(params),
     );
     final list = await userData(p.uid).bookmarks
         .watchList(query, limit: limit)

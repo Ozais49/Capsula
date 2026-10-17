@@ -987,4 +987,35 @@ void main() {
     );
     expect(calls, 1);
   });
+
+  test('lists can be filtered by source, tag, kind and status', () async {
+    for (final url in [
+      'https://reddit.com/r/a/comments/1',
+      'https://youtu.be/xyz',
+      'https://example.com/post',
+    ]) {
+      await s.call(
+        'POST',
+        '/v1/bookmarks',
+        body: {
+          'url': url,
+          'fetchDetails': false,
+          if (url.contains('youtu')) 'tags': ['watch'],
+        },
+      );
+    }
+    Future<List<Object?>> urls(String query) async =>
+        ((await s.call('GET', '/v1/bookmarks?$query')).$2['bookmarks']! as List)
+            .map((b) => (b! as Map)['url'])
+            .toList();
+
+    expect(await urls('source=reddit,youtube'), hasLength(2));
+    expect(await urls('kind=video'), ['https://youtu.be/xyz']);
+    final tagId =
+        ((await s.call('GET', '/v1/tags')).$2['tags']! as List).single as Map;
+    expect(await urls('tag=${tagId['id']}&source=youtube'), [
+      'https://youtu.be/xyz',
+    ]);
+    expect(await urls('status=read'), isEmpty);
+  });
 }

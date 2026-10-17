@@ -16,8 +16,9 @@ reader view, highlight passages, and search the text of saved pages.
   bookmark import.
 - **Real titles.** Titles come from the source (YouTube, Reddit, Instagram, X, TikTok,
   Facebook, and any page's `og:title`), not from the URL.
-- **Organize.** Inbox, favorites, nested collections, tags, sources, content types,
-  reminders, archive. List, card or grid layout; bulk edit.
+- **Organize.** Inbox, favorites, nested collections (collapsible), tags, reminders,
+  archive, and filters by source, tag, kind of content and reading status.
+  List, card or grid layout; bulk edit.
 - **Trash.** Deleted bookmarks go to the Trash, where they can be restored for 30 days.
 - **Read.** Reader view for articles, YouTube, Reddit posts and GitHub READMEs, with
   highlights and notes.

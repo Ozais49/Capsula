@@ -4,6 +4,7 @@ import 'package:capsula_core/domain/auth/app_user.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/organization/label.dart';
+import 'package:capsula/features/bookmarks/library_navigation.dart';
 import 'package:capsula/features/bookmarks/library_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -113,7 +114,7 @@ void main() {
     expect(find.text('1'), findsOneWidget);
   });
 
-  testWidgets('source, tag and collection views filter the library', (
+  testWidgets('tag and collection views, and filters, narrow the library', (
     tester,
   ) async {
     await _pump(
@@ -122,14 +123,14 @@ void main() {
       bookmarks: [
         _bookmark('a', 'Reddit thread', source: BookmarkSource.reddit),
         _bookmark('b', 'Tagged paper', tagIds: ['t-ai']),
-        _bookmark('c', 'Collected paper', collectionIds: ['c-research']),
+        _bookmark(
+          'c',
+          'Collected paper',
+          collectionIds: ['c-research'],
+          tagIds: ['t-ai'],
+        ),
       ],
     );
-
-    await _openView(tester, 'Reddit');
-    expect(find.widgetWithText(AppBar, 'Reddit'), findsOneWidget);
-    expect(find.text('Reddit thread'), findsOneWidget);
-    expect(find.text('Tagged paper'), findsNothing);
 
     await _openView(tester, 'AI');
     expect(find.text('Tagged paper'), findsOneWidget);
@@ -143,6 +144,31 @@ void main() {
     expect(find.text('Reddit thread'), findsOneWidget);
     expect(find.text('Tagged paper'), findsOneWidget);
     expect(find.text('Collected paper'), findsOneWidget);
+
+    Future<void> filter(String chip, String option) async {
+      await tester.tap(find.byTooltip('Filter by $chip'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(CheckboxListTile, option));
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+    }
+
+    // Sources are a filter, not a view.
+    await filter('source', 'Reddit');
+    expect(find.text('Reddit thread'), findsOneWidget);
+    expect(find.text('Tagged paper'), findsNothing);
+    expect(find.widgetWithText(FilterChip, 'Reddit'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Clear filters'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tagged paper'), findsOneWidget);
+
+    // Filters stay on when moving to another view.
+    await filter('tags', 'AI');
+    expect(find.text('Reddit thread'), findsNothing);
+    await _openView(tester, 'Research');
+    expect(find.text('Collected paper'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'AI'), findsOneWidget);
   });
 
   testWidgets('swiping in the Inbox removes from Inbox, with undo', (
@@ -272,5 +298,44 @@ void main() {
     await tester.tap(find.text('Archived'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'Archived'), findsOneWidget);
+  });
+
+  testWidgets('My collections and nested collections collapse', (tester) async {
+    const trip = Label(id: 'c-trip', kind: LabelKind.collection, name: 'Trip');
+    const japan = Label(
+      id: 'c-japan',
+      kind: LabelKind.collection,
+      name: 'Japan',
+      parentId: 'c-trip',
+    );
+    await _pump(tester, labels: [_ai, trip, japan]);
+    await _openDrawer(tester);
+
+    Finder inNav(String text) => find.descendant(
+      of: find.byType(LibraryNavigation),
+      matching: find.text(text),
+    );
+    expect(inNav('My collections'), findsOneWidget);
+    expect(inNav('Japan'), findsOneWidget);
+    expect(inNav('Types'), findsNothing);
+    expect(inNav('Sources'), findsNothing);
+
+    // A collection hides what's inside it.
+    await tester.tap(find.byTooltip('Hide inside Trip'));
+    await tester.pumpAndSettle();
+    expect(inNav('Trip'), findsOneWidget);
+    expect(inNav('Japan'), findsNothing);
+    await tester.tap(find.byTooltip('Show inside Trip'));
+    await tester.pumpAndSettle();
+    expect(inNav('Japan'), findsOneWidget);
+
+    // The whole section closes, leaving tags open.
+    await tester.tap(inNav('My collections'));
+    await tester.pumpAndSettle();
+    expect(inNav('Trip'), findsNothing);
+    expect(inNav('AI'), findsOneWidget);
+    await tester.tap(inNav('My collections'));
+    await tester.pumpAndSettle();
+    expect(inNav('Trip'), findsOneWidget);
   });
 }

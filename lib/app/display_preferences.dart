@@ -35,6 +35,7 @@ class DisplayPreferences extends ChangeNotifier {
     try {
       final layout = await _prefs.getString('library_layout');
       final sort = await _prefs.getString('library_sort');
+      _collapsed = {...?await _prefs.getStringList('nav_collapsed')};
       _offerCopiedLinks =
           await _prefs.getBool('offer_copied_links') ?? _offerCopiedLinks;
       _layout = LibraryLayout.values.firstWhere(
@@ -66,13 +67,34 @@ class DisplayPreferences extends ChangeNotifier {
   void setOfferCopiedLinks(bool offer) {
     _offerCopiedLinks = offer;
     notifyListeners();
-    if (_persist) {
-      _prefs.setBool('offer_copied_links', offer).catchError((Object _) {});
+    _store((p) => p.setBool('offer_copied_links', offer));
+  }
+
+  void _save(String key, String value) =>
+      _store((p) => p.setString(key, value));
+
+  /// Saves a preference in the background. Preferences are a convenience:
+  /// if they can't be stored (no storage available), the choice still
+  /// applies for this run.
+  void _store(Future<void> Function(SharedPreferencesAsync prefs) write) {
+    if (!_persist) return;
+    try {
+      write(_prefs).catchError((Object _) {});
+    } on Object {
+      // Storage isn't available.
     }
   }
 
-  void _save(String key, String value) {
-    if (!_persist) return;
-    _prefs.setString(key, value).catchError((Object _) {});
+  // Sidebar sections and collections the user has collapsed, by key
+  // (e.g. `section:collection`, `collection:<id>`). Everything starts open.
+  Set<String> _collapsed = {};
+
+  bool isCollapsed(String key) => _collapsed.contains(key);
+
+  void toggleCollapsed(String key) {
+    _collapsed = {..._collapsed};
+    if (!_collapsed.remove(key)) _collapsed.add(key);
+    notifyListeners();
+    _store((p) => p.setStringList('nav_collapsed', _collapsed.toList()));
   }
 }

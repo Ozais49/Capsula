@@ -188,7 +188,7 @@ class AdminBookmarkRepository implements BookmarkRepository {
     final searching = searchWords(query.search).isNotEmpty;
     // Trashed bookmarks are archived too; fetch extra for the Archived view
     // so a page is still full after leaving them out.
-    final fetch = view is ArchivedView ? limit + 50 : limit;
+    final fetch = query.fetchSize(view is ArchivedView ? limit + 50 : limit);
     return Stream.fromFuture(
       switch (view) {
             RemindersView() => q.orderBy('remindAt'),
@@ -204,6 +204,7 @@ class AdminBookmarkRepository implements BookmarkRepository {
             (s) => s.docs
                 .map(_decode)
                 .where((b) => bookmarkInView(b, view))
+                .where(query.filters.matches)
                 .where(
                   (b) =>
                       !searching ||

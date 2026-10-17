@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_filters.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
 import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
@@ -18,6 +19,7 @@ import '../../app/display_preferences.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../common/sync_indicator.dart';
+import 'filter_bar.dart';
 import 'trash_actions.dart';
 import '../common/keyboard_shortcuts.dart';
 import '../organization/label_picker_sheet.dart';
@@ -29,9 +31,16 @@ import 'bookmark_tile.dart';
 import 'library_navigation.dart';
 
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key, this.view = BookmarkView.inbox});
+  const LibraryScreen({
+    super.key,
+    this.view = BookmarkView.inbox,
+    this.filters = BookmarkFilters.none,
+  });
 
   final BookmarkView view;
+
+  /// Narrows the view by source, tags, kind and status.
+  final BookmarkFilters filters;
 
   static const pageSize = 30;
 
@@ -146,7 +155,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   @override
   void didUpdateWidget(LibraryScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.view != widget.view) {
+    if (oldWidget.view != widget.view || oldWidget.filters != widget.filters) {
       _limit = LibraryScreen.pageSize;
       _selected.clear();
       _stream = _subscribe();
@@ -169,6 +178,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           view: widget.view,
           search: _search,
           sort: _sort ?? BookmarkSort.newest,
+          filters: widget.filters,
         ),
         limit: _limit,
       );
@@ -190,6 +200,7 @@ class _LibraryScreenState extends State<LibraryScreen>
       _fullText && _search.trim().isNotEmpty
       ? AppDependencies.of(context).bookmarks
             .searchContent(_search, view: widget.view)
+            .then((found) => found.where(widget.filters.matches).toList())
       : null;
 
   void _setFullText(bool on) => setState(() {
@@ -211,7 +222,12 @@ class _LibraryScreenState extends State<LibraryScreen>
     });
   }
 
-  void _select(BookmarkView view) => context.go(AppRoutes.library(view));
+  // Filters stay on when moving between views.
+  void _select(BookmarkView view) =>
+      context.go(AppRoutes.library(view, widget.filters));
+
+  void _setFilters(BookmarkFilters filters) =>
+      context.go(AppRoutes.library(widget.view, filters));
 
   void _open(Bookmark b) =>
       _selected.isEmpty ? context.push(AppRoutes.bookmark(b.id)) : _toggle(b);
@@ -575,6 +591,11 @@ class _LibraryScreenState extends State<LibraryScreen>
             ),
           ),
         ),
+        FilterBar(
+          filters: widget.filters,
+          tags: labels.of(LabelKind.tag),
+          onChanged: _setFilters,
+        ),
         if (_search.trim().isNotEmpty &&
             AppDependencies.of(context).bookmarks.hasContentIndex)
           Padding(
@@ -775,6 +796,12 @@ class _LibraryScreenState extends State<LibraryScreen>
       return _Message(
         icon: Icons.search_off,
         text: 'No bookmarks match "$_search".',
+      );
+    }
+    if (!widget.filters.isEmpty) {
+      return const _Message(
+        icon: Icons.filter_alt_off_outlined,
+        text: 'No bookmarks match these filters.',
       );
     }
     return switch (widget.view) {

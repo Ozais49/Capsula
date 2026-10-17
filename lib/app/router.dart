@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:capsula_core/domain/bookmarks/bookmark_filters.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 
 import '../features/auth/sign_in_screen.dart';
@@ -34,9 +35,37 @@ abstract final class AppRoutes {
 
   static String reader(String id) => '/bookmarks/$id/read';
 
-  static String library(BookmarkView view) => view is InboxView
-      ? home
-      : '$home?view=${Uri.encodeQueryComponent(view.key)}';
+  static String library(
+    BookmarkView view, [
+    BookmarkFilters filters = BookmarkFilters.none,
+  ]) {
+    final query = {
+      if (view is! InboxView) 'view': view.key,
+      ...filters.toQuery(),
+    };
+    return query.isEmpty
+        ? home
+        : Uri(path: home, queryParameters: query).toString();
+  }
+}
+
+/// The view and filters in a library URL. Sources and types used to be
+/// views (`?view=source:reddit`); such links now open All bookmarks with
+/// the matching filter.
+(BookmarkView, BookmarkFilters) libraryLocation(Map<String, String> query) {
+  final view = BookmarkView.parse(query['view']);
+  final filters = BookmarkFilters.fromQuery(query);
+  return switch (view) {
+    SourceView(:final source) => (
+      BookmarkView.all,
+      filters.copyWith(sources: {...filters.sources, source.id}),
+    ),
+    TypeView(:final type) => (
+      BookmarkView.all,
+      filters.copyWith(kinds: {...filters.kinds, type}),
+    ),
+    _ => (view, filters),
+  };
 }
 
 GoRouter createRouter(BackendController backend, AuthSession session) =>
@@ -56,9 +85,10 @@ GoRouter createRouter(BackendController backend, AuthSession session) =>
 final _authRoutes = [
   GoRoute(
     path: AppRoutes.home,
-    builder: (context, state) => LibraryScreen(
-      view: BookmarkView.parse(state.uri.queryParameters['view']),
-    ),
+    builder: (context, state) {
+      final (view, filters) = libraryLocation(state.uri.queryParameters);
+      return LibraryScreen(view: view, filters: filters);
+    },
     routes: [
       GoRoute(
         path: 'bookmarks/:id',

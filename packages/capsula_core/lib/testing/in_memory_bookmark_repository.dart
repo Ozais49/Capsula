@@ -138,6 +138,7 @@ class InMemoryBookmarkRepository implements BookmarkRepository {
   List<Bookmark> _query(BookmarkQuery query, int limit) =>
       (items.values
               .where((b) => bookmarkInView(b, query.view))
+              .where(query.filters.matches)
               .where((b) => matchesSearch(b.searchableText, query.search))
               .toList()
             ..sort(
