@@ -236,7 +236,9 @@ class _DuplicatesState extends State<_Duplicates> {
       _running = true;
       _groups = null;
     });
-    final groups = findDuplicates(await repo.fetchAll());
+    final groups = findDuplicates(
+      (await repo.fetchAll()).where((b) => !b.isTrashed).toList(),
+    );
     if (mounted) {
       setState(() {
         _running = false;

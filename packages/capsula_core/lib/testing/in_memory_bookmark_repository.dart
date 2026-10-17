@@ -141,11 +141,13 @@ class InMemoryBookmarkRepository implements BookmarkRepository {
               .where((b) => matchesSearch(b.searchableText, query.search))
               .toList()
             ..sort(
-              (a, b) => query.view is RemindersView
-                  ? a.remindAt!.compareTo(b.remindAt!)
-                  : query.sort == BookmarkSort.newest
-                  ? b.createdAt.compareTo(a.createdAt)
-                  : a.createdAt.compareTo(b.createdAt),
+              (a, b) => switch (query.view) {
+                RemindersView() => a.remindAt!.compareTo(b.remindAt!),
+                TrashView() => b.deletedAt!.compareTo(a.deletedAt!),
+                _ when query.sort == BookmarkSort.newest => b.createdAt
+                    .compareTo(a.createdAt),
+                _ => a.createdAt.compareTo(b.createdAt),
+              },
             ))
           .take(limit)
           .toList();

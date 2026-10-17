@@ -157,38 +157,42 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
       .doc(id)
       .snapshots()
       .map((s) => s.exists ? bookmarkFromFirestore(s.id, s.data()!) : null);
-
   @override
   Stream<List<Bookmark>> watchList(BookmarkQuery query, {required int limit}) {
     final view = query.view;
     var q = _viewQuery(view);
     // Firestore allows one array-contains per query, so label views
     // search on the client instead.
-    // Label and reminder views search on the device, avoiding extra indexes.
-    final token = view is LabelView || view is RemindersView
+    // Label, reminder and trash views search on the device, avoiding extra
+    // indexes.
+    final token =
+        view is LabelView || view is RemindersView || view is TrashView
         ? null
         : primarySearchToken(query.search);
     if (token != null) q = q.where('searchTokens', arrayContains: token);
-    q = view is RemindersView
-        ? q.orderBy('remindAt').limit(limit)
-        : q
-              .orderBy(
-                'createdAt',
-                descending: query.sort == BookmarkSort.newest,
-              )
-              .limit(limit);
+    // The Archived query also returns trashed bookmarks (they are archived
+    // too); fetch some extra so a page is still full after leaving them out.
+    final fetch = view is ArchivedView ? limit + 50 : limit;
+    q = switch (view) {
+      RemindersView() => q.orderBy('remindAt'),
+      TrashView() => q.orderBy('deletedAt', descending: true),
+      _ => q.orderBy(
+        'createdAt',
+        descending: query.sort == BookmarkSort.newest,
+      ),
+    }.limit(fetch);
 
     final searching = searchWords(query.search).isNotEmpty;
-    return q.snapshots().map((snapshot) {
-      final bookmarks = snapshot.docs.map(
-        (d) => bookmarkFromFirestore(d.id, d.data()),
-      );
-      return searching
-          ? bookmarks
-                .where((b) => matchesSearch(b.searchableText, query.search))
-                .toList()
-          : bookmarks.toList();
-    });
+    return q.snapshots().map(
+      (snapshot) => snapshot.docs
+          .map((d) => bookmarkFromFirestore(d.id, d.data()))
+          .where((b) => bookmarkInView(b, view))
+          .where(
+            (b) => !searching || matchesSearch(b.searchableText, query.search),
+          )
+          .take(limit)
+          .toList(),
+    );
   }
 
   Query<Map<String, Object?>> _viewQuery(BookmarkView view) {
@@ -199,6 +203,8 @@ class FirestoreBookmarkRepository implements BookmarkRepository {
       FavoritesView() => active.where('favorite', isEqualTo: true),
       RemindersView() => active,
       ArchivedView() => _collection.where('archived', isEqualTo: true),
+      // Ordering by deletedAt leaves out bookmarks without one.
+      TrashView() => _collection,
       SourceView(:final source) => active.where('source', isEqualTo: source.id),
       TypeView(:final type) => active.where('type', isEqualTo: type.name),
       LabelView(:final kind, :final labelId) => active.where(

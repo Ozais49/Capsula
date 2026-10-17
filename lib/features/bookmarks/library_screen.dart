@@ -18,6 +18,7 @@ import '../../app/display_preferences.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../common/sync_indicator.dart';
+import 'trash_actions.dart';
 import '../common/keyboard_shortcuts.dart';
 import '../organization/label_picker_sheet.dart';
 import '../organization/labels_builder.dart';
@@ -240,7 +241,11 @@ class _LibraryScreenState extends State<LibraryScreen>
   // ---------------------------------------------------------------------------
   // Bulk actions
 
-  Future<void> _bulk(String done, Future<void> Function() action) async {
+  Future<void> _bulk(
+    String done,
+    Future<void> Function() action, {
+    Future<void> Function()? undo,
+  }) async {
     final messenger = ScaffoldMessenger.of(context);
     final count = _selected.length;
     setState(_selected.clear);
@@ -249,6 +254,9 @@ class _LibraryScreenState extends State<LibraryScreen>
       messenger.showSnackBar(
         SnackBar(
           content: Text('$done $count bookmark${count == 1 ? '' : 's'}'),
+          action: undo == null
+              ? null
+              : SnackBarAction(label: 'Undo', onPressed: () => undo().ignore()),
         ),
       );
     } on Object catch (e) {
@@ -269,25 +277,43 @@ class _LibraryScreenState extends State<LibraryScreen>
     await _bulk(
       kind == LabelKind.tag ? 'Tagged' : 'Added to collection:',
       () async {
+        // Each change applies to the stored copy, so labels add up.
         for (final id in chosen) {
           await service.addLabelToMany(items, kind, id);
-          // Re-read so later labels build on the updated lists.
-          for (var i = 0; i < items.length; i++) {
-            items[i] =
-                await service.repository.watch(items[i].id).first ?? items[i];
-          }
         }
       },
     );
   }
 
-  Future<void> _bulkDelete() async {
+  Future<void> _bulkTrash() {
+    final service = AppDependencies.of(context).bookmarks;
+    final items = _selected.values.toList();
+    return _bulk(
+      'Moved to Trash:',
+      () => service.moveToTrash(items),
+      undo: () => service.restore(items),
+    );
+  }
+
+  Future<void> _bulkDeleteForever() async {
     final count = _selected.length;
     final service = AppDependencies.of(context).bookmarks;
+    final confirmed = await confirmDeleteForever(context, count);
+    if (!confirmed || !mounted) return;
+    final items = _selected.values.toList();
+    await _bulk('Deleted', () => service.deleteMany(items));
+  }
+
+  Future<void> _emptyTrash() async {
+    final service = AppDependencies.of(context).bookmarks;
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete $count bookmark${count == 1 ? '' : 's'}?'),
+        title: const Text('Empty Trash?'),
+        content: const Text(
+          'Everything in the Trash is deleted for good, with its highlights.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -296,27 +322,55 @@ class _LibraryScreenState extends State<LibraryScreen>
           FilledButton(
             style: FilledButton.styleFrom(minimumSize: const Size(88, 40)),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: const Text('Empty Trash'),
           ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    final items = _selected.values.toList();
-    await _bulk('Deleted', () => service.deleteMany(items));
+    if (confirmed != true) return;
+    try {
+      final count = await service.emptyTrash();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Deleted $count bookmark${count == 1 ? '' : 's'}'),
+        ),
+      );
+    } on Object catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not delete: $e')));
+    }
   }
 
   AppBar _selectionBar(Labels labels) {
     final service = AppDependencies.of(context).bookmarks;
     final items = _selected.values.toList();
     final allFavorite = items.every((b) => b.favorite);
+    final leading = IconButton(
+      tooltip: 'Cancel selection',
+      icon: const Icon(Icons.close),
+      onPressed: () => setState(_selected.clear),
+    );
+    final title = Text('${_selected.length} selected');
+    if (widget.view is TrashView) {
+      return AppBar(
+        leading: leading,
+        title: title,
+        actions: [
+          IconButton(
+            tooltip: 'Restore',
+            icon: const Icon(Icons.restore_from_trash_outlined),
+            onPressed: () => _bulk('Restored', () => service.restore(items)),
+          ),
+          IconButton(
+            tooltip: 'Delete forever',
+            icon: const Icon(Icons.delete_forever_outlined),
+            onPressed: _bulkDeleteForever,
+          ),
+        ],
+      );
+    }
     return AppBar(
-      leading: IconButton(
-        tooltip: 'Cancel selection',
-        icon: const Icon(Icons.close),
-        onPressed: () => setState(_selected.clear),
-      ),
-      title: Text('${_selected.length} selected'),
+      leading: leading,
+      title: title,
       actions: [
         IconButton(
           tooltip: allFavorite ? 'Remove from favorites' : 'Add to favorites',
@@ -359,7 +413,7 @@ class _LibraryScreenState extends State<LibraryScreen>
               () =>
                   service.updateMany(items, (b) => b.copyWith(archived: false)),
             ),
-            'delete' => _bulkDelete(),
+            'trash' => _bulkTrash(),
             _ => null,
           },
           itemBuilder: (_) => [
@@ -371,7 +425,7 @@ class _LibraryScreenState extends State<LibraryScreen>
               const PopupMenuItem(value: 'unarchive', child: Text('Unarchive'))
             else
               const PopupMenuItem(value: 'archive', child: Text('Archive')),
-            const PopupMenuItem(value: 'delete', child: Text('Delete')),
+            const PopupMenuItem(value: 'trash', child: Text('Move to Trash')),
           ],
         ),
       ],
@@ -382,6 +436,12 @@ class _LibraryScreenState extends State<LibraryScreen>
     title: Text(viewTitle(widget.view, labels)),
     actions: [
       const SyncIndicator(),
+      if (widget.view is TrashView)
+        IconButton(
+          tooltip: 'Empty Trash',
+          icon: const Icon(Icons.delete_sweep_outlined),
+          onPressed: _emptyTrash,
+        ),
       ListenableBuilder(
         listenable: _display,
         builder: (context, _) => PopupMenuButton<Object>(
@@ -737,6 +797,12 @@ class _LibraryScreenState extends State<LibraryScreen>
       ArchivedView() => const _Message(
         icon: Icons.archive_outlined,
         text: 'Nothing archived yet.',
+      ),
+      TrashView() => const _Message(
+        icon: Icons.delete_outline,
+        text:
+            'Trash is empty.\nDeleted bookmarks stay here for '
+            '${BookmarkService.trashDays} days.',
       ),
       TypeView(:final type) => _Message(
         icon: typeIcon(type),

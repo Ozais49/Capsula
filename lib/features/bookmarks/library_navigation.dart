@@ -218,6 +218,7 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
           },
         ),
         _item(BookmarkView.archived, Icons.archive_outlined, 'Archived'),
+        _item(BookmarkView.trash, Icons.delete_outline, 'Trash'),
         ..._labelSection(LabelKind.collection, Icons.folder_outlined),
         ..._labelSection(LabelKind.tag, Icons.label_outline),
         _header('Types'),
@@ -332,6 +333,7 @@ String viewTitle(BookmarkView view, Labels labels) => switch (view) {
   FavoritesView() => 'Favorites',
   RemindersView() => 'Reminders',
   ArchivedView() => 'Archived',
+  TrashView() => 'Trash',
   SourceView(:final source) => source.label,
   TypeView(:final type) => type.label,
   LabelView(:final kind, :final labelId) =>

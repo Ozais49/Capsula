@@ -160,6 +160,8 @@ class AdminBookmarkRepository implements BookmarkRepository {
       FavoritesView() => active.where('favorite', WhereFilter.equal, true),
       RemindersView() => active,
       ArchivedView() => _col.where('archived', WhereFilter.equal, true),
+      // Ordering by deletedAt leaves out bookmarks without one.
+      TrashView() => _col,
       SourceView(:final source) => active.where(
         'source',
         WhereFilter.equal,
@@ -176,32 +178,40 @@ class AdminBookmarkRepository implements BookmarkRepository {
         labelId,
       ),
     };
-    final token = view is LabelView || view is RemindersView
+    final token =
+        view is LabelView || view is RemindersView || view is TrashView
         ? null
         : primarySearchToken(query.search);
     if (token != null) {
       q = q.where('searchTokens', WhereFilter.arrayContains, token);
     }
     final searching = searchWords(query.search).isNotEmpty;
+    // Trashed bookmarks are archived too; fetch extra for the Archived view
+    // so a page is still full after leaving them out.
+    final fetch = view is ArchivedView ? limit + 50 : limit;
     return Stream.fromFuture(
-      q
-          .orderBy(
-            view is RemindersView ? 'remindAt' : 'createdAt',
-            descending:
-                view is! RemindersView && query.sort == BookmarkSort.newest,
-          )
-          .limit(limit)
+      switch (view) {
+            RemindersView() => q.orderBy('remindAt'),
+            TrashView() => q.orderBy('deletedAt', descending: true),
+            _ => q.orderBy(
+              'createdAt',
+              descending: query.sort == BookmarkSort.newest,
+            ),
+          }
+          .limit(fetch)
           .get()
-          .then((s) {
-            final list = s.docs.map(_decode);
-            return searching
-                ? list
-                      .where(
-                        (b) => matchesSearch(b.searchableText, query.search),
-                      )
-                      .toList()
-                : list.toList();
-          }),
+          .then(
+            (s) => s.docs
+                .map(_decode)
+                .where((b) => bookmarkInView(b, view))
+                .where(
+                  (b) =>
+                      !searching ||
+                      matchesSearch(b.searchableText, query.search),
+                )
+                .take(limit)
+                .toList(),
+          ),
     );
   }
 

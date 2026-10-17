@@ -139,6 +139,8 @@ class _CapsulaAppState extends State<CapsulaApp> {
     }
     _backfilled = services;
     services.bookmarks.backfillDetails(_pageInfo).ignore();
+    // Bookmarks trashed more than 30 days ago are deleted for good.
+    services.bookmarks.purgeTrash().ignore();
   }
 
   void _attachSessionWhenConnected() {

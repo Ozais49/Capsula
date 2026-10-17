@@ -18,6 +18,7 @@ reader view, highlight passages, and search the text of saved pages.
   Facebook, and any page's `og:title`), not from the URL.
 - **Organize.** Inbox, favorites, nested collections, tags, sources, content types,
   reminders, archive. List, card or grid layout; bulk edit.
+- **Trash.** Deleted bookmarks go to the Trash, where they can be restored for 30 days.
 - **Read.** Reader view for articles, YouTube, Reddit posts and GitHub READMEs, with
   highlights and notes.
 - **Search.** Titles and links, plus the full text of pages you've opened or indexed.

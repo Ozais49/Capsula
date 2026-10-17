@@ -12,6 +12,7 @@ sealed class BookmarkView {
   static const archived = ArchivedView();
   static const favorites = FavoritesView();
   static const reminders = RemindersView();
+  static const trash = TrashView();
 
   /// Stable string used in URLs, e.g. `inbox`, `source:reddit`, `tag:abc`.
   String get key;
@@ -26,6 +27,7 @@ sealed class BookmarkView {
         'archived' => archived,
         'favorites' => favorites,
         'reminders' => reminders,
+        'trash' => trash,
         _ => inbox,
       };
     }
@@ -110,4 +112,12 @@ class LabelView extends BookmarkView {
 
   @override
   String get key => '${kind.name}:$labelId';
+}
+
+/// Bookmarks moved to the Trash, most recently trashed first.
+class TrashView extends BookmarkView {
+  const TrashView();
+
+  @override
+  String get key => 'trash';
 }

@@ -26,10 +26,12 @@ rate-limited per user (default 120 per minute).
 |---|---|---|
 | GET | `/v1/health` | Liveness check, no auth |
 | GET | `/v1/me` | The caller's user ID and auth type |
-| GET | `/v1/bookmarks?view=&q=&limit=` | List. `view`: `inbox`, `all` (default), `archived`, `source:reddit`, `tag:<id>`, `collection:<id>`. `q`: search. `limit`: up to 500 |
-| GET | `/v1/bookmarks/export` | Every bookmark |
-| POST | `/v1/bookmarks` | Save `{url, title?, tags?, collections?, fetchDetails?}`. The real title is fetched from the source. Returns 409 with the existing bookmark if already saved |
-| GET / PATCH / DELETE | `/v1/bookmarks/{id}` | PATCH accepts `title`, `description`, `note`, `favorite`, `readingStatus`, `archived`, `inInbox`, `tags` / `collections` (names, created if missing) or `tagIds` / `collectionIds` |
+| GET | `/v1/bookmarks?view=&q=&limit=` | List. `view`: `inbox`, `all` (default), `archived`, `trash`, `source:reddit`, `tag:<id>`, `collection:<id>`. `q`: search. `limit`: up to 500 |
+| GET | `/v1/bookmarks/export` | Every bookmark, except those in the Trash |
+| POST | `/v1/bookmarks` | Save `{url, title?, tags?, collections?, fetchDetails?}`. The real title is fetched from the source. Returns 409 with the existing bookmark if already saved. Saving a link that is in the Trash restores it |
+| GET / PATCH / DELETE | `/v1/bookmarks/{id}` | PATCH accepts `title`, `description`, `note`, `favorite`, `readingStatus`, `archived`, `inInbox`, `tags` / `collections` (names, created if missing) or `tagIds` / `collectionIds`. DELETE moves the bookmark to the Trash; `?permanent=true` deletes it for good, with its highlights and page text |
+| POST | `/v1/bookmarks/{id}/restore` | Take a bookmark out of the Trash |
+| DELETE | `/v1/trash` | Delete everything in the Trash for good. Returns `{deleted}` |
 | GET / POST | `/v1/tags`, `/v1/collections` | List, or create `{name}` (returns the existing one for the same name) |
 | PATCH / DELETE | `/v1/tags/{id}`, `/v1/collections/{id}` | Rename `{name}`, or delete (bookmarks are kept) |
 | GET / POST / PATCH / DELETE | `/v1/highlights`, `/v1/highlights/{id}` | Highlights. List all, or `?bookmarkId=`. Create `{bookmarkId, text, note?, color?}`. PATCH `{note, color}` |

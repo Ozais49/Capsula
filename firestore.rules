@@ -38,7 +38,8 @@ service cloud.firestore {
           'url', 'canonicalUrl', 'title', 'description', 'imageUrl', 'source',
           'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
           'updatedAt', 'searchTokens', 'tagIds', 'collectionIds',
-          'importedFrom', 'importedAt', 'favorite', 'note', 'type', 'remindAt', 'contentIndexedAt'
+          'importedFrom', 'importedAt', 'favorite', 'note', 'type', 'remindAt', 'contentIndexedAt',
+          'deletedAt'
         ])
         && data.url is string && data.url.size() <= 4096
         && data.url.matches('^https?://.+')
@@ -64,6 +65,7 @@ service cloud.firestore {
         && isOptionalString(data, 'note', 10000)
         && (!('remindAt' in data) || data.remindAt is timestamp)
         && (!('contentIndexedAt' in data) || data.contentIndexedAt is timestamp)
+        && (!('deletedAt' in data) || data.deletedAt is timestamp)
         && (!('type' in data) || data.type in
           ['article', 'video', 'image', 'document', 'post', 'product']);
     }

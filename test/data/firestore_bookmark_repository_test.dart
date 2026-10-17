@@ -220,4 +220,23 @@ void main() {
       expect(states, [false, true, false]);
     });
   });
+
+  test('trashed bookmarks show only in the Trash, newest first', () async {
+    await repo.createMany([
+      _bookmark('active'),
+      _bookmark('archived', archived: true),
+      _bookmark('old').copyWith(archived: true, deletedAt: DateTime.utc(2026)),
+      _bookmark('new')
+          .copyWith(archived: true, deletedAt: DateTime.utc(2026, 10)),
+    ]);
+    Future<List<String>> ids(BookmarkView view) async => [
+      for (final b
+          in await repo.watchList(BookmarkQuery(view: view), limit: 10).first)
+        b.id,
+    ];
+
+    expect(await ids(BookmarkView.all), ['active']);
+    expect(await ids(BookmarkView.archived), ['archived']);
+    expect(await ids(BookmarkView.trash), ['new', 'old']);
+  });
 }

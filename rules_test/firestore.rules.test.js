@@ -368,6 +368,37 @@ describe('reminders', () => {
   });
 });
 
+describe('trash', () => {
+  test('deletedAt must be a timestamp', async () => {
+    const ref = bookmarkRef(db('alice'), 'alice');
+    await assertSucceeds(
+      setDoc(ref, validBookmark({ archived: true, deletedAt: Timestamp.now() })),
+    );
+    await assertFails(setDoc(ref, validBookmark({ deletedAt: 'yesterday' })));
+  });
+});
+
+describe('concurrent changes', () => {
+  test('field updates and label merges are allowed', async () => {
+    await seed('alice');
+    const ref = bookmarkRef(db('alice'), 'alice');
+    const { arrayUnion, arrayRemove } = await import('firebase/firestore');
+    await assertSucceeds(
+      updateDoc(ref, { favorite: true, tagIds: arrayUnion('t1'), updatedAt: Timestamp.now() }),
+    );
+    await assertSucceeds(
+      updateDoc(ref, { tagIds: arrayRemove('t1'), updatedAt: Timestamp.now() }),
+    );
+  });
+
+  test('a second save of the same link cannot replace the first', async () => {
+    // Bookmark IDs come from the link, so another device saving it again
+    // writes to the same document with a new createdAt.
+    await seed('alice', 'b1', validBookmark({ createdAt: Timestamp.fromMillis(1000) }));
+    await assertFails(setDoc(bookmarkRef(db('alice'), 'alice'), validBookmark()));
+  });
+});
+
 describe('page text index', () => {
   const ref = (firestore, owner) => doc(firestore, `users/${owner}/contents/b1`);
 

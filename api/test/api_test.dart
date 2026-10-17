@@ -289,7 +289,27 @@ void main() {
         400,
       );
 
+      // DELETE moves to the Trash.
       expect((await s.call('DELETE', '/v1/bookmarks/$id')).$1, 204);
+      var (_, got) = await s.call('GET', '/v1/bookmarks/$id');
+      expect(got['deletedAt'], isNotNull);
+      expect((await s.call('GET', '/v1/bookmarks')).$2['bookmarks'], isEmpty);
+      expect(
+        (await s.call('GET', '/v1/bookmarks?view=trash')).$2['bookmarks'],
+        hasLength(1),
+      );
+
+      (_, got) = await s.call('POST', '/v1/bookmarks/$id/restore');
+      expect(got['deletedAt'], isNull);
+      expect(
+        (await s.call('GET', '/v1/bookmarks')).$2['bookmarks'],
+        hasLength(1),
+      );
+
+      expect(
+        (await s.call('DELETE', '/v1/bookmarks/$id?permanent=true')).$1,
+        204,
+      );
       expect((await s.call('GET', '/v1/bookmarks/$id')).$1, 404);
     });
 
@@ -646,8 +666,13 @@ void main() {
       404,
     );
 
-    // Deleting the bookmark deletes its highlights.
+    // The Trash keeps highlights; deleting for good removes them.
     await s.call('DELETE', '/v1/bookmarks/$id');
+    expect(
+      (await s.call('GET', '/v1/highlights')).$2['highlights'],
+      isNotEmpty,
+    );
+    expect((await s.call('DELETE', '/v1/trash')).$2, {'deleted': 1});
     expect((await s.call('GET', '/v1/highlights')).$2['highlights'], isEmpty);
   });
 

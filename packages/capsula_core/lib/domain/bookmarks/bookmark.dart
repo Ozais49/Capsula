@@ -36,6 +36,7 @@ class Bookmark {
     this.note,
     this.remindAt,
     this.contentIndexedAt,
+    this.deletedAt,
     this.tagIds = const [],
     this.collectionIds = const [],
     this.importedFrom,
@@ -71,6 +72,13 @@ class Bookmark {
 
   /// When the page's text was last indexed for full-text search.
   final DateTime? contentIndexedAt;
+
+  /// When the bookmark was moved to the Trash; null when it is not there.
+  /// Trashed bookmarks are also archived, so the library's views (which
+  /// all show unarchived bookmarks) leave them out.
+  final DateTime? deletedAt;
+
+  bool get isTrashed => deletedAt != null;
 
   bool isDue(DateTime now) => remindAt != null && !remindAt!.isAfter(now);
   final List<String> tagIds;
@@ -116,6 +124,8 @@ class Bookmark {
     DateTime? remindAt,
     bool clearReminder = false,
     DateTime? contentIndexedAt,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
     List<String>? tagIds,
     List<String>? collectionIds,
     DateTime? updatedAt,
@@ -135,6 +145,7 @@ class Bookmark {
     note: clearNote ? null : note ?? this.note,
     remindAt: clearReminder ? null : remindAt ?? this.remindAt,
     contentIndexedAt: contentIndexedAt ?? this.contentIndexedAt,
+    deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
     tagIds: tagIds ?? this.tagIds,
     collectionIds: collectionIds ?? this.collectionIds,
     importedFrom: importedFrom,

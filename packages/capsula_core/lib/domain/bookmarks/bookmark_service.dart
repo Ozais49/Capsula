@@ -66,6 +66,11 @@ class BookmarkService {
 
     final canonicalUrl = canonicalizeUrl(uri);
     final existing = await _repository.findByCanonicalUrl(canonicalUrl);
+    if (existing != null && existing.isTrashed) {
+      // Saving a link that is in the Trash brings it back.
+      final restored = _restored(existing).copyWith(updatedAt: _now());
+      return Saved(restored, restore([existing])..ignore());
+    }
     if (existing != null) return AlreadySaved(existing);
 
     final now = _now();
@@ -202,7 +207,66 @@ class BookmarkService {
         LabelKind.collection => b.copyWith(collectionIds: ids),
       };
 
-  /// Deletes the bookmark and its highlights.
+  /// Days a bookmark stays in the Trash before it is deleted for good.
+  static const trashDays = 30;
+
+  /// Moves bookmarks to the Trash. They keep their tags, collections,
+  /// highlights and page text until deleted for good.
+  Future<void> moveToTrash(Iterable<Bookmark> bookmarks) {
+    final now = _now();
+    return updateMany(
+      bookmarks,
+      (b) => b.isTrashed
+          ? b
+          : b.copyWith(archived: true, inInbox: false, deletedAt: now),
+    );
+  }
+
+  /// Takes bookmarks out of the Trash, back into the library. Given the
+  /// copies from before they were trashed (to undo a move), they get back
+  /// exactly where they were, archived or in the Inbox.
+  Future<void> restore(Iterable<Bookmark> bookmarks) {
+    final before = {for (final b in bookmarks) b.id: b};
+    return updateMany(bookmarks, (current) {
+      final was = before[current.id];
+      if (!current.isTrashed || was == null || was.isTrashed) {
+        return _restored(current);
+      }
+      return current.copyWith(
+        archived: was.archived,
+        inInbox: was.inInbox,
+        clearDeletedAt: true,
+      );
+    });
+  }
+
+  static Bookmark _restored(Bookmark b) =>
+      b.isTrashed ? b.copyWith(archived: false, clearDeletedAt: true) : b;
+
+  /// Every bookmark in the Trash.
+  Future<List<Bookmark>> _trashed() => _repository
+      .watchList(const BookmarkQuery(view: BookmarkView.trash), limit: 100000)
+      .first;
+
+  /// Deletes everything in the Trash for good. Returns how many.
+  Future<int> emptyTrash() async {
+    final trashed = await _trashed();
+    await deleteMany(trashed);
+    return trashed.length;
+  }
+
+  /// Deletes for good bookmarks trashed more than [trashDays] ago. Safe to
+  /// run on several devices at once. Returns how many were deleted.
+  Future<int> purgeTrash() async {
+    final cutoff = _now().subtract(const Duration(days: trashDays));
+    final expired = (await _trashed())
+        .where((b) => b.deletedAt!.isBefore(cutoff))
+        .toList();
+    if (expired.isNotEmpty) await deleteMany(expired);
+    return expired.length;
+  }
+
+  /// Deletes the bookmark for good, with its highlights and page text.
   Future<void> delete(Bookmark bookmark) async {
     await _repository.delete(bookmark.id);
     await _highlights?.deleteForBookmark(bookmark.id);

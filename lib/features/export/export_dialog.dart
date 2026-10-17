@@ -32,7 +32,9 @@ class _ExportDialogState extends State<_ExportDialog> {
       _error = null;
     });
     try {
-      final bookmarks = await deps.bookmarks.repository.fetchAll();
+      final bookmarks = (await deps.bookmarks.repository.fetchAll())
+          .where((b) => !b.isTrashed)
+          .toList();
       final labels = [
         ...await deps.bookmarks.labels.watch(LabelKind.tag).first,
         ...await deps.bookmarks.labels.watch(LabelKind.collection).first,

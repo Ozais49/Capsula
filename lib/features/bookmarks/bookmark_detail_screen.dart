@@ -11,6 +11,7 @@ import 'package:capsula_core/domain/bookmarks/bookmark_service.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 
+import 'trash_actions.dart';
 import '../common/open_link.dart';
 import '../common/text_prompt.dart';
 import '../highlights/highlight_widgets.dart';
@@ -77,25 +78,27 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
     await _run(() => _service.rename(bookmark, title));
   }
 
-  Future<void> _confirmDelete(Bookmark bookmark) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete bookmark?'),
-        content: Text(bookmark.displayTitle),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
+  /// Moves the bookmark to the Trash and leaves, offering Undo.
+  void _moveToTrash(Bookmark bookmark) {
+    final messenger = ScaffoldMessenger.of(context);
+    final service = _service;
+    Navigator.of(context).maybePop();
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text('Moved to Trash'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => service.restore([bookmark]).ignore(),
+        ),
       ),
     );
-    if (confirmed != true || !mounted) return;
+    service.moveToTrash([bookmark]).catchError((Object e) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not delete: $e')));
+    });
+  }
+
+  Future<void> _deleteForever(Bookmark bookmark) async {
+    if (!await confirmDeleteForever(context, 1) || !mounted) return;
     // Leave immediately; the deletion syncs in the background.
     final messenger = ScaffoldMessenger.of(context);
     final service = _service;
@@ -133,7 +136,18 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
         return Scaffold(
           appBar: AppBar(
             actions: [
-              if (bookmark != null) ...[
+              if (bookmark != null && bookmark.isTrashed) ...[
+                IconButton(
+                  tooltip: 'Restore',
+                  icon: const Icon(Icons.restore_from_trash_outlined),
+                  onPressed: () => _run(() => _service.restore([bookmark])),
+                ),
+                IconButton(
+                  tooltip: 'Delete forever',
+                  icon: const Icon(Icons.delete_forever_outlined),
+                  onPressed: () => _deleteForever(bookmark),
+                ),
+              ] else if (bookmark != null) ...[
                 IconButton(
                   tooltip: bookmark.favorite
                       ? 'Remove from favorites'
@@ -163,9 +177,9 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Delete',
+                  tooltip: 'Move to Trash',
                   icon: const Icon(Icons.delete_outline),
-                  onPressed: () => _confirmDelete(bookmark),
+                  onPressed: () => _moveToTrash(bookmark),
                 ),
               ],
             ],

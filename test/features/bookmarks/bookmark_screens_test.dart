@@ -199,27 +199,59 @@ void main() {
     expect(find.byTooltip('Unarchive'), findsOneWidget);
   });
 
-  testWidgets('delete asks for confirmation and returns to the list', (
+  testWidgets('delete moves to the Trash, with undo, and back to the list', (
     tester,
   ) async {
     final repo = await _pumpSignedIn(tester, [_bookmark('a', 'Remove me')]);
 
     await tester.tap(find.text('Remove me'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Delete'));
+    await tester.tap(find.byTooltip('Move to Trash'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    expect(repo.items, contains('a'));
-
-    await tester.tap(find.byTooltip('Delete'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
-    await tester.pumpAndSettle();
-
-    expect(repo.items, isEmpty);
+    expect(repo.items['a']!.isTrashed, isTrue);
     expect(find.byType(LibraryScreen), findsOneWidget);
     expect(find.text('Remove me'), findsNothing);
+
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(repo.items['a']!.isTrashed, isFalse);
+    expect(find.text('Remove me'), findsOneWidget);
+  });
+
+  testWidgets('the Trash restores or deletes for good', (tester) async {
+    final trashed = _bookmark(
+      'a',
+      'In the trash',
+    ).copyWith(archived: true, deletedAt: DateTime(2026, 10, 1));
+    final repo = await _pumpSignedIn(tester, [
+      trashed,
+      _bookmark(
+        'b',
+        'Also trashed',
+      ).copyWith(archived: true, deletedAt: DateTime(2026, 10, 2)),
+    ]);
+    expect(find.text('In the trash'), findsNothing);
+
+    await tapNavigationItem(tester, 'Trash');
+    expect(find.text('In the trash'), findsOneWidget);
+
+    await tester.tap(find.text('In the trash'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Restore'));
+    await tester.pumpAndSettle();
+    expect(repo.items['a']!.isTrashed, isFalse);
+    expect(repo.items['a']!.archived, isFalse);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('In the trash'), findsNothing);
+    await tester.tap(find.text('Also trashed'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Delete forever'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete forever'));
+    await tester.pumpAndSettle();
+    expect(repo.items.keys, ['a']);
   });
 }

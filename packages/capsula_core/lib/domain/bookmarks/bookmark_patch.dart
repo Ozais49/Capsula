@@ -80,6 +80,7 @@ class BookmarkPatch {
     'note',
     'remindAt',
     'contentIndexedAt',
+    'deletedAt',
     'importedFrom',
     'importedAt',
   };

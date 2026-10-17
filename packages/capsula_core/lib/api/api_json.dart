@@ -25,6 +25,7 @@ Map<String, Object?> bookmarkToJson(Bookmark b) => {
   'collectionIds': b.collectionIds,
   'importedFrom': ?b.importedFrom,
   if (b.importedAt case final at?) 'importedAt': _iso(at),
+  if (b.deletedAt case final at?) 'deletedAt': _iso(at),
   'createdAt': _iso(b.createdAt),
   'updatedAt': _iso(b.updatedAt),
 };

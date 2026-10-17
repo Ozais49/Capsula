@@ -84,7 +84,7 @@ All user data is under `users/{uid}`. Only the owner can read or write it.
 
 | Path | Fields |
 |---|---|
-| `users/{uid}/bookmarks/{id}` | `url`, `canonicalUrl`, `title`, `description?`, `imageUrl?`, `source`, `sourceDomain`, `type`, `readingStatus`, `archived`, `inInbox`, `favorite?`, `note?`, `remindAt?`, `contentIndexedAt?`, `tagIds`, `collectionIds`, `importedFrom?`, `importedAt?`, `createdAt`, `updatedAt`, `searchTokens` |
+| `users/{uid}/bookmarks/{id}` | `url`, `canonicalUrl`, `title`, `description?`, `imageUrl?`, `source`, `sourceDomain`, `type`, `readingStatus`, `archived`, `inInbox`, `favorite?`, `note?`, `remindAt?`, `contentIndexedAt?`, `deletedAt?`, `tagIds`, `collectionIds`, `importedFrom?`, `importedAt?`, `createdAt`, `updatedAt`, `searchTokens` |
 | `users/{uid}/tags/{id}` | `name`, `createdAt`, `updatedAt?` |
 | `users/{uid}/collections/{id}` | `name`, `parentId?` (nested collections), `shareId?` (set only by the API), `createdAt`, `updatedAt?` |
 | `users/{uid}/highlights/{id}` | `bookmarkId`, `text`, `note?`, `color`, `createdAt` |

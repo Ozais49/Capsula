@@ -91,6 +91,8 @@ class CapsulaApi {
     r.post('/v1/bookmarks', _authed(_createBookmark));
     r.get('/v1/bookmarks/<id>', _authedWithId(_getBookmark));
     r.patch('/v1/bookmarks/<id>', _authedWithId(_updateBookmark));
+    r.post('/v1/bookmarks/<id>/restore', _authedWithId(_restoreBookmark));
+    r.delete('/v1/trash', _authed(_emptyTrash));
     r.delete('/v1/bookmarks/<id>', _authedWithId(_deleteBookmark));
 
     // Tags and collections
@@ -194,7 +196,9 @@ class CapsulaApi {
   }
 
   Future<Response> _exportBookmarks(Request req, Principal p) async {
-    final all = await userData(p.uid).bookmarks.fetchAll();
+    final all = (await userData(
+      p.uid,
+    ).bookmarks.fetchAll()).where((b) => !b.isTrashed);
     return jsonResponse({'bookmarks': all.map(bookmarkToJson).toList()});
   }
 
@@ -468,14 +472,37 @@ class CapsulaApi {
     return label;
   }
 
+  /// Moves the bookmark to the Trash, or with `?permanent=true` deletes it
+  /// for good (with its highlights and page text).
   Future<Response> _deleteBookmark(Request req, Principal p, String id) async {
-    final repo = userData(p.uid).bookmarks;
-    if (await repo.watch(id).first == null) {
+    final existing = await userData(p.uid).bookmarks.watch(id).first;
+    if (existing == null) {
       throw const ApiError.notFound('No bookmark with this ID');
     }
-    final existing = (await repo.watch(id).first)!;
-    await _service(p).delete(existing);
+    final service = _service(p);
+    if (req.url.queryParameters['permanent'] == 'true') {
+      await service.delete(existing);
+    } else {
+      await service.moveToTrash([existing]);
+    }
     return Response(204);
+  }
+
+  /// Takes a bookmark out of the Trash.
+  Future<Response> _restoreBookmark(Request req, Principal p, String id) async {
+    final repo = userData(p.uid).bookmarks;
+    final existing = await repo.watch(id).first;
+    if (existing == null) {
+      throw const ApiError.notFound('No bookmark with this ID');
+    }
+    await _service(p).restore([existing]);
+    return jsonResponse(bookmarkToJson((await repo.watch(id).first)!));
+  }
+
+  /// Deletes everything in the Trash for good.
+  Future<Response> _emptyTrash(Request req, Principal p) async {
+    final deleted = await _service(p).emptyTrash();
+    return jsonResponse({'deleted': deleted});
   }
 
   // ---------------------------------------------------------------------------
