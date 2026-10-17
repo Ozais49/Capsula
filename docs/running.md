@@ -3,6 +3,25 @@
 Run all commands from the repository root (the folder with `pubspec.yaml`). Running
 `flutter run` anywhere else fails with `Target file "lib\main.dart" not found`.
 
+## Scripts
+
+`scripts\` has a script for each way of running Capsula. Each one finds Flutter, the
+Android tools and the Firebase CLI, gets dependencies, then starts. Run the `.ps1` from
+PowerShell, or the `.cmd` next to it from cmd or Git Bash, or by double-clicking it. Run a
+script with `-?` or open it to see every option.
+
+| Script | What it does |
+|---|---|
+| `scripts\phone\run.cmd` | Runs the app on the connected phone with hot reload (`r` reload, `R` restart, `q` quit). `-Config emulators` also starts the local Firebase emulators and connects the phone to them over USB. `-Release` runs a release build |
+| `scripts\phone\install.cmd` | Builds a release APK, installs it on the phone and opens it. The app then works without the computer. `-SkipBuild` reinstalls the last build; `-Clean` uninstalls first |
+| `scripts\api\start.cmd` | Starts the API server on http://localhost:8787. By default with the local emulators (opened in their own window); `-Mode live -Credentials <key.json>` uses the real project |
+| `scripts\web\run.cmd` | Runs the web app in Chrome or Edge with hot reload, at http://localhost:5050 |
+| `scripts\web\serve.cmd` | Builds the web app for release and serves it at http://localhost:5000 the way Firebase Hosting does |
+
+With several phones connected, the phone scripts ask which to use (or pass `-Device
+<serial>`). Scripts that use the emulators share one local project, so the phone, web app
+and API server all see the same local data. The emulators need Java.
+
 ## On an Android phone
 
 ```

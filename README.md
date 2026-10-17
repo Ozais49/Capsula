@@ -48,6 +48,18 @@ flutter run -d <device-id> --dart-define-from-file=config/dev.json
 
 Run `flutter devices` to find device IDs. Use `-d edge` or `-d chrome` for the web app.
 
+Or use the scripts, which find the tools, get dependencies and start everything:
+
+```
+scripts\phone\run.cmd       # app on the connected phone, with hot reload
+scripts\phone\install.cmd   # install a release build on the phone
+scripts\api\start.cmd       # API server, with the local Firebase emulators
+scripts\web\run.cmd         # web app in the browser
+scripts\web\serve.cmd       # release web build, served like Firebase Hosting
+```
+
+See [Running](docs/running.md#scripts) for their options.
+
 ## Documentation
 
 | Guide | What it covers |
