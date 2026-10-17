@@ -41,8 +41,8 @@ class ReaderService implements ReaderSource {
         BookmarkSource.instagram ||
         BookmarkSource.facebook ||
         BookmarkSource.tiktok ||
-        BookmarkSource.x ||
-        BookmarkSource.amazon => await _preview(uri, note: _socialNote),
+        BookmarkSource.x => await _preview(uri, note: _socialNote),
+        _ when isAmazonHost(uri.host) => await _preview(uri, note: _socialNote),
         _ => await _article(uri),
       };
     } on FetchException catch (e) {

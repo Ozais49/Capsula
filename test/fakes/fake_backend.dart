@@ -4,6 +4,7 @@ import 'package:capsula_core/domain/connection/firebase_connection.dart';
 
 import 'fake_auth_repository.dart';
 
+import 'package:capsula_core/testing/in_memory_source_repository.dart';
 import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
 import 'package:capsula_core/testing/in_memory_content_index.dart';
 import 'package:capsula_core/testing/in_memory_highlight_repository.dart';
@@ -50,6 +51,7 @@ class FakeBackendConnector implements BackendConnector {
   late final InMemoryLabelRepository labels;
   final InMemoryHighlightRepository highlights = InMemoryHighlightRepository();
   final InMemoryContentIndex contentIndex = InMemoryContentIndex();
+  final InMemorySourceRepository sources = InMemorySourceRepository();
   final List<FirebaseConnection> attempts = [];
 
   /// When set, the next connect attempt throws this.
@@ -67,6 +69,7 @@ class FakeBackendConnector implements BackendConnector {
       labelRepository: labels,
       highlightRepository: highlights,
       contentIndex: contentIndex,
+      sourceRepository: sources,
     );
   }
 }

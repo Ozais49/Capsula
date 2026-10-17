@@ -77,9 +77,15 @@ void main() {
       '@maya',
       'Import bookmarks',
       'Export library',
+      'Sources',
       'Maintenance',
       'Offer to save copied links',
     ]) {
+      await tester.scrollUntilVisible(
+        find.text(item),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
       expect(find.text(item), findsOneWidget, reason: item);
     }
     await tester.scrollUntilVisible(
@@ -146,6 +152,51 @@ void main() {
     _resume(tester);
     await tester.pumpAndSettle();
     expect(find.textContaining('Save the link you copied?'), findsNothing);
+  });
+
+  testWidgets('add a source and apply it to saved bookmarks', (tester) async {
+    final connector = await _pump(tester);
+    final time = DateTime(2026, 10, 17);
+    connector.bookmarks.addAll([
+      Bookmark(
+        id: 'a',
+        url: 'https://amazon.com/dp/1',
+        canonicalUrl: 'https://amazon.com/dp/1',
+        title: 'Kettle',
+        source: BookmarkSource.website,
+        sourceDomain: 'amazon.com',
+        createdAt: time,
+        updatedAt: time,
+      ),
+    ]);
+    await openSettingsItem(tester, 'Sources');
+    expect(find.text('None yet'), findsOneWidget);
+
+    await tester.tap(find.text('Add source'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Amazon');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Domains'),
+      'not a domain',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('"not" is not a domain'), findsOneWidget);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Domains'),
+      'amazon.com, amzn.to',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    // Offered right away for bookmarks already saved.
+    await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
+    await tester.pumpAndSettle();
+    expect(find.text('Updated 1 bookmark'), findsOneWidget);
+    expect(find.text('amazon.com, amzn.to'), findsOneWidget);
+
+    final amazon = connector.sources.items.values.single;
+    expect(connector.bookmarks.items['a']!.customSourceId, amazon.id);
   });
 }
 

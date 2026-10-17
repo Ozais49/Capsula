@@ -15,7 +15,7 @@ class BookmarkFilters {
 
   static const none = BookmarkFilters();
 
-  /// Source IDs (`reddit`, `website`, …).
+  /// Source IDs: built-in (`reddit`, `website`, …) or custom.
   final Set<String> sources;
   final Set<String> tagIds;
   final Set<ContentType> kinds;
@@ -25,15 +25,11 @@ class BookmarkFilters {
       sources.isEmpty && tagIds.isEmpty && kinds.isEmpty && statuses.isEmpty;
 
   /// How many filters are in use.
-  int get activeCount => [
-    sources,
-    tagIds,
-    kinds,
-    statuses,
-  ].where((s) => s.isNotEmpty).length;
+  int get activeCount =>
+      [sources, tagIds, kinds, statuses].where((s) => s.isNotEmpty).length;
 
   bool matches(Bookmark b) =>
-      (sources.isEmpty || sources.contains(b.source.id)) &&
+      (sources.isEmpty || sources.contains(b.sourceKey)) &&
       (tagIds.isEmpty || b.tagIds.any(tagIds.contains)) &&
       (kinds.isEmpty || kinds.contains(b.type)) &&
       (statuses.isEmpty || statuses.contains(b.readingStatus));
@@ -54,8 +50,8 @@ class BookmarkFilters {
   Map<String, String> toQuery() => {
     if (sources.isNotEmpty) 'source': (sources.toList()..sort()).join(','),
     if (tagIds.isNotEmpty) 'tag': (tagIds.toList()..sort()).join(','),
-    if (kinds.isNotEmpty) 'kind': (kinds.map((k) => k.name).toList()..sort())
-        .join(','),
+    if (kinds.isNotEmpty)
+      'kind': (kinds.map((k) => k.name).toList()..sort()).join(','),
     if (statuses.isNotEmpty)
       'status': (statuses.map((s) => s.name).toList()..sort()).join(','),
   };

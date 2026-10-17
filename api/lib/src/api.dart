@@ -16,6 +16,7 @@ import 'package:capsula_core/domain/reader/page_info_service.dart';
 import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:capsula_core/domain/reader/reader_service.dart';
 import 'package:capsula_core/domain/search/full_text.dart';
+import 'package:capsula_core/domain/sources/custom_source.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
@@ -25,12 +26,19 @@ import 'sharing.dart';
 
 /// A user's data, scoped so callers can't reach anyone else's.
 class UserData {
-  const UserData(this.bookmarks, this.labels, this.highlights, this.contents);
+  const UserData(
+    this.bookmarks,
+    this.labels,
+    this.highlights,
+    this.contents,
+    this.sources,
+  );
 
   final BookmarkRepository bookmarks;
   final LabelRepository labels;
   final HighlightRepository highlights;
   final ContentIndex contents;
+  final SourceRepository sources;
 }
 
 typedef UserDataFactory = UserData Function(String uid);
@@ -95,6 +103,13 @@ class CapsulaApi {
     r.post('/v1/bookmarks/<id>/restore', _authedWithId(_restoreBookmark));
     r.delete('/v1/trash', _authed(_emptyTrash));
     r.delete('/v1/bookmarks/<id>', _authedWithId(_deleteBookmark));
+
+    // Sources
+    r.get('/v1/sources', _authed(_listSources));
+    r.post('/v1/sources', _authed(_createSource));
+    r.post('/v1/sources/redetect', _authed(_redetectSources));
+    r.patch('/v1/sources/<id>', _authedWithId(_updateSource));
+    r.delete('/v1/sources/<id>', _authedWithId(_deleteSource));
 
     // Tags and collections
     for (final kind in LabelKind.values) {
@@ -170,6 +185,7 @@ class CapsulaApi {
       data.labels,
       highlights: data.highlights,
       contentIndex: data.contents,
+      sources: data.sources,
       now: _now,
     );
   }
@@ -505,6 +521,77 @@ class CapsulaApi {
   Future<Response> _emptyTrash(Request req, Principal p) async {
     final deleted = await _service(p).emptyTrash();
     return jsonResponse({'deleted': deleted});
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sources
+
+  static Map<String, Object?> _sourceJson(CustomSource s) => {
+    'id': s.id,
+    'name': s.name,
+    'domains': s.domains,
+  };
+
+  Future<Response> _listSources(Request req, Principal p) async {
+    final sources = await userData(p.uid).sources.watch().first;
+    return jsonResponse({
+      'builtIn': [
+        for (final s in BookmarkSource.values) {'id': s.id, 'name': s.label},
+      ],
+      'sources': sources.map(_sourceJson).toList(),
+    });
+  }
+
+  (String, List<String>) _sourceBody(Map<String, Object?> body) {
+    final name = body['name'];
+    final domains = body['domains'];
+    if (name is! String) throw const ApiError.badRequest('"name" is required');
+    if (domains is! List || domains.any((d) => d is! String)) {
+      throw const ApiError.badRequest('"domains" must be a list of domains');
+    }
+    return (name, domains.cast<String>());
+  }
+
+  Future<Response> _createSource(Request req, Principal p) async {
+    final (name, domains) = _sourceBody(await readJson(req));
+    final repo = userData(p.uid).sources;
+    final existing = await repo.watch().first;
+    final error = await _service(p).addSource(name, domains, existing);
+    if (error != null) throw ApiError.badRequest(error);
+    final created = (await repo.watch().first).firstWhere(
+      (s) => !existing.any((e) => e.id == s.id),
+    );
+    return jsonResponse(_sourceJson(created), status: 201);
+  }
+
+  Future<Response> _updateSource(Request req, Principal p, String id) async {
+    final repo = userData(p.uid).sources;
+    final existing = await repo.watch().first;
+    final source = existing.where((s) => s.id == id).firstOrNull;
+    if (source == null) throw const ApiError.notFound('No source with this ID');
+    final body = await readJson(req);
+    final name = body['name'] is String ? body['name']! as String : source.name;
+    final domains = body.containsKey('domains')
+        ? _sourceBody({'name': name, 'domains': body['domains']}).$2
+        : source.domains;
+    final error = await _service(p)
+        .updateSource(source.copyWith(name: name, domains: domains), existing);
+    if (error != null) throw ApiError.badRequest(error);
+    final updated = (await repo.watch().first).firstWhere((s) => s.id == id);
+    return jsonResponse(_sourceJson(updated));
+  }
+
+  Future<Response> _deleteSource(Request req, Principal p, String id) async {
+    final existing = await userData(p.uid).sources.watch().first;
+    final source = existing.where((s) => s.id == id).firstOrNull;
+    if (source == null) throw const ApiError.notFound('No source with this ID');
+    await _service(p).deleteSource(source);
+    return Response(204);
+  }
+
+  Future<Response> _redetectSources(Request req, Principal p) async {
+    final changed = await _service(p).redetectSources();
+    return jsonResponse({'changed': changed});
   }
 
   // ---------------------------------------------------------------------------

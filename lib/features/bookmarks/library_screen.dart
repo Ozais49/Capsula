@@ -594,6 +594,7 @@ class _LibraryScreenState extends State<LibraryScreen>
         FilterBar(
           filters: widget.filters,
           tags: labels.of(LabelKind.tag),
+          sources: labels.sources,
           onChanged: _setFilters,
         ),
         if (_search.trim().isNotEmpty &&

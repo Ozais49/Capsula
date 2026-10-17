@@ -20,13 +20,11 @@ void main() {
       't.me': BookmarkSource.telegram,
       'github.com': BookmarkSource.github,
       'gist.github.com': BookmarkSource.github,
-      'amazon.com': BookmarkSource.amazon,
-      'amazon.co.uk': BookmarkSource.amazon,
-      'smile.amazon.de': BookmarkSource.amazon,
-      'amzn.to': BookmarkSource.amazon,
       'example.com': BookmarkSource.website,
       'notreddit.com': BookmarkSource.website,
       'amazonaws.com': BookmarkSource.website,
+      // No longer built in; users can add Amazon as their own source.
+      'amazon.com': BookmarkSource.website,
       'myyoutube.com.evil.net': BookmarkSource.website,
     };
     cases.forEach((host, expected) {
@@ -40,5 +38,15 @@ void main() {
     }
     expect(BookmarkSource.fromId('unknown'), BookmarkSource.website);
     expect(BookmarkSource.fromId(null), BookmarkSource.website);
+    // Once built in; such bookmarks now show as Webpage.
+    expect(BookmarkSource.fromId('amazon'), BookmarkSource.website);
+    expect(BookmarkSource.website.label, 'Webpage');
+  });
+
+  test('Amazon pages are still recognized as shops', () {
+    for (final host in ['amazon.com', 'smile.amazon.de', 'amzn.to']) {
+      expect(isAmazonHost(host), isTrue, reason: host);
+    }
+    expect(isAmazonHost('amazonaws.com'), isFalse);
   });
 }

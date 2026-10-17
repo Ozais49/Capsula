@@ -378,6 +378,39 @@ describe('trash', () => {
   });
 });
 
+describe('custom sources', () => {
+  const ref = (firestore, owner) => doc(firestore, `users/${owner}/sources/s1`);
+  const source = (overrides = {}) => ({
+    name: 'Amazon',
+    domains: ['amazon.com'],
+    createdAt: Timestamp.now(),
+    ...overrides,
+  });
+
+  test('owner can add and edit sources; others cannot read them', async () => {
+    await assertSucceeds(setDoc(ref(db('alice'), 'alice'), source()));
+    await assertSucceeds(updateDoc(ref(db('alice'), 'alice'), { name: 'Shop' }));
+    await assertFails(getDoc(ref(db('bob'), 'alice')));
+    await assertFails(setDoc(ref(db('bob'), 'alice'), source()));
+  });
+
+  test('sources need a name and 1 to 20 domains', async () => {
+    const mine = ref(db('alice'), 'alice');
+    await assertFails(setDoc(mine, source({ name: '' })));
+    await assertFails(setDoc(mine, source({ domains: [] })));
+    await assertFails(
+      setDoc(mine, source({ domains: Array.from({ length: 21 }, (_, i) => `d${i}.com`) })),
+    );
+    await assertFails(setDoc(mine, source({ extra: true })));
+  });
+
+  test('bookmarks may name a custom source', async () => {
+    const mine = bookmarkRef(db('alice'), 'alice');
+    await assertSucceeds(setDoc(mine, validBookmark({ customSourceId: 's1' })));
+    await assertFails(setDoc(mine, validBookmark({ customSourceId: 5 })));
+  });
+});
+
 describe('concurrent changes', () => {
   test('field updates and label merges are allowed', async () => {
     await seed('alice');

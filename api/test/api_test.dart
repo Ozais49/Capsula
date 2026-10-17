@@ -10,6 +10,7 @@ import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
 import 'package:capsula_core/testing/in_memory_content_index.dart';
 import 'package:capsula_core/testing/in_memory_highlight_repository.dart';
 import 'package:capsula_core/testing/in_memory_label_repository.dart';
+import 'package:capsula_core/testing/in_memory_source_repository.dart';
 import 'package:dart_firebase_admin/firestore.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
@@ -103,7 +104,8 @@ class _Server {
         final l = labels.putIfAbsent(uid, () => InMemoryLabelRepository(b));
         final h = highlights.putIfAbsent(uid, InMemoryHighlightRepository.new);
         final c = contents.putIfAbsent(uid, InMemoryContentIndex.new);
-        return UserData(b, l, h, c);
+        final src = sources.putIfAbsent(uid, InMemorySourceRepository.new);
+        return UserData(b, l, h, c, src);
       },
       tokens: tokens,
       shares: _MemoryShares(labels),
@@ -119,6 +121,7 @@ class _Server {
   final labels = <String, InMemoryLabelRepository>{};
   final highlights = <String, InMemoryHighlightRepository>{};
   final contents = <String, InMemoryContentIndex>{};
+  final sources = <String, InMemorySourceRepository>{};
   final tokens = _MemoryTokens();
   final pageInfo = _FakePageInfo();
 
@@ -1017,5 +1020,63 @@ void main() {
       'https://youtu.be/xyz',
     ]);
     expect(await urls('status=read'), isEmpty);
+  });
+
+  test('custom sources', () async {
+    var (status, body) = await s.call(
+      'POST',
+      '/v1/sources',
+      body: {
+        'name': 'Amazon',
+        'domains': ['amazon.com'],
+      },
+    );
+    expect(status, 201);
+    final id = body['id']! as String;
+    expect(
+      (await s.call(
+        'POST',
+        '/v1/sources',
+        body: {
+          'name': 'Bad',
+          'domains': ['nope'],
+        },
+      )).$1,
+      400,
+    );
+
+    (_, body) = await s.call(
+      'POST',
+      '/v1/bookmarks',
+      body: {'url': 'https://www.amazon.com/dp/1', 'fetchDetails': false},
+    );
+    expect(body['customSourceId'], id);
+    final bookmarkId = body['id']! as String;
+    expect(
+      (await s.call('GET', '/v1/bookmarks?source=$id')).$2['bookmarks'],
+      hasLength(1),
+    );
+
+    (status, body) = await s.call(
+      'PATCH',
+      '/v1/sources/$id',
+      body: {
+        'domains': ['amazon.de'],
+      },
+    );
+    expect(body['domains'], ['amazon.de']);
+    expect((await s.call('POST', '/v1/sources/redetect')).$2, {'changed': 1});
+
+    (_, body) = await s.call('GET', '/v1/sources');
+    expect(
+      (body['builtIn']! as List).map((s) => (s! as Map)['name']),
+      contains('Webpage'),
+    );
+    expect((await s.call('DELETE', '/v1/sources/$id')).$1, 204);
+    expect((await s.call('GET', '/v1/sources')).$2['sources'], isEmpty);
+    expect(
+      (await s.call('GET', '/v1/bookmarks/$bookmarkId')).$2['customSourceId'],
+      isNull,
+    );
   });
 }

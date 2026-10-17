@@ -81,6 +81,7 @@ class BookmarkPatch {
     'remindAt',
     'contentIndexedAt',
     'deletedAt',
+    'customSourceId',
     'importedFrom',
     'importedAt',
   };

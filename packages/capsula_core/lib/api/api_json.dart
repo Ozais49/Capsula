@@ -15,6 +15,7 @@ Map<String, Object?> bookmarkToJson(Bookmark b) => {
   'imageUrl': ?b.imageUrl,
   'source': b.source.id,
   'sourceDomain': b.sourceDomain,
+  'customSourceId': ?b.customSourceId,
   'readingStatus': b.readingStatus.name,
   'archived': b.archived,
   'inInbox': b.inInbox,

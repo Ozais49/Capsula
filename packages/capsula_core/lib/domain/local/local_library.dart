@@ -6,6 +6,7 @@ import '../../testing/in_memory_bookmark_repository.dart';
 import '../../testing/in_memory_content_index.dart';
 import '../../testing/in_memory_highlight_repository.dart';
 import '../../testing/in_memory_label_repository.dart';
+import '../../testing/in_memory_source_repository.dart';
 import '../auth/app_user.dart';
 import '../auth/auth_repository.dart';
 import '../bookmarks/bookmark.dart';
@@ -15,6 +16,7 @@ import '../connection/backend.dart';
 import '../highlights/highlight.dart';
 import '../organization/label.dart';
 import '../search/full_text.dart';
+import '../sources/custom_source.dart';
 
 /// Where an on-device library is kept: a file on Android, browser storage
 /// on the web.
@@ -69,6 +71,7 @@ class LocalLibrary {
   final _bookmarks = InMemoryBookmarkRepository();
   late final _labels = InMemoryLabelRepository(_bookmarks);
   final _highlights = InMemoryHighlightRepository();
+  final _sources = InMemorySourceRepository();
   final _content = InMemoryContentIndex();
 
   /// The user of an on-device library: always signed in, no account.
@@ -83,6 +86,7 @@ class LocalLibrary {
     labelRepository: _LocalLabels(this),
     highlightRepository: _LocalHighlights(this),
     contentIndex: _LocalContent(this),
+    sourceRepository: _LocalSources(this),
   );
 
   // ---------------------------------------------------------------------------
@@ -100,7 +104,14 @@ class LocalLibrary {
   final _touched = <String, Set<String>>{
     for (final part in _parts) part: <String>{},
   };
-  static const _parts = ['bookmarks', 'labels', 'highlights', 'content'];
+  static const _parts = [
+    'bookmarks',
+    'labels',
+    'highlights',
+    'sources',
+    'content',
+  ];
+  static const _libraryParts = ['bookmarks', 'labels', 'highlights', 'sources'];
 
   /// Revision of the stored library this copy last read or wrote.
   int _revision = 0;
@@ -116,16 +127,13 @@ class LocalLibrary {
   }
 
   Future<void> _save() async {
-    if (_touched['bookmarks']!.isNotEmpty ||
-        _touched['labels']!.isNotEmpty ||
-        _touched['highlights']!.isNotEmpty) {
+    if (_libraryParts.any((part) => _touched[part]!.isNotEmpty)) {
       final raw = await _storage.read(libraryKey);
       final stored = raw == null ? null : _decode(raw);
       final storedRevision = _revisionOf(stored);
       if (stored != null && storedRevision != _revision) _mergeLibrary(stored);
       final saving = {
-        for (final part in ['bookmarks', 'labels', 'highlights'])
-          part: {..._touched[part]!},
+        for (final part in _libraryParts) part: {..._touched[part]!},
       };
       for (final part in saving.keys) {
         _touched[part]!.clear();
@@ -214,9 +222,11 @@ class LocalLibrary {
     merge(_bookmarks.items, theirs.bookmarks, 'bookmarks');
     merge(_labels.items, theirs.labels, 'labels');
     merge(_highlights.items, theirs.highlights, 'highlights');
+    merge(_sources.items, theirs.sources, 'sources');
     _bookmarks.addAll(const []);
     _labels.addAll(const []);
     _highlights.addAll(const []);
+    _sources.addAll(const []);
   }
 
   void _mergeContent(Map<String, Object?> stored) {
@@ -251,6 +261,7 @@ class LocalLibrary {
     'highlights': {
       for (final h in _highlights.items.values) h.id: encodeHighlight(h, _time),
     },
+    'sources': {for (final s in _sources.items.values) s.id: encodeSource(s)},
   };
 
   Future<void> _load() async {
@@ -269,6 +280,7 @@ class LocalLibrary {
         _bookmarks.addAll(data.bookmarks.values);
         _labels.addAll(data.labels.values);
         _highlights.addAll(data.highlights.values);
+        _sources.addAll(data.sources.values);
         _revision = _revisionOf(json);
       }
     }
@@ -312,11 +324,16 @@ class _LibraryData {
       highlights = {
         for (final MapEntry(:key, :value) in _entries(json['highlights']))
           key: decodeHighlight(key, value, LocalLibrary._readTime),
+      },
+      sources = {
+        for (final MapEntry(:key, :value) in _entries(json['sources']))
+          key: decodeSource(key, value),
       };
 
   final Map<String, Bookmark> bookmarks;
   final Map<String, Label> labels;
   final Map<String, Highlight> highlights;
+  final Map<String, CustomSource> sources;
 
   static Iterable<MapEntry<String, Map<String, Object?>>> _entries(
     Object? map,
@@ -573,4 +590,35 @@ class LocalAuthRepository implements AuthRepository {
 
   @override
   Future<String?> idToken() async => null;
+}
+
+class _LocalSources implements SourceRepository {
+  _LocalSources(this._library);
+
+  final LocalLibrary _library;
+  InMemorySourceRepository get _inner => _library._sources;
+
+  @override
+  String newId() => _newId();
+
+  @override
+  Stream<List<CustomSource>> watch() => _inner.watch();
+
+  @override
+  Future<void> create(CustomSource source) async {
+    await _inner.create(source);
+    await _library._changed('sources', [source.id]);
+  }
+
+  @override
+  Future<void> update(CustomSource source) async {
+    await _inner.update(source);
+    await _library._changed('sources', [source.id]);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _inner.delete(id);
+    await _library._changed('sources', [id]);
+  }
 }

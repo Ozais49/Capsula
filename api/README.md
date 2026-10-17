@@ -32,6 +32,9 @@ rate-limited per user (default 120 per minute).
 | GET / PATCH / DELETE | `/v1/bookmarks/{id}` | PATCH accepts `title`, `description`, `note`, `favorite`, `readingStatus`, `archived`, `inInbox`, `tags` / `collections` (names, created if missing) or `tagIds` / `collectionIds`. DELETE moves the bookmark to the Trash; `?permanent=true` deletes it for good, with its highlights and page text |
 | POST | `/v1/bookmarks/{id}/restore` | Take a bookmark out of the Trash |
 | DELETE | `/v1/trash` | Delete everything in the Trash for good. Returns `{deleted}` |
+| GET / POST | `/v1/sources` | List the built-in sources and your own (`{builtIn, sources}`), or add one `{name, domains}` |
+| PATCH / DELETE | `/v1/sources/{id}` | Change `{name?, domains?}`, or delete (its bookmarks go back to their built-in source) |
+| POST | `/v1/sources/redetect` | Apply your sources to saved bookmarks. Returns `{changed}` |
 | GET / POST | `/v1/tags`, `/v1/collections` | List, or create `{name}` (returns the existing one for the same name) |
 | PATCH / DELETE | `/v1/tags/{id}`, `/v1/collections/{id}` | Rename `{name}`, or delete (bookmarks are kept) |
 | GET / POST / PATCH / DELETE | `/v1/highlights`, `/v1/highlights/{id}` | Highlights. List all, or `?bookmarkId=`. Create `{bookmarkId, text, note?, color?}`. PATCH `{note, color}` |

@@ -7,6 +7,7 @@ import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
 import 'package:capsula_core/domain/highlights/highlight.dart';
 import 'package:capsula_core/domain/organization/label.dart';
 import 'package:capsula_core/domain/search/full_text.dart';
+import 'package:capsula_core/domain/sources/custom_source.dart';
 import 'package:dart_firebase_admin/auth.dart';
 import 'package:dart_firebase_admin/firestore.dart';
 
@@ -549,4 +550,40 @@ class AdminContentIndex implements ContentIndex {
 
   @override
   Future<void> delete(String bookmarkId) => _col.doc(bookmarkId).delete();
+}
+
+/// The user's own sources, through the admin SDK.
+class AdminSourceRepository implements SourceRepository {
+  AdminSourceRepository(this._db, this._uid);
+
+  final Firestore _db;
+  final String _uid;
+
+  CollectionReference<DocumentData> get _col =>
+      _db.collection('users').doc(_uid).collection('sources');
+
+  @override
+  String newId() => _col.doc().id;
+
+  @override
+  Stream<List<CustomSource>> watch() => Stream.fromFuture(
+    _col.get().then(
+      (s) => sortSources(s.docs.map((d) => decodeSource(d.id, d.data()))),
+    ),
+  );
+
+  @override
+  Future<void> create(CustomSource source) => withRetry(
+    () => _col.doc(source.id).set({
+      ...encodeSource(source),
+      'createdAt': _writeTime(DateTime.now()),
+    }),
+  );
+
+  @override
+  Future<void> update(CustomSource source) =>
+      withRetry(() => _col.doc(source.id).update(encodeSource(source)));
+
+  @override
+  Future<void> delete(String id) => withRetry(() => _col.doc(id).delete());
 }

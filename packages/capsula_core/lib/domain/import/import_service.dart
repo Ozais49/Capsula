@@ -4,6 +4,7 @@ import '../bookmarks/bookmark_repository.dart';
 import '../bookmarks/bookmark_source.dart';
 import '../bookmarks/url_normalizer.dart';
 import '../organization/label.dart';
+import '../sources/custom_source.dart';
 import 'imported_item.dart';
 
 /// An item that passed validation and isn't in the library yet.
@@ -75,9 +76,14 @@ class ImportResult {
 }
 
 class ImportService {
-  ImportService(this._bookmarks, this._labels, {DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  ImportService(
+    this._bookmarks,
+    this._labels, {
+    this._sources,
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
 
+  final SourceRepository? _sources;
   final BookmarkRepository _bookmarks;
   final LabelRepository _labels;
   final DateTime Function() _now;
@@ -135,9 +141,10 @@ class ImportService {
         ? await _ensureLabels(LabelKind.tag, plan.tags, existingLabels)
         : const <String, String>{};
 
+    final custom = await _sources?.watch().first ?? const <CustomSource>[];
     final bookmarks = [
       for (final p in plan.newItems)
-        _toBookmark(p, origin, options, now, collections, tags),
+        _toBookmark(p, origin, options, now, collections, tags, custom),
     ];
 
     var imported = 0;
@@ -192,6 +199,7 @@ class ImportService {
     DateTime now,
     Map<String, String> collections,
     Map<String, String> tags,
+    List<CustomSource> custom,
   ) {
     String? idFor(Map<String, String> ids, String? name) {
       final normalized = name == null ? null : normalizeLabelName(name);
@@ -212,6 +220,7 @@ class ImportService {
           ? null
           : _clip(description, 2000),
       source: BookmarkSource.fromHost(host),
+      customSourceId: detectCustomSource(host, custom),
       sourceDomain: host,
       createdAt: p.item.createdAt ?? now,
       updatedAt: now,

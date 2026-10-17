@@ -39,7 +39,7 @@ service cloud.firestore {
           'sourceDomain', 'readingStatus', 'archived', 'inInbox', 'createdAt',
           'updatedAt', 'searchTokens', 'tagIds', 'collectionIds',
           'importedFrom', 'importedAt', 'favorite', 'note', 'type', 'remindAt', 'contentIndexedAt',
-          'deletedAt'
+          'deletedAt', 'customSourceId'
         ])
         && data.url is string && data.url.size() <= 4096
         && data.url.matches('^https?://.+')
@@ -66,6 +66,7 @@ service cloud.firestore {
         && (!('remindAt' in data) || data.remindAt is timestamp)
         && (!('contentIndexedAt' in data) || data.contentIndexedAt is timestamp)
         && (!('deletedAt' in data) || data.deletedAt is timestamp)
+        && isOptionalString(data, 'customSourceId', 100)
         && (!('type' in data) || data.type in
           ['article', 'video', 'image', 'document', 'post', 'product']);
     }
@@ -113,6 +114,25 @@ service cloud.firestore {
         && isValidHighlight(request.resource.data)
         && request.resource.data.text == resource.data.text
         && request.resource.data.bookmarkId == resource.data.bookmarkId;
+    }
+
+    function isValidSource(data) {
+      return data.keys().hasAll(['name', 'domains', 'createdAt'])
+        && data.keys().hasOnly(['name', 'domains', 'createdAt'])
+        && data.name is string
+        && data.name.size() > 0 && data.name.size() <= 50
+        && data.domains is list
+        && data.domains.size() > 0 && data.domains.size() <= 20
+        && data.createdAt is timestamp;
+    }
+
+    // Sources the user adds on top of the built-in ones.
+    match /users/{userId}/sources/{sourceId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidSource(request.resource.data);
+      allow update: if isOwner(userId)
+        && isValidSource(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
 
     // Tags and collections.

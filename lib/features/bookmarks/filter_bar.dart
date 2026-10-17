@@ -5,6 +5,7 @@ import 'package:capsula_core/domain/bookmarks/bookmark_filters.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/bookmarks/content_type.dart';
 import 'package:capsula_core/domain/organization/label.dart';
+import 'package:capsula_core/domain/sources/custom_source.dart';
 
 import '../../app/theme.dart';
 import 'bookmark_display.dart';
@@ -19,15 +20,21 @@ class FilterBar extends StatelessWidget {
     required this.filters,
     required this.tags,
     required this.onChanged,
+    this.sources = const [],
   });
 
   final BookmarkFilters filters;
   final List<Label> tags;
+
+  /// The user's own sources, offered after the built-in ones.
+  final List<CustomSource> sources;
   final ValueChanged<BookmarkFilters> onChanged;
 
-  static final List<_Option> _sources = [
+  List<_Option> get _sourceOptions => [
     for (final s in BookmarkSource.values)
       (key: s.id, label: s.label, icon: sourceIcon(s)),
+    for (final s in sortSources(sources))
+      (key: s.id, label: s.name, icon: customSourceIcon),
   ];
 
   static final List<_Option> _kinds = [
@@ -68,7 +75,7 @@ class FilterBar extends StatelessWidget {
             ),
           _FilterChip(
             name: 'Source',
-            options: _sources,
+            options: _sourceOptions,
             selected: filters.sources,
             onChanged: (s) => onChanged(filters.copyWith(sources: s)),
           ),

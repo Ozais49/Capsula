@@ -37,6 +37,7 @@ class Bookmark {
     this.remindAt,
     this.contentIndexedAt,
     this.deletedAt,
+    this.customSourceId,
     this.tagIds = const [],
     this.collectionIds = const [],
     this.importedFrom,
@@ -79,6 +80,13 @@ class Bookmark {
   final DateTime? deletedAt;
 
   bool get isTrashed => deletedAt != null;
+
+  /// The user's own source this link matched (see `CustomSource`), or
+  /// null for a built-in source. [source] still decides how it is read.
+  final String? customSourceId;
+
+  /// The source shown and filtered on: the custom one, else the built-in.
+  String get sourceKey => customSourceId ?? source.id;
 
   bool isDue(DateTime now) => remindAt != null && !remindAt!.isAfter(now);
   final List<String> tagIds;
@@ -126,6 +134,8 @@ class Bookmark {
     DateTime? contentIndexedAt,
     DateTime? deletedAt,
     bool clearDeletedAt = false,
+    String? customSourceId,
+    bool clearCustomSource = false,
     List<String>? tagIds,
     List<String>? collectionIds,
     DateTime? updatedAt,
@@ -146,6 +156,9 @@ class Bookmark {
     remindAt: clearReminder ? null : remindAt ?? this.remindAt,
     contentIndexedAt: contentIndexedAt ?? this.contentIndexedAt,
     deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
+    customSourceId: clearCustomSource
+        ? null
+        : customSourceId ?? this.customSourceId,
     tagIds: tagIds ?? this.tagIds,
     collectionIds: collectionIds ?? this.collectionIds,
     importedFrom: importedFrom,

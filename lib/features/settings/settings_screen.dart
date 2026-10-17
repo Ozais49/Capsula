@@ -137,6 +137,12 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => showExportDialog(context),
               ),
               ListTile(
+                leading: const Icon(Icons.travel_explore),
+                title: const Text('Sources'),
+                subtitle: const Text('Add your own, by domain'),
+                onTap: () => context.push(AppRoutes.sources),
+              ),
+              ListTile(
                 leading: const Icon(Icons.build_outlined),
                 title: const Text('Maintenance'),
                 subtitle: const Text(

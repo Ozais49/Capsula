@@ -95,13 +95,11 @@ ContentType detectContentType(Uri url, BookmarkSource source) {
       return path.contains('/videos/') || host == 'fb.watch'
           ? ContentType.video
           : ContentType.post;
-    case BookmarkSource.amazon:
-      return ContentType.product;
     case BookmarkSource.github || BookmarkSource.website:
       break;
   }
   if (onHost(_videoHosts)) return ContentType.video;
-  if (onHost(_shopHosts)) return ContentType.product;
+  if (isAmazonHost(host) || onHost(_shopHosts)) return ContentType.product;
   if (onHost(_postHosts) && !host.endsWith('medium.com')) {
     return ContentType.post;
   }

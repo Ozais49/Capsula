@@ -3,13 +3,21 @@ import 'package:flutter/material.dart';
 import '../../app/dependencies.dart';
 
 import 'package:capsula_core/domain/organization/label.dart';
+import 'package:capsula_core/domain/sources/custom_source.dart';
 
 /// The user's tags and collections, kept up to date.
 class Labels {
-  const Labels({this.tags = const [], this.collections = const []});
+  const Labels({
+    this.tags = const [],
+    this.collections = const [],
+    this.sources = const [],
+  });
 
   final List<Label> tags;
   final List<Label> collections;
+
+  /// The user's own sources.
+  final List<CustomSource> sources;
 
   List<Label> of(LabelKind kind) => switch (kind) {
     LabelKind.tag => tags,
@@ -37,6 +45,7 @@ class LabelsBuilder extends StatefulWidget {
 class _LabelsBuilderState extends State<LabelsBuilder> {
   Stream<List<Label>>? _tags;
   Stream<List<Label>>? _collections;
+  Stream<List<CustomSource>>? _sources;
 
   @override
   void didChangeDependencies() {
@@ -44,6 +53,7 @@ class _LabelsBuilderState extends State<LabelsBuilder> {
     final repo = AppDependencies.of(context).bookmarks.labels;
     _tags ??= repo.watch(LabelKind.tag);
     _collections ??= repo.watch(LabelKind.collection);
+    _sources ??= AppDependencies.of(context).bookmarks.sources.watch();
   }
 
   @override
@@ -51,11 +61,15 @@ class _LabelsBuilderState extends State<LabelsBuilder> {
     stream: _tags,
     builder: (context, tags) => StreamBuilder<List<Label>>(
       stream: _collections,
-      builder: (context, collections) => widget.builder(
-        context,
-        Labels(
-          tags: tags.data ?? const [],
-          collections: collections.data ?? const [],
+      builder: (context, collections) => StreamBuilder<List<CustomSource>>(
+        stream: _sources,
+        builder: (context, sources) => widget.builder(
+          context,
+          Labels(
+            tags: tags.data ?? const [],
+            collections: collections.data ?? const [],
+            sources: sources.data ?? const [],
+          ),
         ),
       ),
     ),

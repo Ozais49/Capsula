@@ -268,8 +268,11 @@ class _Details extends StatelessWidget {
           runSpacing: Gap.sm,
           children: [
             Chip(
-              avatar: Icon(sourceIcon(bookmark.source), size: 18),
-              label: Text(bookmark.source.label),
+              avatar: Icon(
+                bookmarkSource(bookmark, labels.sources).icon,
+                size: 18,
+              ),
+              label: Text(bookmarkSource(bookmark, labels.sources).name),
             ),
             Chip(label: Text(bookmark.sourceDomain)),
             if (bookmark.archived) const Chip(label: Text('Archived')),

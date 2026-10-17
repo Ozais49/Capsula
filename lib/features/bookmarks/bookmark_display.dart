@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:capsula_core/domain/bookmarks/bookmark.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/bookmarks/content_type.dart';
+import 'package:capsula_core/domain/sources/custom_source.dart';
 
 IconData sourceIcon(BookmarkSource source) => switch (source) {
   BookmarkSource.reddit => Icons.forum_outlined,
@@ -12,7 +14,6 @@ IconData sourceIcon(BookmarkSource source) => switch (source) {
   BookmarkSource.tiktok => Icons.music_note_outlined,
   BookmarkSource.telegram => Icons.send_outlined,
   BookmarkSource.github => Icons.code,
-  BookmarkSource.amazon => Icons.shopping_bag_outlined,
   BookmarkSource.website => Icons.public,
 };
 
@@ -68,3 +69,18 @@ String formatReminder(DateTime when, {DateTime? now}) {
   };
   return '$date $time';
 }
+
+/// The source a bookmark is shown under: the user's own source when it
+/// matched one, else the built-in source.
+({String name, IconData icon}) bookmarkSource(
+  Bookmark bookmark,
+  List<CustomSource> custom,
+) {
+  final source = sourceOf(bookmark, custom);
+  return (
+    name: source.name,
+    icon: source.custom ? customSourceIcon : sourceIcon(bookmark.source),
+  );
+}
+
+const customSourceIcon = Icons.travel_explore;

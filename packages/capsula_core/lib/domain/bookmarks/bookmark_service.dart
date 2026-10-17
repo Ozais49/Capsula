@@ -2,6 +2,7 @@ import '../highlights/highlight.dart';
 import '../organization/label.dart';
 import '../reader/page_info_service.dart';
 import '../search/full_text.dart';
+import '../sources/custom_source.dart';
 import '../reader/reader_content.dart';
 import 'bookmark.dart';
 import 'bookmark_patch.dart';
@@ -41,8 +42,14 @@ class BookmarkService {
     this._labels, {
     this._highlights,
     this._contentIndex,
+    this._sources,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
+
+  final SourceRepository? _sources;
+
+  SourceRepository get sources =>
+      _sources ?? (throw StateError('No source repository'));
 
   final ContentIndex? _contentIndex;
 
@@ -83,6 +90,7 @@ class BookmarkService {
           ? title!.trim()
           : titleFromUrl(uri),
       source: BookmarkSource.fromHost(host),
+      customSourceId: detectCustomSource(host, await _customSources()),
       sourceDomain: host,
       createdAt: now,
       updatedAt: now,
@@ -206,6 +214,112 @@ class BookmarkService {
         LabelKind.tag => b.copyWith(tagIds: ids),
         LabelKind.collection => b.copyWith(collectionIds: ids),
       };
+
+  // ---------------------------------------------------------------------------
+  // Sources
+
+  /// The user's own sources, or none when they can't be read quickly (so
+  /// saving never waits on them).
+  Future<List<CustomSource>> _customSources() async {
+    final sources = _sources;
+    if (sources == null) return const [];
+    try {
+      return await sources.watch().first.timeout(const Duration(seconds: 2));
+    } on Object {
+      return const [];
+    }
+  }
+
+  /// Checks a source's name and domains. Returns the cleaned-up source, or
+  /// a message saying what's wrong.
+  (CustomSource?, String?) _validSource(
+    CustomSource source,
+    List<CustomSource> existing,
+  ) {
+    final name = normalizeLabelName(source.name);
+    if (name == null) return (null, 'Enter a name');
+    final builtIn = BookmarkSource.values.any(
+      (s) => s.label.toLowerCase() == name.toLowerCase(),
+    );
+    final taken = existing.any(
+      (s) => s.id != source.id && s.name.toLowerCase() == name.toLowerCase(),
+    );
+    if (builtIn || taken) return (null, '"$name" is already a source');
+    final domains = <String>{};
+    for (final d in source.domains) {
+      final domain = normalizeSourceDomain(d);
+      if (domain == null) return (null, '"${d.trim()}" is not a domain');
+      domains.add(domain);
+    }
+    if (domains.isEmpty) return (null, 'Enter at least one domain');
+    if (domains.length > maxSourceDomains) {
+      return (null, 'At most $maxSourceDomains domains');
+    }
+    return (source.copyWith(name: name, domains: domains.toList()), null);
+  }
+
+  /// Adds a source. Returns an error message, or null when it was added.
+  /// Existing bookmarks only move to it with [redetectSources].
+  Future<String?> addSource(
+    String name,
+    List<String> domains,
+    List<CustomSource> existing,
+  ) async {
+    final (source, error) = _validSource(
+      CustomSource(id: sources.newId(), name: name, domains: domains),
+      existing,
+    );
+    if (source == null) return error;
+    await sources.create(source);
+    return null;
+  }
+
+  /// Saves a new name or domains. Returns an error message, or null.
+  Future<String?> updateSource(
+    CustomSource source,
+    List<CustomSource> existing,
+  ) async {
+    final (valid, error) = _validSource(source, existing);
+    if (valid == null) return error;
+    await sources.update(valid);
+    return null;
+  }
+
+  /// Deletes a source; its bookmarks show their built-in source again.
+  Future<void> deleteSource(CustomSource source) async {
+    final from = (await _repository.fetchAll()).where(
+      (b) => b.customSourceId == source.id,
+    );
+    await _repository.modifyMany(
+      from.map((b) => b.id),
+      (b) => b.customSourceId == source.id
+          ? b.copyWith(clearCustomSource: true, updatedAt: _now())
+          : b,
+    );
+    await sources.delete(source.id);
+  }
+
+  /// Detects the source of every bookmark again, for example after adding
+  /// a source or changing its domains. Only bookmarks whose source changes
+  /// are written; running it twice changes nothing more. Returns how many
+  /// bookmarks changed.
+  Future<int> redetectSources({
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final custom = await _customSources();
+    String? detect(Bookmark b) => detectCustomSource(b.sourceDomain, custom);
+    final changed = (await _repository.fetchAll())
+        .where((b) => b.customSourceId != detect(b))
+        .toList();
+    await _repository.modifyMany(changed.map((b) => b.id), (b) {
+      final id = detect(b);
+      if (id == b.customSourceId) return b;
+      return id == null
+          ? b.copyWith(clearCustomSource: true, updatedAt: _now())
+          : b.copyWith(customSourceId: id, updatedAt: _now());
+    }, onProgress: onProgress);
+    return changed.length;
+  }
 
   /// Days a bookmark stays in the Trash before it is deleted for good.
   static const trashDays = 30;

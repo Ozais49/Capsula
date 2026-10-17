@@ -9,6 +9,7 @@ import 'package:capsula_core/domain/connection/firebase_connection.dart';
 
 import 'firebase_auth_repository.dart';
 import 'firestore_bookmark_repository.dart';
+import 'firestore_source_repository.dart';
 import 'firestore_content_index.dart';
 import 'firestore_highlight_repository.dart';
 import 'firestore_label_repository.dart';
@@ -60,6 +61,10 @@ class FirebaseBackendConnector implements BackendConnector {
         () => auth.currentUser?.uid,
       ),
       highlightRepository: FirestoreHighlightRepository(
+        firestore,
+        () => auth.currentUser?.uid,
+      ),
+      sourceRepository: FirestoreSourceRepository(
         firestore,
         () => auth.currentUser?.uid,
       ),

@@ -40,7 +40,7 @@ class BookmarkTile extends StatelessWidget {
               foregroundColor: theme.colorScheme.onPrimary,
               child: const Icon(Icons.check, semanticLabel: 'Selected'),
             )
-          : _Leading(bookmark),
+          : _Leading(bookmarkSource(bookmark, labels.sources), bookmark),
       trailing: bookmark.favorite
           ? const Icon(
               Icons.star,
@@ -72,8 +72,9 @@ class BookmarkTile extends StatelessWidget {
 /// The page's image when known, otherwise the source icon. Screen readers
 /// hear the source name either way.
 class _Leading extends StatelessWidget {
-  const _Leading(this.bookmark);
+  const _Leading(this.source, this.bookmark);
 
+  final ({String name, IconData icon}) source;
   final Bookmark bookmark;
 
   @override
@@ -83,16 +84,16 @@ class _Leading extends StatelessWidget {
       backgroundColor: scheme.secondaryContainer,
       foregroundColor: scheme.onSecondaryContainer,
       child: Icon(
-        sourceIcon(bookmark.source),
+        source.icon,
         size: 20,
-        semanticLabel: bookmark.source.label,
+        semanticLabel: source.name,
       ),
     );
     final image = bookmark.imageUrl;
     if (image == null) return icon;
 
     return Semantics(
-      label: bookmark.source.label,
+      label: source.name,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: SizedBox.square(
