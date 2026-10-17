@@ -1370,3 +1370,148 @@ SYNC
 with the central principle:
 
 > **Save anything from anywhere, organize it independently of its source, and read it without being forced to leave the app.**
+
+---
+
+# 38. Organization v2, Concurrency and Failover
+
+Approved 2026-10-17. Phases 9–15 rework how bookmarks are organized, and make every write
+safe when several devices, browser tabs, the API and background jobs change the same data.
+
+## Decisions
+
+| Topic | Decision |
+|---|---|
+| Inbox | Replaced by **Unsorted**: active bookmarks with no collection and no tags. Derived, never set by hand. The `inbox` URL key still opens it |
+| Collections | Sidebar section named **My collections**, collapsible; nested collections collapse too |
+| Types | No longer a fixed field. They become ordinary tags, assigned by hand or by rules. The detected kind of link (video, article, …) stays available as a rule condition |
+| Rules | User-defined. Conditions on source, domain, URL, title, detected kind and import origin; actions add tags, add to a collection, mark favorite. Rules only add, never remove |
+| Tags | Many per bookmark (already true) |
+| Sources | Built in: Reddit, YouTube, Instagram, Facebook, X, TikTok, Telegram, GitHub, Webpage (stored ID `website`). Users add their own (name and domains). Amazon is no longer built in: Amazon links show as Webpage until the user adds an Amazon source |
+| Sidebar | Types and Sources sections removed. Sources, tags, kind and reading status are chosen in a filter bar above the list |
+| Delete | Moves to **Trash**, which offers Restore, Delete forever and Empty trash. Bookmarks are deleted for good 30 days after being trashed |
+
+## Phase 9 — Concurrency and failover foundation
+
+Goal:
+
+> No change made on one device, tab, job or API call is silently lost because of another,
+> and losing the network, the API server or local storage never loses saved bookmarks.
+
+Problems found in the current code:
+
+- `BookmarkRepository.update` rewrites the whole document. A background title lookup, a
+  page-text index update, a bulk edit, or another device writing its older copy overwrites
+  newer tags, notes or status (lost update).
+- Bulk edits send one write per bookmark at once, with no batching.
+- Two devices saving the same link at the same moment create two bookmarks, because the
+  duplicate check and the create are separate steps.
+- On the web, two tabs using an on-device library each keep their own copy in memory and
+  overwrite each other's saves.
+
+Concurrency deliverables:
+
+- **Field-level updates.** `BookmarkRepository.modify(id, change)` reads the latest copy
+  (from the local cache when offline), applies `change`, and writes only the fields that
+  differ, with Firestore `update()`. Tag and collection lists are written as
+  `arrayUnion`/`arrayRemove` of what was added and removed, so label edits made at the same
+  time merge instead of replacing each other. Derived fields (search words) are recomputed
+  from the merged result. Every service method uses `modify`; only creates, imports and
+  restores write a whole bookmark.
+- **No transactions on the save path.** Firestore transactions fail offline, so the app never
+  waits on one to save or organize.
+- **Batched bulk writes.** Bulk edits, rule runs, migrations and trash clean-up write in
+  batches of at most 450, one batch at a time, with progress. A failed batch leaves earlier
+  ones committed, and every bulk operation is idempotent, so it can simply run again.
+- **Duplicate-safe saving.** New bookmarks get a document ID derived from the canonical URL
+  (`u` + 64-bit FNV-1a hash in base 36). Two devices saving the same link write the same
+  document. Older bookmarks keep their IDs; lookup by `canonicalUrl` stays.
+- **Several tabs on one on-device library (web).** The stored library carries a revision
+  number. Before writing, a tab compares revisions; if another tab wrote in between, it
+  merges the stored library with its own changes (newest `updatedAt` per item, deletions
+  kept) and writes the result. Tabs reload when the `storage` event reports a change.
+- **API optimistic concurrency.** `PATCH /v1/bookmarks/{id}` accepts `If-Unmodified-Since`
+  and answers `412` when the bookmark changed since. Without it, PATCH applies field-level
+  changes as the app does. API writes retry on Firestore `ABORTED`/`UNAVAILABLE` with
+  exponential backoff (3 tries).
+
+Failover deliverables:
+
+- **Offline first stays the rule.** Saving, organizing and trashing work offline and sync
+  later. The library shows a "Waiting to sync" indicator while writes are pending.
+- **API server unreachable.** The app's API client uses timeouts and a circuit breaker: after
+  3 consecutive failures it stops calling the API for 1 minute and uses the fallback (direct
+  fetch on Android, "Open in browser" on the web), then tries the API again.
+- **API server availability.** The server is stateless and can run as several instances
+  (Cloud Run, or several containers behind a load balancer). On `SIGTERM` it stops accepting
+  connections and finishes requests in flight before exiting. The rate limit is per instance;
+  this is documented.
+- **On-device library recovery.** Each save keeps the previous good copy (a second key). If
+  the library can't be read on start, the backup is loaded. A failed write (for example a
+  full browser quota) keeps the change in memory and retries with the next change.
+- **Resumable migrations.** Data migrations record progress in `users/{uid}/meta/schema`
+  (`version`). Each step is idempotent, so a migration interrupted by a crash, a lost
+  connection or the app closing simply runs again, and two devices running it at once is
+  harmless. Rules accept both old and new document shapes.
+- **Backups.** Hosting docs describe Firestore scheduled exports and point-in-time recovery
+  for account libraries.
+
+Tests: concurrent `modify` calls on one bookmark keep both changes; label changes from two
+clients merge; bulk operations are idempotent; two tabs writing the local library keep both
+changes; a corrupt local library loads the backup; the API answers 412 to stale updates; the
+API client's circuit breaker opens and recovers.
+
+## Phase 10 — Trash
+
+- `deletedAt` on bookmarks. Delete moves to Trash. Every other view, search, count and
+  duplicate check ignores trashed bookmarks, except that saving a link that's in the Trash
+  restores it.
+- Trash view with Restore, Delete forever, Empty trash and bulk select.
+- Undo in the snackbar after moving to Trash.
+- Bookmarks trashed more than 30 days ago are deleted with their highlights and page text, on
+  app start (at most once a day) and by the API server. Idempotent, so several devices
+  running it at once is harmless.
+- Firestore rules and indexes, API (`view=trash`, `DELETE` moves to Trash,
+  `?permanent=true` deletes), export and import, on-device library.
+
+## Phase 11 — Sidebar
+
+- **My collections** section, collapsible; nested collections expand and collapse.
+- Tags section collapsible.
+- Open and closed state remembered on the device.
+- Types and Sources sections removed (Phase 12 provides them as filters).
+
+## Phase 12 — Filter bar
+
+- `BookmarkFilters` (sources, tags, kinds, reading statuses) in `BookmarkQuery`, kept in the
+  URL.
+- Filter chips above the list, a picker per filter, active filters shown and clearable.
+- Firestore queries use the view; filters apply on the device, with a larger page while any
+  filter is on.
+- Old `source:` and `type:` links open All bookmarks with the matching filter.
+
+## Phase 13 — Sources
+
+- Built-in list as decided; `website` labelled **Webpage**.
+- Custom sources at `users/{uid}/sources/{id}`: `name`, `domains`. Detection checks custom
+  domains first, then built-in ones, then Webpage.
+- Settings → Sources: add, rename, edit domains, delete; "Re-detect sources" for existing
+  bookmarks (batched, idempotent).
+- Firestore rules, on-device library, API, export.
+
+## Phase 14 — Rules and types as tags
+
+- `Rule` model in `capsula_core`, stored at `users/{uid}/rules/{id}`: name, enabled, order,
+  match all or any, conditions, actions.
+- Rules run when a link is saved, again after its title is found, on import, through the
+  API, and on demand for the whole library.
+- Settings → Rules: list, enable and disable, editor; "Create rule from this bookmark".
+- Migration: create tags for the old types, add default rules that reproduce them (editable),
+  tag existing bookmarks from their detected kind, then stop writing `type`.
+
+## Phase 15 — Unsorted
+
+- Stored `unsorted` flag, kept current on every change to tags or collections and set by the
+  migration.
+- Sidebar **Unsorted** (with count) replaces Inbox; "Remove from Inbox" actions go away.
+- `inInbox` stays readable for old data; the API's `view=inbox` returns Unsorted.
