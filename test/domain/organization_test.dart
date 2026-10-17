@@ -48,9 +48,9 @@ void main() {
       }
     });
 
-    test('unknown keys fall back to the Inbox', () {
+    test('unknown keys fall back to All bookmarks', () {
       for (final key in [null, '', 'nope', 'tag:', 'weird:value']) {
-        expect(BookmarkView.parse(key), BookmarkView.inbox, reason: key);
+        expect(BookmarkView.parse(key), BookmarkView.all, reason: key);
       }
     });
 

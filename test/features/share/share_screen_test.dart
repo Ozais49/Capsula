@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:capsula/app/app.dart';
 import 'package:capsula/config/app_config.dart';
 import 'package:capsula_core/domain/auth/app_user.dart';
@@ -5,6 +7,7 @@ import 'package:capsula_core/domain/bookmarks/bookmark.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/bookmarks/shared_content.dart';
 import 'package:capsula_core/domain/reader/page_info_service.dart';
+import 'package:capsula_core/domain/reader/reader_content.dart';
 import 'package:capsula/features/auth/sign_in_screen.dart';
 import 'package:capsula/features/bookmarks/bookmark_detail_screen.dart';
 import 'package:capsula/features/share/share_screen.dart';
@@ -33,6 +36,7 @@ Future<_Harness> _share(
   bool signedIn = true,
   List<Bookmark> existing = const [],
   FakeContentFetcher? fetcher,
+  PageInfoSource? pageInfo,
 }) async {
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 1;
@@ -57,7 +61,7 @@ Future<_Harness> _share(
       ),
       backend: await startedBackend(auth, bookmarks: repo),
       shareIntake: intake,
-      pageInfo: PageInfoService(fetcher ?? FakeContentFetcher()),
+      pageInfo: pageInfo ?? PageInfoService(fetcher ?? FakeContentFetcher()),
     ),
   );
   await tester.pumpAndSettle();
@@ -172,24 +176,52 @@ void main() {
     await tester.pump(ShareScreen.autoCloseDelay);
   });
 
-  testWidgets('shows the title fetched from the source, not the URL', (
+  testWidgets('hides at once and gets the title in the background', (
     tester,
   ) async {
-    final fetcher = FakeContentFetcher()
-      ..json(
-        'https://www.youtube.com/oembed',
-        '{"title": "Flutter in 100 Seconds", "author_name": "Fireship"}',
-      );
+    final lookup = _SlowPageInfo();
     final h = await _share(
       tester,
       const SharedContent(text: 'https://youtu.be/lHhRhPV--G0?si=abc'),
-      fetcher: fetcher,
+      pageInfo: lookup,
     );
 
+    // Saved and confirmed without waiting for the title.
     expect(find.text('Saved'), findsOneWidget);
-    expect(find.text('Flutter in 100 Seconds'), findsOneWidget);
-    expect(h.repo.items.values.single.title, 'Flutter in 100 Seconds');
+    expect(h.repo.items, hasLength(1));
     await tester.pump(ShareScreen.autoCloseDelay);
+    expect(h.intake.moveToBackgroundCalls, 1);
+    expect(h.intake.finishCalls, 0);
+
+    // The title arrives later, and then the app closes.
+    lookup.answer.complete(const PageMetadata(title: 'Flutter in 100 Seconds'));
+    await tester.pumpAndSettle();
+    expect(h.repo.items.values.single.title, 'Flutter in 100 Seconds');
     expect(h.intake.finishCalls, 1);
   });
+
+  testWidgets('closes anyway when the title never comes', (tester) async {
+    final lookup = _SlowPageInfo();
+    final h = await _share(
+      tester,
+      const SharedContent(text: 'https://example.com/slow'),
+      pageInfo: lookup,
+    );
+    await tester.pump(ShareScreen.autoCloseDelay);
+    expect(h.intake.moveToBackgroundCalls, 1);
+
+    await tester.pump(ShareScreen.backgroundTimeout);
+    await tester.pumpAndSettle();
+    expect(h.intake.finishCalls, 1);
+    // Saved with the title made from the link; looked up again later.
+    expect(h.repo.items, hasLength(1));
+  });
+}
+
+/// A title lookup that answers only when told to.
+class _SlowPageInfo implements PageInfoSource {
+  final answer = Completer<PageMetadata?>();
+
+  @override
+  Future<PageMetadata?> lookup(Uri url) => answer.future;
 }

@@ -44,7 +44,7 @@ abstract final class AppRoutes {
     BookmarkFilters filters = BookmarkFilters.none,
   ]) {
     final query = {
-      if (view is! InboxView) 'view': view.key,
+      if (view is! AllView) 'view': view.key,
       ...filters.toQuery(),
     };
     return query.isEmpty

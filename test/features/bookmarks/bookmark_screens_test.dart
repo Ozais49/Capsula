@@ -78,7 +78,7 @@ void main() {
     await _pumpSignedIn(tester);
 
     expect(find.byType(LibraryScreen), findsOneWidget);
-    expect(find.textContaining('Nothing unsorted'), findsOneWidget);
+    expect(find.textContaining('No bookmarks yet'), findsOneWidget);
   });
 
   testWidgets('lists bookmarks newest first and hides archived', (

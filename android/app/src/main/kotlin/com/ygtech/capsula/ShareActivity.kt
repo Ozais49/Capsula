@@ -10,7 +10,8 @@ import io.flutter.plugin.common.MethodChannel
 /**
  * Receives links shared from other apps. Runs as a transparent window over
  * the sharing app and hands the shared text to Flutter at the `/share` route,
- * which saves it and closes this activity.
+ * which saves it, hides this window at once, and closes the activity once the
+ * title is fetched and the bookmark synced.
  */
 class ShareActivity : FlutterActivity() {
     private var pendingShare: Map<String, String?>? = null
@@ -34,6 +35,13 @@ class ShareActivity : FlutterActivity() {
                     "takeShare" -> {
                         result.success(pendingShare)
                         pendingShare = null
+                    }
+                    // Hides the window, returning to the app that shared, while
+                    // Flutter keeps running to fetch the title and sync. Flutter
+                    // closes the activity when that is done.
+                    "moveToBackground" -> {
+                        moveTaskToBack(true)
+                        result.success(null)
                     }
                     else -> result.notImplemented()
                 }

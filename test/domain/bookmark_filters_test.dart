@@ -70,13 +70,14 @@ void main() {
   });
 
   test('library links carry the view and filters', () {
-    expect(AppRoutes.library(BookmarkView.inbox), '/');
+    expect(AppRoutes.library(BookmarkView.all), '/');
+    expect(AppRoutes.library(BookmarkView.inbox), '/?view=inbox');
     expect(
       AppRoutes.library(
         BookmarkView.all,
         const BookmarkFilters(sources: {'reddit'}),
       ),
-      '/?view=all&source=reddit',
+      '/?source=reddit',
     );
     final (view, filters) = libraryLocation(
       Uri.parse('/?view=trash&tag=a,b').queryParameters,

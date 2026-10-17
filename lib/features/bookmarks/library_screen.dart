@@ -33,7 +33,7 @@ import 'library_navigation.dart';
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({
     super.key,
-    this.view = BookmarkView.inbox,
+    this.view = BookmarkView.all,
     this.filters = BookmarkFilters.none,
   });
 

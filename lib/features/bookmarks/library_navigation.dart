@@ -14,7 +14,7 @@ import '../organization/label_dialogs.dart';
 import '../organization/share_dialog.dart';
 import '../organization/labels_builder.dart';
 
-/// Lists the library views: Unsorted, All, Favorites, Archived, Trash, and the
+/// Lists the library views: All, Unsorted, Favorites, Archived, Trash, and the
 /// user's collections and tags. Sources and kinds are filters in the list.
 class LibraryNavigation extends StatefulWidget {
   const LibraryNavigation({
@@ -234,7 +234,7 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
             case 'delete':
               if (await deleteLabelWithConfirm(context, label) &&
                   widget.selected == LabelView(kind, label.id)) {
-                widget.onSelect(BookmarkView.inbox);
+                widget.onSelect(BookmarkView.all);
               }
           }
         },
@@ -260,6 +260,7 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
     Widget buildViews() => ListView(
       padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.sm),
       children: [
+        _item(BookmarkView.all, Icons.bookmarks_outlined, 'All bookmarks'),
         _item(
           BookmarkView.inbox,
           Icons.inbox_outlined,
@@ -271,7 +272,6 @@ class _LibraryNavigationState extends State<LibraryNavigation> {
                 : Text('${count.data}'),
           ),
         ),
-        _item(BookmarkView.all, Icons.bookmarks_outlined, 'All bookmarks'),
         _item(BookmarkView.favorites, Icons.star_outline, 'Favorites'),
         _item(
           BookmarkView.reminders,

@@ -13,16 +13,18 @@ import 'package:capsula_core/domain/bookmarks/shared_content.dart';
 import '../bookmarks/bookmark_display.dart';
 
 /// Shown over the sharing app when a link is shared to Capsula. Saves to
-/// the library without asking anything, then closes.
+/// the library without asking anything, confirms, and gets out of the way:
+/// the real title is looked up and the bookmark synced in the background.
 class ShareScreen extends StatefulWidget {
   const ShareScreen({super.key});
 
-  /// How long the confirmation stays before closing on its own.
-  static const autoCloseDelay = Duration(milliseconds: 1200);
+  /// How long the confirmation stays before the window hides on its own.
+  static const autoCloseDelay = Duration(milliseconds: 900);
 
-  /// How long to wait for a link's title before closing anyway; the title
-  /// is fetched again the next time Capsula opens.
-  static const titleTimeout = Duration(seconds: 6);
+  /// How long the background work may take before the app closes anyway.
+  /// Titles still missing are looked up the next time Capsula opens, and
+  /// unsynced changes sync then too.
+  static const backgroundTimeout = Duration(seconds: 30);
 
   @override
   State<ShareScreen> createState() => _ShareScreenState();
@@ -33,8 +35,7 @@ sealed class _State {
 }
 
 class _Working extends _State {
-  const _Working([this.message = 'Saving to Capsula…']);
-  final String message;
+  const _Working();
 }
 
 class _NothingToSave extends _State {
@@ -90,26 +91,14 @@ class _ShareScreenState extends State<ShareScreen> {
       for (final url in links.urls) {
         results.add(await deps.bookmarks.save(url.toString()));
       }
+      final saved = results.whereType<Saved>().toList();
+      _show(
+        _Finished(results, [for (final s in saved) s.bookmark.displayTitle]),
+      );
 
-      // Saved already; now get each link's real title from its source.
-      // Text shared along with a single link is the fallback.
-      final saved = results.whereType<Saved>().map((s) => s.bookmark).toList();
-      var titles = saved.map((b) => b.displayTitle).toList();
       if (saved.isNotEmpty) {
-        _show(const _Working('Saved. Getting the title…'));
-        titles = await Future.wait([
-          for (final b in saved)
-            deps.bookmarks
-                .fetchDetails(b, deps.pageInfo, fallbackTitle: links.title)
-                .then((updated) => (updated ?? b).displayTitle)
-                .timeout(
-                  ShareScreen.titleTimeout,
-                  onTimeout: () => b.displayTitle,
-                ),
-        ]);
+        _background = _finishInBackground(saved, links.title);
       }
-      _show(_Finished(results, titles));
-
       if (results.every((r) => r is Saved)) {
         _autoClose = Timer(ShareScreen.autoCloseDelay, _close);
       }
@@ -118,13 +107,57 @@ class _ShareScreenState extends State<ShareScreen> {
     }
   }
 
+  /// Work that continues after the window hides, or null when there is none.
+  Future<void>? _background;
+  bool _hidden = false;
+
+  /// Gets each link's real title from its source (text shared along with a
+  /// single link is the fallback), then waits until everything has reached
+  /// the backend, and closes the app.
+  Future<void> _finishInBackground(
+    List<Saved> saved,
+    String? sharedTitle,
+  ) async {
+    final deps = AppDependencies.of(context);
+    final bookmarks = deps.bookmarks;
+    final pageInfo = deps.pageInfo;
+    final intake = deps.shareIntake;
+    try {
+      await Future.wait([
+        for (final s in saved)
+          bookmarks
+              .fetchDetails(s.bookmark, pageInfo, fallbackTitle: sharedTitle)
+              .then<void>((_) {}),
+        for (final s in saved) s.committed,
+      ]).timeout(ShareScreen.backgroundTimeout);
+      await bookmarks.repository
+          .watchPendingWrites()
+          .firstWhere((pending) => !pending)
+          .timeout(ShareScreen.backgroundTimeout);
+    } on Object {
+      // Offline, or slow: whatever is left happens next time Capsula opens.
+    }
+    _background = null;
+    // Once hidden, nothing is left to show; close for good.
+    if (_hidden) await intake.finish();
+  }
+
   void _show(_State state) {
     if (mounted) setState(() => _state = state);
   }
 
+  /// Leaves the share window. With work still running in the background it
+  /// only hides, and the app closes itself when that work is done.
   void _close() {
     _autoClose?.cancel();
-    AppDependencies.of(context).shareIntake.finish();
+    if (_hidden) return;
+    _hidden = true;
+    final intake = AppDependencies.of(context).shareIntake;
+    if (_background == null) {
+      intake.finish();
+    } else {
+      intake.moveToBackground();
+    }
   }
 
   @override
@@ -148,12 +181,12 @@ class _ShareScreenState extends State<ShareScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(Gap.lg),
                     child: switch (_state) {
-                      _Working(:final message) => _Row(
+                      _Working() => const _Row(
                         leading: SizedBox.square(
                           dimension: 24,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                        text: message,
+                        text: 'Saving to Capsula…',
                       ),
                       _NothingToSave(:final message) => _Summary(
                         icon: Icons.link_off,

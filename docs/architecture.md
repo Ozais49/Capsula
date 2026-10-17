@@ -80,7 +80,7 @@ reachable.
 
 The library URL holds the view and any filters, for example
 `/?view=collection:abc&source=reddit,youtube&tag=t1`. A view (`BookmarkView`) picks the
-bookmarks: Unsorted (no tags and no collections; key `inbox`), All, Favorites, Reminders, Archived, Trash, a tag or a collection.
+bookmarks: All (the default), Unsorted (no tags and no collections; key `inbox`), Favorites, Reminders, Archived, Trash, a tag or a collection.
 Filters (`BookmarkFilters`: sources, tags, kind of content, reading status) narrow it, and
 stay on when moving between views. Firestore queries the view; filters are applied on the
 device, fetching up to four times the page size so pages stay full. Old links to source
@@ -175,7 +175,12 @@ another's change.
 
 - `ShareActivity` (Kotlin) receives `ACTION_SEND` `text/plain` shares and shows a
   transparent window over the sharing app. It passes the text to Flutter at `/share` over
-  the `capsula/share` method channel. Flutter saves the links and closes.
+  the `capsula/share` method channel. Flutter saves the links, shows "Saved" for under a
+  second, and hides the window (`moveToBackground`, which moves the activity's task to the
+  back) so the user is back in the sharing app at once. The activity keeps running while
+  the real title is fetched and the bookmark reaches Firestore, then closes itself (at most
+  30 seconds; anything unfinished, such as a title while offline, happens the next time
+  Capsula opens). Duplicates and errors keep the window open until the user closes it.
 - `ShareShortcuts.kt` publishes a "Save to Capsula" sharing shortcut, so Capsula appears in
   the Direct Share row of the system share sheet.
 - Apps that use their own share sheet (Reddit, Instagram) list only the targets they choose.

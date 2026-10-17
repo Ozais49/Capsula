@@ -140,25 +140,27 @@ void main() {
     expect(find.text('New title'), findsOneWidget);
   });
 
-  testWidgets('inbox items offer a screen reader action instead of swiping', (
-    tester,
-  ) async {
-    final handle = tester.ensureSemantics();
-    final repo = await _pump(tester, bookmarks: [_bookmark('a', 'Paper')]);
+  testWidgets(
+    'unsorted items offer a screen reader action instead of swiping',
+    (tester) async {
+      final handle = tester.ensureSemantics();
+      final repo = await _pump(tester, bookmarks: [_bookmark('a', 'Paper')]);
+      await tapNavigationItem(tester, 'Unsorted');
 
-    final node = tester.getSemantics(find.text('Paper'));
-    final actions = node.getSemanticsData().customSemanticsActionIds ?? [];
-    expect(actions, isNotEmpty);
+      final node = tester.getSemantics(find.text('Paper'));
+      final actions = node.getSemanticsData().customSemanticsActionIds ?? [];
+      expect(actions, isNotEmpty);
 
-    node.owner!.performAction(
-      node.id,
-      SemanticsAction.customAction,
-      actions.first,
-    );
-    await tester.pumpAndSettle();
-    expect(repo.items['a']!.inInbox, isFalse);
-    handle.dispose();
-  });
+      node.owner!.performAction(
+        node.id,
+        SemanticsAction.customAction,
+        actions.first,
+      );
+      await tester.pumpAndSettle();
+      expect(repo.items['a']!.archived, isTrue);
+      handle.dispose();
+    },
+  );
 
   group('accessibility guidelines', () {
     Future<void> checkGuidelines(WidgetTester tester) async {

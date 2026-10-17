@@ -6,6 +6,7 @@ class FakeShareIntake implements ShareIntake {
 
   SharedContent? pending;
   int finishCalls = 0;
+  int moveToBackgroundCalls = 0;
 
   @override
   Future<SharedContent?> take() async {
@@ -13,6 +14,9 @@ class FakeShareIntake implements ShareIntake {
     pending = null;
     return content;
   }
+
+  @override
+  Future<void> moveToBackground() async => moveToBackgroundCalls++;
 
   @override
   Future<void> finish() async => finishCalls++;

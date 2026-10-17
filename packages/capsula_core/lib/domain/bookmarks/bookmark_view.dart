@@ -17,29 +17,30 @@ sealed class BookmarkView {
   /// Stable string used in URLs, e.g. `inbox`, `source:reddit`, `tag:abc`.
   String get key;
 
-  /// Parses [key]; unknown values fall back to the Inbox.
+  /// Parses [key]; missing or unknown values fall back to All bookmarks.
   static BookmarkView parse(String? key) {
-    if (key == null) return inbox;
+    if (key == null) return all;
     final separator = key.indexOf(':');
     if (separator == -1) {
       return switch (key) {
+        'inbox' => inbox,
         'all' => all,
         'archived' => archived,
         'favorites' => favorites,
         'reminders' => reminders,
         'trash' => trash,
-        _ => inbox,
+        _ => all,
       };
     }
     final type = key.substring(0, separator);
     final value = key.substring(separator + 1);
-    if (value.isEmpty) return inbox;
+    if (value.isEmpty) return all;
     return switch (type) {
       'source' => SourceView(BookmarkSource.fromId(value)),
       'type' => TypeView(ContentType.fromName(value)),
       'tag' => LabelView(LabelKind.tag, value),
       'collection' => LabelView(LabelKind.collection, value),
-      _ => inbox,
+      _ => all,
     };
   }
 

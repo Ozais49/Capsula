@@ -97,7 +97,9 @@ const _research = Label(
 );
 
 void main() {
-  testWidgets('starts on Unsorted and shows its count', (tester) async {
+  testWidgets('starts on All bookmarks; Unsorted shows its count', (
+    tester,
+  ) async {
     await _pump(
       tester,
       bookmarks: [
@@ -106,12 +108,17 @@ void main() {
       ],
     );
 
-    expect(find.widgetWithText(AppBar, 'Unsorted'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'All bookmarks'), findsOneWidget);
     expect(find.text('New one'), findsOneWidget);
-    expect(find.text('Organized'), findsNothing);
+    expect(find.text('Organized'), findsOneWidget);
 
     await _openDrawer(tester);
     expect(find.text('1'), findsOneWidget);
+
+    await _openView(tester, 'Unsorted');
+    expect(find.widgetWithText(AppBar, 'Unsorted'), findsOneWidget);
+    expect(find.text('New one'), findsOneWidget);
+    expect(find.text('Organized'), findsNothing);
   });
 
   testWidgets('tag and collection views, and filters, narrow the library', (
@@ -173,6 +180,7 @@ void main() {
 
   testWidgets('swiping in Unsorted archives, with undo', (tester) async {
     final app = await _pump(tester, bookmarks: [_bookmark('a', 'Swipe me')]);
+    await _openView(tester, 'Unsorted');
 
     await tester.drag(find.text('Swipe me'), const Offset(500, 0));
     await tester.pumpAndSettle();
@@ -188,6 +196,7 @@ void main() {
 
   testWidgets('tag a bookmark from detail, creating the tag', (tester) async {
     final app = await _pump(tester, bookmarks: [_bookmark('a', 'Paper')]);
+    await _openView(tester, 'Unsorted');
 
     await tester.tap(find.text('Paper'));
     await tester.pumpAndSettle();
@@ -284,7 +293,7 @@ void main() {
     await _pump(tester, size: const Size(1400, 900));
 
     expect(find.byTooltip('Open navigation menu'), findsNothing);
-    expect(find.text('All bookmarks'), findsOneWidget);
+    expect(find.byType(LibraryNavigation), findsOneWidget);
 
     await tester.tap(find.text('Archived'));
     await tester.pumpAndSettle();
