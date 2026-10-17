@@ -37,9 +37,50 @@ class InMemoryBookmarkRepository implements BookmarkRepository {
   });
 
   @override
+  Future<void> modify(String id, Bookmark Function(Bookmark current) change) =>
+      _write(() {
+        if (items[id] case final current?) items[id] = change(current);
+      });
+
+  /// Batches passed to [modifyMany] and [deleteMany].
+  final List<int> modifyBatchSizes = [];
+
+  @override
+  Future<void> modifyMany(
+    Iterable<String> ids,
+    Bookmark Function(Bookmark current) change, {
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final all = ids.toList();
+    for (var i = 0; i < all.length; i += writeBatchSize) {
+      final chunk = all.skip(i).take(writeBatchSize).toList();
+      modifyBatchSizes.add(chunk.length);
+      await _write(() {
+        for (final id in chunk) {
+          if (items[id] case final current?) items[id] = change(current);
+        }
+      });
+      onProgress?.call(i + chunk.length, all.length);
+    }
+  }
+
+  @override
   Future<void> delete(String id) => _write(() {
     items.remove(id);
   });
+
+  @override
+  Future<void> deleteMany(Iterable<String> ids) async {
+    final all = ids.toList();
+    for (var i = 0; i < all.length; i += writeBatchSize) {
+      final chunk = all.skip(i).take(writeBatchSize).toList();
+      modifyBatchSizes.add(chunk.length);
+      await _write(() => chunk.forEach(items.remove));
+    }
+  }
+
+  @override
+  Stream<bool> watchPendingWrites() => Stream.value(false);
 
   @override
   Stream<Bookmark?> watch(String id) async* {

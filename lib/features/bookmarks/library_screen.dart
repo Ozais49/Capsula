@@ -17,6 +17,7 @@ import '../../app/dependencies.dart';
 import '../../app/display_preferences.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
+import '../common/sync_indicator.dart';
 import '../common/keyboard_shortcuts.dart';
 import '../organization/label_picker_sheet.dart';
 import '../organization/labels_builder.dart';
@@ -380,6 +381,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   AppBar _normalBar(Labels labels) => AppBar(
     title: Text(viewTitle(widget.view, labels)),
     actions: [
+      const SyncIndicator(),
       ListenableBuilder(
         listenable: _display,
         builder: (context, _) => PopupMenuButton<Object>(

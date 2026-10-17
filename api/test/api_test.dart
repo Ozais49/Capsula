@@ -10,6 +10,7 @@ import 'package:capsula_core/testing/in_memory_bookmark_repository.dart';
 import 'package:capsula_core/testing/in_memory_content_index.dart';
 import 'package:capsula_core/testing/in_memory_highlight_repository.dart';
 import 'package:capsula_core/testing/in_memory_label_repository.dart';
+import 'package:dart_firebase_admin/firestore.dart';
 import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
@@ -851,5 +852,114 @@ void main() {
       )).$2['bookmarks'],
       isEmpty,
     );
+  });
+
+  group('concurrent changes', () {
+    Future<String> create() async {
+      final (_, body) = await s.call(
+        'POST',
+        '/v1/bookmarks',
+        body: {'url': 'https://example.com/a', 'fetchDetails': false},
+      );
+      return body['id']! as String;
+    }
+
+    test('PATCH keeps fields another client changed meanwhile', () async {
+      final id = await create();
+      // Another client sets a note directly in storage.
+      await s.bookmarks['alice']!.modify(
+        id,
+        (b) => b.copyWith(note: 'from phone'),
+      );
+      final (status, body) = await s.call(
+        'PATCH',
+        '/v1/bookmarks/$id',
+        body: {'favorite': true},
+      );
+      expect(status, 200);
+      expect(body['favorite'], isTrue);
+      expect(body['note'], 'from phone');
+    });
+
+    test('If-Unmodified-Since refuses stale edits with 412', () async {
+      final id = await create();
+      final read = await s.api.handler(
+        Request(
+          'GET',
+          Uri.parse('http://localhost/v1/bookmarks/$id'),
+          headers: {'authorization': 'Bearer alice-id-token'},
+        ),
+      );
+      final lastModified = read.headers['last-modified']!;
+
+      // Unchanged since it was read: applied.
+      var (status, _) = await s.call(
+        'PATCH',
+        '/v1/bookmarks/$id',
+        body: {'title': 'First'},
+        headers: {'if-unmodified-since': lastModified},
+      );
+      expect(status, 200);
+
+      // Changed by someone else afterwards: refused, nothing written.
+      await s.bookmarks['alice']!.modify(
+        id,
+        (b) => b.copyWith(
+          title: 'Other',
+          updatedAt: DateTime.now().add(const Duration(minutes: 1)),
+        ),
+      );
+      final Map<String, Object?> body;
+      (status, body) = await s.call(
+        'PATCH',
+        '/v1/bookmarks/$id',
+        body: {'title': 'Stale'},
+        headers: {'if-unmodified-since': lastModified},
+      );
+      expect(status, 412);
+      expect((body['error'] as Map)['code'], 'conflict');
+      expect(s.bookmarks['alice']!.items[id]!.title, 'Other');
+
+      (status, _) = await s.call(
+        'PATCH',
+        '/v1/bookmarks/$id',
+        body: {'title': 'x'},
+        headers: {'if-unmodified-since': 'yesterday'},
+      );
+      expect(status, 400);
+    });
+  });
+
+  test('withRetry retries temporary failures only', () async {
+    var calls = 0;
+    final waits = <Duration>[];
+    Future<void> wait(Duration d) async => waits.add(d);
+
+    final result = await withRetry(() async {
+      if (++calls < 3) {
+        throw FirebaseFirestoreAdminException(
+          FirestoreClientErrorCode.unavailable,
+        );
+      }
+      return 'done';
+    }, wait: wait);
+    expect(result, 'done');
+    expect(calls, 3);
+    expect(waits, [
+      const Duration(milliseconds: 200),
+      const Duration(milliseconds: 800),
+    ]);
+
+    calls = 0;
+    await expectLater(
+      withRetry(() async {
+        calls++;
+        throw FirebaseFirestoreAdminException(
+          FirestoreClientErrorCode.permissionDenied,
+        );
+      }, wait: wait),
+      throwsA(isA<FirebaseFirestoreAdminException>()),
+    );
+    expect(calls, 1);
   });
 }

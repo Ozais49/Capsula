@@ -21,6 +21,23 @@ class _FileStorage implements LocalStorage {
     return await file.exists() ? file.readAsString() : null;
   }
 
+  /// Changes to the files, including ones made by the share window, which
+  /// runs separately from the app. This storage's own writes show up too;
+  /// the library ignores those, since the revision it wrote is unchanged.
+  @override
+  Stream<String> watchExternalChanges() async* {
+    final dir = await (_dir ??= getApplicationSupportDirectory());
+    if (!FileSystemEntity.isWatchSupported) return;
+    yield* dir
+        .watch(events: FileSystemEvent.create | FileSystemEvent.move)
+        .map((e) => e is FileSystemMoveEvent ? e.destination ?? e.path : e.path)
+        .where((path) => path.endsWith('.json'))
+        .map((path) {
+          final name = path.split(Platform.pathSeparator).last;
+          return name.substring(0, name.length - '.json'.length);
+        });
+  }
+
   @override
   Future<void> write(String key, String value) async {
     final file = await _file(key);

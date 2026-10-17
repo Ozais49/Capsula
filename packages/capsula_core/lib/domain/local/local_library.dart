@@ -23,6 +23,10 @@ abstract interface class LocalStorage {
   Future<String?> read(String key);
 
   Future<void> write(String key, String value);
+
+  /// Keys written by someone else sharing this storage, such as another
+  /// browser tab. Empty where nothing else can write.
+  Stream<String> watchExternalChanges();
 }
 
 /// A library kept only on this device, used without a Firebase project or
@@ -34,12 +38,32 @@ class LocalLibrary {
   static const libraryKey = 'capsula_library';
   static const contentKey = 'capsula_content_index';
 
+  /// The previous good copy of the library, kept in case the current one
+  /// can't be read.
+  static const backupKey = 'capsula_library_backup';
+
+  /// A library that couldn't be read, kept rather than overwritten.
+  static const unreadableKey = 'capsula_library_unreadable';
+
   /// Loads the library saved in [storage], or starts an empty one.
   static Future<LocalLibrary> open(LocalStorage storage) async {
     final library = LocalLibrary._(storage);
     await library._load();
+    library._external = storage.watchExternalChanges().listen((key) {
+      if (key == libraryKey || key == contentKey) library._refresh();
+    });
     return library;
   }
+
+  StreamSubscription<String>? _external;
+
+  /// Whether the saved library couldn't be read and its backup copy was
+  /// loaded instead.
+  bool get restoredFromBackup => _restoredFromBackup;
+  bool _restoredFromBackup = false;
+
+  /// Stops following changes made by other tabs.
+  Future<void> close() async => _external?.cancel();
 
   final LocalStorage _storage;
   final _bookmarks = InMemoryBookmarkRepository();
@@ -64,41 +88,148 @@ class LocalLibrary {
   // ---------------------------------------------------------------------------
   // Saving
 
-  Future<void> _saved = Future.value();
-  bool _dirtyLibrary = false;
-  bool _dirtyContent = false;
+  // Several tabs (or the share window and the app) can use one stored
+  // library. Each keeps its own copy in memory, so every save first checks
+  // the stored revision: if someone else saved in between, their version is
+  // merged in, keeping this copy's own changes, before writing.
 
-  /// Saves after a change. Completes once a save that includes it is done,
-  /// so callers that await a write know it's stored. Saves run one at a
-  /// time; changes made while one runs share the next.
-  Future<void> _changed({bool content = false}) {
-    if (content) {
-      _dirtyContent = true;
-    } else {
-      _dirtyLibrary = true;
-    }
+  Future<void> _saved = Future.value();
+
+  /// IDs of items changed (or deleted) here since the last save, per part
+  /// of the library.
+  final _touched = <String, Set<String>>{
+    for (final part in _parts) part: <String>{},
+  };
+  static const _parts = ['bookmarks', 'labels', 'highlights', 'content'];
+
+  /// Revision of the stored library this copy last read or wrote.
+  int _revision = 0;
+  int _contentRevision = 0;
+
+  /// Saves after a change to items [ids] of [part]. Completes once a save
+  /// that includes it is done, so callers that await a write know it's
+  /// stored. Saves run one at a time; changes made while one runs share
+  /// the next. A failed save keeps the changes and retries with the next.
+  Future<void> _changed(String part, Iterable<String> ids) {
+    _touched[part]!.addAll(ids);
     return _saved = _saved.catchError((Object _) {}).then((_) => _save());
   }
 
   Future<void> _save() async {
-    if (_dirtyLibrary) {
-      _dirtyLibrary = false;
+    if (_touched['bookmarks']!.isNotEmpty ||
+        _touched['labels']!.isNotEmpty ||
+        _touched['highlights']!.isNotEmpty) {
+      final raw = await _storage.read(libraryKey);
+      final stored = raw == null ? null : _decode(raw);
+      final storedRevision = _revisionOf(stored);
+      if (stored != null && storedRevision != _revision) _mergeLibrary(stored);
+      final saving = {
+        for (final part in ['bookmarks', 'labels', 'highlights'])
+          part: {..._touched[part]!},
+      };
+      for (final part in saving.keys) {
+        _touched[part]!.clear();
+      }
       try {
-        await _storage.write(libraryKey, jsonEncode(_libraryJson()));
+        if (stored != null) await _storage.write(backupKey, raw!);
+        await _storage.write(
+          libraryKey,
+          jsonEncode(_libraryJson(storedRevision + 1)),
+        );
+        _revision = storedRevision + 1;
       } on Object {
-        _dirtyLibrary = true;
+        saving.forEach((part, ids) => _touched[part]!.addAll(ids));
         rethrow;
       }
     }
-    if (_dirtyContent) {
-      _dirtyContent = false;
+    if (_touched['content']!.isNotEmpty) {
+      final raw = await _storage.read(contentKey);
+      final stored = raw == null ? null : _decode(raw);
+      final storedRevision = _revisionOf(stored);
+      if (stored != null && storedRevision != _contentRevision) {
+        _mergeContent(stored);
+      }
+      final saving = {..._touched['content']!};
+      _touched['content']!.clear();
       try {
-        await _storage.write(contentKey, jsonEncode(_content.items));
+        await _storage.write(
+          contentKey,
+          jsonEncode({'revision': storedRevision + 1, 'pages': _content.items}),
+        );
+        _contentRevision = storedRevision + 1;
       } on Object {
-        _dirtyContent = true;
+        _touched['content']!.addAll(saving);
         rethrow;
       }
     }
+  }
+
+  /// Picks up a save made elsewhere (another tab), keeping changes made
+  /// here that aren't saved yet.
+  void _refresh() {
+    _saved = _saved.catchError((Object _) {}).then((_) async {
+      final raw = await _storage.read(libraryKey);
+      final stored = raw == null ? null : _decode(raw);
+      if (stored != null && _revisionOf(stored) != _revision) {
+        _mergeLibrary(stored);
+        _revision = _revisionOf(stored);
+      }
+      final content = await _storage.read(contentKey);
+      final storedContent = content == null ? null : _decode(content);
+      if (storedContent != null &&
+          _revisionOf(storedContent) != _contentRevision) {
+        _mergeContent(storedContent);
+        _contentRevision = _revisionOf(storedContent);
+      }
+    });
+  }
+
+  static Map<String, Object?>? _decode(String raw) {
+    try {
+      return jsonDecode(raw) as Map<String, Object?>;
+    } on Object {
+      return null;
+    }
+  }
+
+  static int _revisionOf(Map<String, Object?>? json) =>
+      json?['revision'] as int? ?? 0;
+
+  /// Takes everything from [stored] except items changed here, which keep
+  /// this copy's version (or stay deleted).
+  void _mergeLibrary(Map<String, Object?> stored) {
+    void merge<T>(Map<String, T> mine, Map<String, T> theirs, String part) {
+      final touched = _touched[part]!;
+      final kept = {for (final id in touched) id: ?mine[id]};
+      mine
+        ..clear()
+        ..addAll({
+          for (final MapEntry(:key, :value) in theirs.entries)
+            if (!touched.contains(key)) key: value,
+        })
+        ..addAll(kept);
+    }
+
+    final theirs = _LibraryData.fromJson(stored);
+    merge(_bookmarks.items, theirs.bookmarks, 'bookmarks');
+    merge(_labels.items, theirs.labels, 'labels');
+    merge(_highlights.items, theirs.highlights, 'highlights');
+    _bookmarks.addAll(const []);
+    _labels.addAll(const []);
+    _highlights.addAll(const []);
+  }
+
+  void _mergeContent(Map<String, Object?> stored) {
+    final touched = _touched['content']!;
+    final theirs = _contentFromJson(stored);
+    final kept = {for (final id in touched) id: ?_content.items[id]};
+    _content.items
+      ..clear()
+      ..addAll({
+        for (final MapEntry(:key, :value) in theirs.entries)
+          if (!touched.contains(key)) key: value,
+      })
+      ..addAll(kept);
   }
 
   static String _time(DateTime d) => d.toUtc().toIso8601String();
@@ -106,8 +237,9 @@ class LocalLibrary {
   static DateTime? _readTime(Object? v) =>
       v is String ? DateTime.tryParse(v)?.toLocal() : null;
 
-  Map<String, Object?> _libraryJson() => {
+  Map<String, Object?> _libraryJson(int revision) => {
     'version': 1,
+    'revision': revision,
     'bookmarks': {
       for (final b in _bookmarks.items.values)
         b.id: encodeBookmark(b, _time)..remove('searchTokens'),
@@ -124,33 +256,67 @@ class LocalLibrary {
   Future<void> _load() async {
     final raw = await _storage.read(libraryKey);
     if (raw != null) {
-      final json = jsonDecode(raw) as Map<String, Object?>;
-      _bookmarks.addAll([
+      var json = _decode(raw);
+      if (json == null) {
+        // Keep the unreadable copy, then fall back to the last good one.
+        await _storage.write(unreadableKey, raw);
+        final backup = await _storage.read(backupKey);
+        json = backup == null ? null : _decode(backup);
+        _restoredFromBackup = json != null;
+      }
+      if (json != null) {
+        final data = _LibraryData.fromJson(json);
+        _bookmarks.addAll(data.bookmarks.values);
+        _labels.addAll(data.labels.values);
+        _highlights.addAll(data.highlights.values);
+        _revision = _revisionOf(json);
+      }
+    }
+    final content = await _storage.read(contentKey);
+    final contentJson = content == null ? null : _decode(content);
+    if (contentJson != null) {
+      _content.items.addAll(_contentFromJson(contentJson));
+      _contentRevision = _revisionOf(contentJson);
+    }
+  }
+
+  /// Page words by bookmark ID. Older saves stored the map at the top
+  /// level, without a revision.
+  static Map<String, List<String>> _contentFromJson(Map<String, Object?> json) {
+    final pages = json['pages'] is Map<String, Object?>
+        ? json['pages']! as Map<String, Object?>
+        : json;
+    return {
+      for (final MapEntry(:key, :value) in pages.entries)
+        if (value is List) key: value.cast<String>(),
+    };
+  }
+}
+
+/// The parts of a stored library, read from its JSON.
+class _LibraryData {
+  _LibraryData.fromJson(Map<String, Object?> json)
+    : bookmarks = {
         for (final MapEntry(:key, :value) in _entries(json['bookmarks']))
-          decodeBookmark(key, value, _readTime),
-      ]);
-      _labels.addAll([
+          key: decodeBookmark(key, value, LocalLibrary._readTime),
+      },
+      labels = {
         for (final MapEntry(:key, :value) in _entries(json['labels']))
-          Label(
+          key: Label(
             id: key,
             kind: LabelKind.values.asNameMap()[value['kind']] ?? LabelKind.tag,
             name: value['name'] as String? ?? '',
             parentId: value['parentId'] as String?,
           ),
-      ]);
-      _highlights.addAll([
+      },
+      highlights = {
         for (final MapEntry(:key, :value) in _entries(json['highlights']))
-          decodeHighlight(key, value, _readTime),
-      ]);
-    }
-    final content = await _storage.read(contentKey);
-    if (content != null) {
-      for (final MapEntry(:key, :value)
-          in (jsonDecode(content) as Map<String, Object?>).entries) {
-        if (value is List) _content.items[key] = value.cast<String>();
-      }
-    }
-  }
+          key: decodeHighlight(key, value, LocalLibrary._readTime),
+      };
+
+  final Map<String, Bookmark> bookmarks;
+  final Map<String, Label> labels;
+  final Map<String, Highlight> highlights;
 
   static Iterable<MapEntry<String, Map<String, Object?>>> _entries(
     Object? map,
@@ -179,32 +345,65 @@ class _LocalBookmarks implements BookmarkRepository {
   final LocalLibrary _library;
   InMemoryBookmarkRepository get _inner => _library._bookmarks;
 
+  Future<void> _changed(Iterable<String> ids) =>
+      _library._changed('bookmarks', ids);
+
   @override
   String newId() => _newId();
 
   @override
   Future<void> create(Bookmark bookmark) async {
     await _inner.create(bookmark);
-    await _library._changed();
+    await _changed([bookmark.id]);
   }
 
   @override
   Future<void> update(Bookmark bookmark) async {
     await _inner.update(bookmark);
-    await _library._changed();
+    await _changed([bookmark.id]);
+  }
+
+  @override
+  Future<void> modify(
+    String id,
+    Bookmark Function(Bookmark current) change,
+  ) async {
+    await _inner.modify(id, change);
+    await _changed([id]);
+  }
+
+  @override
+  Future<void> modifyMany(
+    Iterable<String> ids,
+    Bookmark Function(Bookmark current) change, {
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final all = ids.toList();
+    await _inner.modifyMany(all, change, onProgress: onProgress);
+    await _changed(all);
   }
 
   @override
   Future<void> delete(String id) async {
     await _inner.delete(id);
-    await _library._changed();
+    await _changed([id]);
+  }
+
+  @override
+  Future<void> deleteMany(Iterable<String> ids) async {
+    final all = ids.toList();
+    await _inner.deleteMany(all);
+    await _changed(all);
   }
 
   @override
   Future<void> createMany(List<Bookmark> bookmarks) async {
     _inner.addAll(bookmarks);
-    await _library._changed();
+    await _changed(bookmarks.map((b) => b.id));
   }
+
+  @override
+  Stream<bool> watchPendingWrites() => _inner.watchPendingWrites();
 
   @override
   Stream<Bookmark?> watch(String id) => _inner.watch(id);
@@ -234,6 +433,9 @@ class _LocalLabels implements LabelRepository {
   final LocalLibrary _library;
   InMemoryLabelRepository get _inner => _library._labels;
 
+  Future<void> _changed(Iterable<String> ids) =>
+      _library._changed('labels', ids);
+
   @override
   String newId(LabelKind kind) => _newId();
 
@@ -243,25 +445,35 @@ class _LocalLabels implements LabelRepository {
   @override
   Future<void> create(Label label) async {
     await _inner.create(label);
-    await _library._changed();
+    await _changed([label.id]);
   }
 
   @override
   Future<void> rename(Label label, String name) async {
     await _inner.rename(label, name);
-    await _library._changed();
+    await _changed([label.id]);
   }
 
   @override
   Future<void> setParent(Label label, String? parentId) async {
     await _inner.setParent(label, parentId);
-    await _library._changed();
+    await _changed([label.id]);
   }
 
   @override
   Future<void> delete(Label label) async {
+    // Deleting a label also moves its children and untags bookmarks.
+    final children = [
+      for (final l in _inner.items.values)
+        if (l.parentId == label.id) l.id,
+    ];
+    final tagged = [
+      for (final b in _library._bookmarks.items.values)
+        if (b.labelIds(label.kind).contains(label.id)) b.id,
+    ];
     await _inner.delete(label);
-    await _library._changed();
+    _library._touched['bookmarks']!.addAll(tagged);
+    await _changed([label.id, ...children]);
   }
 }
 
@@ -270,6 +482,9 @@ class _LocalHighlights implements HighlightRepository {
 
   final LocalLibrary _library;
   InMemoryHighlightRepository get _inner => _library._highlights;
+
+  Future<void> _changed(Iterable<String> ids) =>
+      _library._changed('highlights', ids);
 
   @override
   String newId() => _newId();
@@ -285,19 +500,23 @@ class _LocalHighlights implements HighlightRepository {
   @override
   Future<void> save(Highlight highlight) async {
     await _inner.save(highlight);
-    await _library._changed();
+    await _changed([highlight.id]);
   }
 
   @override
   Future<void> delete(String id) async {
     await _inner.delete(id);
-    await _library._changed();
+    await _changed([id]);
   }
 
   @override
   Future<void> deleteForBookmark(String bookmarkId) async {
+    final ids = [
+      for (final h in _inner.items.values)
+        if (h.bookmarkId == bookmarkId) h.id,
+    ];
     await _inner.deleteForBookmark(bookmarkId);
-    await _library._changed();
+    await _changed(ids);
   }
 }
 
@@ -310,7 +529,7 @@ class _LocalContent implements ContentIndex {
   @override
   Future<void> save(String bookmarkId, List<String> words) async {
     await _inner.save(bookmarkId, words);
-    await _library._changed(content: true);
+    await _library._changed('content', [bookmarkId]);
   }
 
   @override
@@ -320,7 +539,7 @@ class _LocalContent implements ContentIndex {
   @override
   Future<void> delete(String bookmarkId) async {
     await _inner.delete(bookmarkId);
-    await _library._changed(content: true);
+    await _library._changed('content', [bookmarkId]);
   }
 }
 

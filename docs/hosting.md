@@ -182,11 +182,44 @@ To serve the API from the web app's own domain (no CORS, same address), add a re
 ]
 ```
 
+### Running more than one instance
+
+The server keeps no state of its own, so any number of instances can run at once (Cloud
+Run scales them automatically; with Docker, run several containers behind a load
+balancer). Each instance:
+
+- finishes requests in flight when it receives `SIGTERM` (sent by Cloud Run and
+  `docker stop`), waiting up to 8 seconds, then exits;
+- applies the rate limit on its own. With several instances, a user can make up to the
+  limit times the number of instances. To keep a firm limit on Cloud Run, cap instances
+  with `--max-instances`.
+
+Writes from several instances, the app and other devices don't overwrite each other:
+updates change only the fields they're about (see `api/README.md`).
+
 ### Connecting the app
 
 In the app: **Settings → API & integrations**, then enter the server address, for example
 `https://api.example.com`. To build the address in, set `API_BASE_URL` in
 `config/prod.json`. Create API tokens for scripts on the same screen.
+
+If the server stops answering (3 failures in a row), the app stops calling it for a minute
+and does the work on the device instead: it reads pages and looks up titles itself on
+Android, and offers **Open in browser** on the web. Saving and organizing never depend on
+the server.
+
+## Backups
+
+Account libraries live in Firestore. To be able to recover from a mistake:
+
+- Turn on **point-in-time recovery**, which keeps 7 days of history (Blaze plan):
+  `gcloud firestore databases update --database='(default)' --enable-pitr`
+- Schedule a daily export to a Cloud Storage bucket:
+  `gcloud firestore export gs://<bucket>/$(date +%F)`, for example from Cloud Scheduler.
+- Or export from the app: **Settings → Export library**, which also works for on-device libraries.
+
+The on-device library keeps the previous save as a backup and loads it if the current copy
+can't be read. The unreadable copy is kept under a separate name rather than overwritten.
 
 ## Costs
 

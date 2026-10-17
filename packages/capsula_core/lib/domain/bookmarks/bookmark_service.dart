@@ -4,6 +4,7 @@ import '../reader/page_info_service.dart';
 import '../search/full_text.dart';
 import '../reader/reader_content.dart';
 import 'bookmark.dart';
+import 'bookmark_patch.dart';
 import 'bookmark_repository.dart';
 import 'bookmark_source.dart';
 import 'bookmark_view.dart';
@@ -70,7 +71,7 @@ class BookmarkService {
     final now = _now();
     final host = displayHost(uri);
     final bookmark = Bookmark(
-      id: _repository.newId(),
+      id: bookmarkIdFor(canonicalUrl),
       url: uri.toString(),
       canonicalUrl: canonicalUrl,
       title: (title?.trim().isNotEmpty ?? false)
@@ -86,98 +87,120 @@ class BookmarkService {
     return Saved(bookmark, _repository.create(bookmark)..ignore());
   }
 
-  Future<void> setReadingStatus(Bookmark bookmark, ReadingStatus status) =>
-      _repository.update(
-        bookmark.copyWith(readingStatus: status, updatedAt: _now()),
-      );
-
-  /// Archiving also takes the bookmark out of the Inbox.
-  Future<void> setArchived(Bookmark bookmark, bool archived) =>
-      _repository.update(
-        bookmark.copyWith(
-          archived: archived,
-          inInbox: archived ? false : bookmark.inInbox,
-          updatedAt: _now(),
-        ),
-      );
-
-  Future<void> rename(Bookmark bookmark, String title) => _repository.update(
-    bookmark.copyWith(title: title.trim(), updatedAt: _now()),
+  /// Applies [change] to the stored bookmark, writing only what it changes
+  /// and stamping the time of the change.
+  Future<void> _modify(
+    Bookmark bookmark,
+    Bookmark Function(Bookmark b) change,
+  ) => _repository.modify(
+    bookmark.id,
+    (b) => change(b).copyWith(updatedAt: _now()),
   );
 
-  /// Takes the bookmark out of the Inbox ("done organizing"), or puts it back.
+  Future<void> setReadingStatus(Bookmark bookmark, ReadingStatus status) =>
+      _modify(bookmark, (b) => b.copyWith(readingStatus: status));
+
+  /// Archiving also takes the bookmark out of the Inbox.
+  Future<void> setArchived(Bookmark bookmark, bool archived) => _modify(
+    bookmark,
+    (b) =>
+        b.copyWith(archived: archived, inInbox: archived ? false : b.inInbox),
+  );
+
+  Future<void> rename(Bookmark bookmark, String title) =>
+      _modify(bookmark, (b) => b.copyWith(title: title.trim()));
+
   /// Sets a reminder, or clears it when [when] is null.
-  Future<void> setReminder(Bookmark bookmark, DateTime? when) =>
-      _repository.update(
-        bookmark.copyWith(
-          remindAt: when,
-          clearReminder: when == null,
-          updatedAt: _now(),
-        ),
-      );
+  Future<void> setReminder(Bookmark bookmark, DateTime? when) => _modify(
+    bookmark,
+    (b) => b.copyWith(remindAt: when, clearReminder: when == null),
+  );
 
-  Future<void> setFavorite(Bookmark bookmark, bool favorite) => _repository
-      .update(bookmark.copyWith(favorite: favorite, updatedAt: _now()));
+  Future<void> setFavorite(Bookmark bookmark, bool favorite) =>
+      _modify(bookmark, (b) => b.copyWith(favorite: favorite));
 
-  /// Applies [change] to every bookmark in [bookmarks] (bulk edit).
+  /// Applies [change] to every bookmark in [bookmarks] (bulk edit), in
+  /// batches. [change] receives the latest stored copy of each one.
   Future<void> updateMany(
     Iterable<Bookmark> bookmarks,
-    Bookmark Function(Bookmark b) change,
-  ) => Future.wait([
-    for (final b in bookmarks)
-      _repository.update(change(b).copyWith(updatedAt: _now())),
-  ]);
+    Bookmark Function(Bookmark b) change, {
+    void Function(int done, int total)? onProgress,
+  }) => _repository.modifyMany(
+    bookmarks.map((b) => b.id),
+    (b) => change(b).copyWith(updatedAt: _now()),
+    onProgress: onProgress,
+  );
 
   /// Adds [labelId] to every bookmark that doesn't have it yet.
   Future<void> addLabelToMany(
     Iterable<Bookmark> bookmarks,
     LabelKind kind,
     String labelId,
-  ) => updateMany(
-    bookmarks.where((b) => !b.labelIds(kind).contains(labelId)),
-    (b) => switch (kind) {
-      LabelKind.tag => b.copyWith(tagIds: [...b.tagIds, labelId]),
-      LabelKind.collection => b.copyWith(
-        collectionIds: [...b.collectionIds, labelId],
-      ),
-    },
+  ) => _repository.modifyMany(
+    bookmarks
+        .where((b) => !b.labelIds(kind).contains(labelId))
+        .map((b) => b.id),
+    (b) => b.labelIds(kind).contains(labelId)
+        ? b
+        : _withLabels(b, kind, [...b.labelIds(kind), labelId]),
   );
 
-  /// Rewrites every bookmark so stored fields derived from it (type,
-  /// search words) are current. Returns how many were rewritten.
+  /// Rewrites stored fields derived from each bookmark (type, search
+  /// words) where they are out of date. Returns how many were checked.
   Future<int> reindexAll({
     void Function(int done, int total)? onProgress,
   }) async {
     final all = await _repository.fetchAll();
     onProgress?.call(0, all.length);
-    for (var i = 0; i < all.length; i += 50) {
-      final chunk = all.skip(i).take(50);
-      await Future.wait([for (final b in chunk) _repository.update(b)]);
-      onProgress?.call((i + 50).clamp(0, all.length), all.length);
-    }
+    await _repository.modifyMany(
+      all.map((b) => b.id),
+      (b) => b,
+      onProgress: onProgress,
+    );
     return all.length;
   }
 
-  Future<void> deleteMany(Iterable<Bookmark> bookmarks) =>
-      Future.wait([for (final b in bookmarks) _repository.delete(b.id)]);
+  /// Deletes the bookmarks, their highlights and their saved page text.
+  Future<void> deleteMany(Iterable<Bookmark> bookmarks) async {
+    final ids = bookmarks.map((b) => b.id).toList();
+    await _repository.deleteMany(ids);
+    for (final id in ids) {
+      await _highlights?.deleteForBookmark(id);
+      await _contentIndex?.delete(id);
+    }
+  }
 
-  Future<void> setInInbox(Bookmark bookmark, bool inInbox) => _repository
-      .update(bookmark.copyWith(inInbox: inInbox, updatedAt: _now()));
+  Future<void> setInInbox(Bookmark bookmark, bool inInbox) =>
+      _modify(bookmark, (b) => b.copyWith(inInbox: inInbox));
 
+  /// Gives [bookmark] exactly [labelIds] of [kind], as the user chose them
+  /// starting from [bookmark]. Labels added or removed meanwhile elsewhere
+  /// are kept that way: only the user's own additions and removals apply.
   Future<void> setLabels(
     Bookmark bookmark,
     LabelKind kind,
     Iterable<String> labelIds,
   ) {
-    final ids = labelIds.toSet().toList();
-    return _repository.update(switch (kind) {
-      LabelKind.tag => bookmark.copyWith(tagIds: ids, updatedAt: _now()),
-      LabelKind.collection => bookmark.copyWith(
-        collectionIds: ids,
-        updatedAt: _now(),
-      ),
-    });
+    final chosen = labelIds.toSet();
+    final before = bookmark.labelIds(kind).toSet();
+    final added = chosen.difference(before);
+    final removed = before.difference(chosen);
+    return _modify(
+      bookmark,
+      (b) => _withLabels(b, kind, [
+        for (final id in b.labelIds(kind))
+          if (!removed.contains(id)) id,
+        for (final id in added)
+          if (!b.labelIds(kind).contains(id)) id,
+      ]),
+    );
   }
+
+  static Bookmark _withLabels(Bookmark b, LabelKind kind, List<String> ids) =>
+      switch (kind) {
+        LabelKind.tag => b.copyWith(tagIds: ids),
+        LabelKind.collection => b.copyWith(collectionIds: ids),
+      };
 
   /// Deletes the bookmark and its highlights.
   Future<void> delete(Bookmark bookmark) async {
@@ -194,13 +217,7 @@ class BookmarkService {
     final words = contentWords(articleTexts(content));
     if (words.isEmpty) return false;
     await index.save(bookmark.id, words);
-    // Re-read so this doesn't overwrite changes made meanwhile (e.g. the
-    // title the reader just fetched).
-    final latest = await _repository.watch(bookmark.id).first;
-    if (latest == null) return true;
-    await _repository.update(
-      latest.copyWith(contentIndexedAt: _now(), updatedAt: _now()),
-    );
+    await _modify(bookmark, (b) => b.copyWith(contentIndexedAt: _now()));
     return true;
   }
 
@@ -228,11 +245,11 @@ class BookmarkService {
     if (trimmed.length > maxNoteLength) {
       throw ArgumentError('Notes are limited to $maxNoteLength characters');
     }
-    return _repository.update(
-      bookmark.copyWith(
+    return _modify(
+      bookmark,
+      (b) => b.copyWith(
         note: trimmed.isEmpty ? null : trimmed,
         clearNote: trimmed.isEmpty,
-        updatedAt: _now(),
       ),
     );
   }
@@ -295,6 +312,22 @@ class BookmarkService {
     PageMetadata metadata, {
     String? fallbackTitle,
   }) {
+    final updated = _withMetadata(bookmark, metadata, fallbackTitle);
+    if (updated == null) return null;
+    // Re-checked against the stored copy, so a title the user typed
+    // meanwhile on another device is never replaced.
+    _modify(
+      bookmark,
+      (b) => _withMetadata(b, metadata, fallbackTitle) ?? b,
+    ).ignore();
+    return updated.copyWith(updatedAt: _now());
+  }
+
+  Bookmark? _withMetadata(
+    Bookmark bookmark,
+    PageMetadata metadata,
+    String? fallbackTitle,
+  ) {
     final title = hasAutoTitle(bookmark)
         ? _clip(metadata.title, 300) ?? _clip(fallbackTitle, 300)
         : null;
@@ -315,14 +348,11 @@ class BookmarkService {
         imageUrl == null) {
       return null;
     }
-    final updated = bookmark.copyWith(
+    return bookmark.copyWith(
       title: title,
       description: description,
       imageUrl: imageUrl,
-      updatedAt: _now(),
     );
-    _repository.update(updated).ignore();
-    return updated;
   }
 
   /// Looks up the link's real title and details and saves them.

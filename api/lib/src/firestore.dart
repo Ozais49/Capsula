@@ -1,5 +1,6 @@
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_codec.dart';
+import 'package:capsula_core/domain/bookmarks/bookmark_patch.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
 import 'package:capsula_core/domain/bookmarks/search_tokens.dart';
@@ -24,6 +25,28 @@ DateTime? _readTime(Object? value) => switch (value) {
 
 Object _writeTime(DateTime date) => Timestamp.fromDate(date);
 
+const _transient = {
+  FirestoreClientErrorCode.aborted,
+  FirestoreClientErrorCode.unavailable,
+  FirestoreClientErrorCode.deadlineExceeded,
+};
+
+/// Runs [write], trying again up to twice more, after 200 ms and then
+/// 800 ms, when Firestore reports a temporary failure.
+Future<T> withRetry<T>(
+  Future<T> Function() write, {
+  Future<void> Function(Duration) wait = Future.delayed,
+}) async {
+  for (var attempt = 1; ; attempt++) {
+    try {
+      return await write();
+    } on FirebaseFirestoreAdminException catch (e) {
+      if (attempt >= 3 || !_transient.contains(e.errorCode)) rethrow;
+      await wait(Duration(milliseconds: 200 * (1 << (2 * (attempt - 1)))));
+    }
+  }
+}
+
 /// Bookmarks of one user, through the admin SDK. Admin access bypasses
 /// security rules, so every query is built under `users/{uid}`.
 class AdminBookmarkRepository implements BookmarkRepository {
@@ -43,14 +66,84 @@ class AdminBookmarkRepository implements BookmarkRepository {
 
   @override
   Future<void> create(Bookmark b) =>
-      _col.doc(b.id).set(encodeBookmark(b, _writeTime));
+      withRetry(() => _col.doc(b.id).set(encodeBookmark(b, _writeTime)));
 
   @override
   Future<void> update(Bookmark b) =>
-      _col.doc(b.id).set(encodeBookmark(b, _writeTime));
+      withRetry(() => _col.doc(b.id).set(encodeBookmark(b, _writeTime)));
 
   @override
-  Future<void> delete(String id) => _col.doc(id).delete();
+  Future<void> modify(String id, Bookmark Function(Bookmark current) change) =>
+      modifyMany([id], change);
+
+  /// Reads and writes each batch in a transaction, so a change made by
+  /// another client between the read and the write makes Firestore run the
+  /// batch again on the newer data instead of overwriting it.
+  @override
+  Future<void> modifyMany(
+    Iterable<String> ids,
+    Bookmark Function(Bookmark current) change, {
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final all = ids.toList();
+    for (var i = 0; i < all.length; i += writeBatchSize) {
+      final docs = all.skip(i).take(writeBatchSize).map(_col.doc).toList();
+      await withRetry(
+        () => _db.runTransaction((tx) async {
+          final snapshots = [for (final d in docs) await tx.get(d)];
+          for (var j = 0; j < docs.length; j++) {
+            final fields = _patch(snapshots[j], change);
+            if (fields != null) tx.update(docs[j], fields);
+          }
+        }),
+      );
+      onProgress?.call(i + docs.length, all.length);
+    }
+  }
+
+  Map<String, Object?>? _patch(
+    DocumentSnapshot<DocumentData> snapshot,
+    Bookmark Function(Bookmark current) change,
+  ) {
+    final data = snapshot.data();
+    if (data == null) return null;
+    final patch = BookmarkPatch.fromDocuments(
+      data.map((k, v) => MapEntry(k, v is Timestamp ? _readTime(v) : v)),
+      encodeBookmark(change(_decode(snapshot)), (d) => d),
+    );
+    if (patch.isEmpty) return null;
+    Object? toStore(Object? v) => v is DateTime ? _writeTime(v) : v;
+    return {
+      for (final MapEntry(:key, :value) in patch.set.entries)
+        key: toStore(value),
+      for (final key in patch.removed) key: FieldValue.delete,
+      for (final MapEntry(:key, :value) in patch.added.entries)
+        key: FieldValue.arrayUnion(value),
+      for (final MapEntry(:key, :value) in patch.pulled.entries)
+        key: FieldValue.arrayRemove(value),
+    };
+  }
+
+  @override
+  Future<void> delete(String id) => withRetry(() => _col.doc(id).delete());
+
+  @override
+  Future<void> deleteMany(Iterable<String> ids) async {
+    final all = ids.toList();
+    for (var i = 0; i < all.length; i += writeBatchSize) {
+      final docs = all.skip(i).take(writeBatchSize).map(_col.doc).toList();
+      await withRetry(
+        () => _db.runTransaction((tx) async {
+          for (final d in docs) {
+            tx.delete(d);
+          }
+        }),
+      );
+    }
+  }
+
+  @override
+  Stream<bool> watchPendingWrites() => Stream.value(false);
 
   @override
   Stream<Bookmark?> watch(String id) => Stream.fromFuture(

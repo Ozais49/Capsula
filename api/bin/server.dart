@@ -54,6 +54,25 @@ Future<void> main() async {
     'Capsula API listening on port ${server.port} '
     '(project ${config.projectId}${config.useEmulators ? ', emulators' : ''})',
   );
+
+  // Cloud Run and Docker send SIGTERM before stopping an instance (when
+  // scaling in or deploying). Stop taking new connections and let requests
+  // in flight finish, so clients don't see dropped writes.
+  var stopping = false;
+  Future<void> shutDown(ProcessSignal signal) async {
+    if (stopping) return;
+    stopping = true;
+    stdout.writeln('Received $signal, finishing requests in flight');
+    await server.close().timeout(
+      const Duration(seconds: 8),
+      onTimeout: () => server.close(force: true),
+    );
+    await app.close();
+    exit(0);
+  }
+
+  ProcessSignal.sigint.watch().listen(shutDown);
+  if (!Platform.isWindows) ProcessSignal.sigterm.watch().listen(shutDown);
 }
 
 /// Logs method, path and status only. Query strings can hold private URLs.

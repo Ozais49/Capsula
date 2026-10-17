@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show HttpDate;
 
 import 'package:capsula_core/api/api_json.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark.dart';
@@ -223,7 +224,10 @@ class CapsulaApi {
   Future<Response> _getBookmark(Request req, Principal p, String id) async {
     final b = await userData(p.uid).bookmarks.watch(id).first;
     if (b == null) throw const ApiError.notFound('No bookmark with this ID');
-    return jsonResponse(bookmarkToJson(b));
+    return jsonResponse(
+      bookmarkToJson(b),
+      headers: {'last-modified': HttpDate.format(b.updatedAt)},
+    );
   }
 
   Future<Response> _createBookmark(Request req, Principal p) async {
@@ -281,8 +285,29 @@ class CapsulaApi {
       throw const ApiError.notFound('No bookmark with this ID');
     }
     final body = await readJson(req);
-    final updated = await _applyChanges(_service(p), p, existing, body);
-    return jsonResponse(bookmarkToJson(updated));
+    final since = req.headers['if-unmodified-since'];
+    DateTime? unmodifiedSince;
+    if (since != null) {
+      try {
+        unmodifiedSince = HttpDate.parse(since);
+      } on Exception {
+        // HttpDate.parse throws HttpException for malformed dates.
+        throw const ApiError.badRequest(
+          '"If-Unmodified-Since" must be an HTTP date',
+        );
+      }
+    }
+    final updated = await _applyChanges(
+      _service(p),
+      p,
+      existing,
+      body,
+      unmodifiedSince: unmodifiedSince,
+    );
+    return jsonResponse(
+      bookmarkToJson(updated),
+      headers: {'last-modified': HttpDate.format(updated.updatedAt)},
+    );
   }
 
   /// Applies the editable fields present in [body] and saves once.
@@ -290,21 +315,21 @@ class CapsulaApi {
     BookmarkService service,
     Principal p,
     Bookmark b,
-    Map<String, Object?> body,
-  ) async {
-    var next = b;
-    var changed = false;
+    Map<String, Object?> body, {
+    DateTime? unmodifiedSince,
+  }) async {
+    // Each edit is applied to the latest stored copy, so fields the request
+    // doesn't mention keep any change made meanwhile by another client.
+    final edits = <Bookmark Function(Bookmark)>[];
 
     if (_optionalString(body, 'title', 1000) case final title?) {
       if (title.trim().isEmpty) {
         throw const ApiError.badRequest('"title" can\'t be empty');
       }
-      next = next.copyWith(title: title.trim());
-      changed = true;
+      edits.add((b) => b.copyWith(title: title.trim()));
     }
     if (_optionalString(body, 'description', 5000) case final d?) {
-      next = next.copyWith(description: d);
-      changed = true;
+      edits.add((b) => b.copyWith(description: d));
     }
     if (body['readingStatus'] case final Object status) {
       final match = ReadingStatus.values.where((s) => s.name == status);
@@ -314,15 +339,14 @@ class CapsulaApi {
           '${ReadingStatus.values.map((s) => s.name).join(', ')}',
         );
       }
-      next = next.copyWith(readingStatus: match.single);
-      changed = true;
+      edits.add((b) => b.copyWith(readingStatus: match.single));
     }
     if (body.containsKey('note')) {
       final note = _optionalString(body, 'note', maxNoteLength)?.trim() ?? '';
-      next = note.isEmpty
-          ? next.copyWith(clearNote: true)
-          : next.copyWith(note: note);
-      changed = true;
+      edits.add(
+        (b) =>
+            note.isEmpty ? b.copyWith(clearNote: true) : b.copyWith(note: note),
+      );
     }
     if (body.containsKey('remindAt')) {
       final raw = body['remindAt'];
@@ -332,39 +356,59 @@ class CapsulaApi {
           '"remindAt" must be an ISO 8601 date-time or null',
         );
       }
-      next = when == null
-          ? next.copyWith(clearReminder: true)
-          : next.copyWith(remindAt: when);
-      changed = true;
+      edits.add(
+        (b) => when == null
+            ? b.copyWith(clearReminder: true)
+            : b.copyWith(remindAt: when),
+      );
     }
     if (body['favorite'] case final Object favorite) {
-      next = next.copyWith(favorite: _bool(favorite, 'favorite'));
-      changed = true;
+      final f = _bool(favorite, 'favorite');
+      edits.add((b) => b.copyWith(favorite: f));
     }
     if (body['inInbox'] case final Object inbox) {
-      next = next.copyWith(inInbox: _bool(inbox, 'inInbox'));
-      changed = true;
+      final i = _bool(inbox, 'inInbox');
+      edits.add((b) => b.copyWith(inInbox: i));
     }
     if (body['archived'] case final Object archived) {
       final a = _bool(archived, 'archived');
-      next = next.copyWith(archived: a, inInbox: a ? false : next.inInbox);
-      changed = true;
+      edits.add((b) => b.copyWith(archived: a, inInbox: a ? false : b.inInbox));
     }
     for (final kind in LabelKind.values) {
       final ids = await _labelIds(p, kind, body);
       if (ids != null) {
-        next = switch (kind) {
-          LabelKind.tag => next.copyWith(tagIds: ids),
-          LabelKind.collection => next.copyWith(collectionIds: ids),
-        };
-        changed = true;
+        edits.add(
+          (b) => switch (kind) {
+            LabelKind.tag => b.copyWith(tagIds: ids),
+            LabelKind.collection => b.copyWith(collectionIds: ids),
+          },
+        );
       }
     }
 
-    if (!changed) return b;
-    next = next.copyWith(updatedAt: _now());
-    await userData(p.uid).bookmarks.update(next);
-    return next;
+    if (edits.isEmpty) return b;
+    final now = _now();
+    Bookmark change(Bookmark current) {
+      // Optimistic concurrency: refuse to apply edits made against a copy
+      // that has changed since the client read it.
+      if (unmodifiedSince != null &&
+          current.updatedAt.difference(unmodifiedSince).inSeconds > 0) {
+        throw const ApiError(
+          412,
+          'conflict',
+          'The bookmark changed since it was read',
+        );
+      }
+      var next = current;
+      for (final edit in edits) {
+        next = edit(next);
+      }
+      return next.copyWith(updatedAt: now);
+    }
+
+    final repo = userData(p.uid).bookmarks;
+    await repo.modify(b.id, change);
+    return await repo.watch(b.id).first ?? change(b);
   }
 
   /// Label IDs from `tagIds`/`collectionIds`, or from `tags`/`collections`

@@ -224,4 +224,79 @@ void main() {
       expect(settings.baseUrl.toString(), 'https://built.in');
     });
   });
+
+  group('when the server keeps failing', () {
+    test('stops calling it for a minute, then tries again', () async {
+      var now = DateTime(2026, 10, 17, 12);
+      var calls = 0;
+      var serverUp = false;
+      final client = CapsulaApiClient(
+        Uri.parse('https://api.example.com/'),
+        () async => 't',
+        now: () => now,
+        client: MockClient((r) async {
+          calls++;
+          return serverUp
+              ? http.Response(jsonEncode({'title': 'Remote'}), 200)
+              : http.Response('', 503);
+        }),
+      );
+      final url = Uri.parse('https://example.com/a');
+
+      for (var i = 0; i < 3; i++) {
+        await expectLater(client.pageInfo(url), throwsA(isA<ApiException>()));
+      }
+      expect(client.isUnavailable, isTrue);
+
+      // Skipped without a request while the server is considered down.
+      await expectLater(
+        client.pageInfo(url),
+        throwsA(
+          isA<ApiException>().having((e) => e.code, 'code', 'unavailable'),
+        ),
+      );
+      expect(calls, 3);
+
+      now = now.add(const Duration(minutes: 1, seconds: 1));
+      serverUp = true;
+      expect((await client.pageInfo(url))?.title, 'Remote');
+      expect(client.isUnavailable, isFalse);
+    });
+
+    test('falls back to the device right away', () async {
+      final local = _Local();
+      final client = _client((r) async => http.Response('', 502));
+      final source = ApiOrLocalPageInfo(() => client, local);
+      for (var i = 0; i < 5; i++) {
+        expect(
+          (await source.lookup(Uri.parse('https://example.com/a')))?.title,
+          'Local',
+        );
+      }
+      expect(client.isUnavailable, isTrue);
+      expect(local.calls, 5);
+    });
+
+    test('network errors count too; client errors do not', () async {
+      var fail = true;
+      final client = _client((r) async {
+        if (fail) throw http.ClientException('offline');
+        return http.Response(
+          jsonEncode({
+            'error': {'code': 'bad'},
+          }),
+          400,
+        );
+      });
+      final url = Uri.parse('https://example.com/a');
+      for (var i = 0; i < 2; i++) {
+        await expectLater(client.pageInfo(url), throwsA(anything));
+      }
+      fail = false;
+      await expectLater(client.pageInfo(url), throwsA(isA<ApiException>()));
+      fail = true;
+      await expectLater(client.pageInfo(url), throwsA(anything));
+      expect(client.isUnavailable, isFalse);
+    });
+  });
 }

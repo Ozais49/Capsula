@@ -42,6 +42,18 @@ rate-limited per user (default 120 per minute).
 
 Errors look like `{"error": {"code": "not_found", "message": "…"}}`.
 
+### Concurrent changes
+
+A PATCH changes only the fields it names, applied to the stored bookmark in a transaction,
+so it never undoes changes another client made to other fields. `GET` and `PATCH` on
+`/v1/bookmarks/{id}` return `Last-Modified`. To make sure nobody changed the bookmark since
+you read it, send that value back as `If-Unmodified-Since`; if the bookmark changed in the
+meantime, the server answers `412` with code `conflict` and changes nothing. Read it again
+and retry.
+
+Writes to Firestore are retried up to three times when Firestore reports a temporary
+failure.
+
 Example:
 
 ```

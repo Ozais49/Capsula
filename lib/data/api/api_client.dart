@@ -22,14 +22,45 @@ class ApiException implements Exception {
 
 /// Talks to a Capsula API server as the signed-in user.
 class CapsulaApiClient {
-  CapsulaApiClient(this.baseUrl, this._idToken, {http.Client? client})
-    : _http = client ?? http.Client();
+  CapsulaApiClient(
+    this.baseUrl,
+    this._idToken, {
+    http.Client? client,
+    DateTime Function()? now,
+  }) : _http = client ?? http.Client(),
+       _now = now ?? DateTime.now;
 
   final Uri baseUrl;
   final Future<String?> Function() _idToken;
   final http.Client _http;
+  final DateTime Function() _now;
 
   static const _timeout = Duration(seconds: 20);
+
+  // Circuit breaker: when the server keeps failing (down, unreachable,
+  // overloaded), stop calling it for a while so callers fall back to the
+  // device at once instead of each waiting for a timeout.
+  static const failuresBeforeOpen = 3;
+  static const openFor = Duration(minutes: 1);
+  int _failures = 0;
+  DateTime? _openUntil;
+
+  /// Whether calls are currently skipped because the server kept failing.
+  bool get isUnavailable {
+    final until = _openUntil;
+    return until != null && _now().isBefore(until);
+  }
+
+  void _recordFailure() {
+    if (++_failures >= failuresBeforeOpen) {
+      _openUntil = _now().add(openFor);
+    }
+  }
+
+  void _recordSuccess() {
+    _failures = 0;
+    _openUntil = null;
+  }
 
   Uri _uri(String path, [Map<String, String>? query]) => baseUrl.replace(
     path: '${baseUrl.path.replaceFirst(RegExp(r'/+$'), '')}$path',
@@ -43,6 +74,13 @@ class CapsulaApiClient {
     Object? body,
     bool auth = true,
   }) async {
+    if (isUnavailable) {
+      throw const ApiException(
+        503,
+        'unavailable',
+        "The Capsula server isn't responding",
+      );
+    }
     final request = http.Request(method, _uri(path, query));
     if (auth) {
       final token = await _idToken();
@@ -55,9 +93,22 @@ class CapsulaApiClient {
       request.headers['Content-Type'] = 'application/json';
       request.body = jsonEncode(body);
     }
-    final response = await http.Response.fromStream(
-      await _http.send(request).timeout(_timeout),
-    );
+    final http.Response response;
+    try {
+      response = await http.Response.fromStream(
+        await _http.send(request).timeout(_timeout),
+      );
+    } on Object {
+      _recordFailure();
+      rethrow;
+    }
+    // Server errors count against the server; client errors (bad input,
+    // not found) mean it's working.
+    if (response.statusCode >= 500) {
+      _recordFailure();
+    } else {
+      _recordSuccess();
+    }
     final decoded = response.body.isEmpty
         ? const <String, Object?>{}
         : jsonDecode(response.body);
@@ -76,9 +127,11 @@ class CapsulaApiClient {
     return json;
   }
 
-  /// True when the server answers its health check.
+  /// True when the server answers its health check. Always asks, even
+  /// while calls are being skipped, so the user can check it is back.
   Future<bool> isReachable() async {
     try {
+      _openUntil = null;
       final json = await _send('GET', '/v1/health', auth: false);
       return json['status'] == 'ok';
     } on Object {

@@ -1,4 +1,5 @@
 import '../bookmarks/bookmark.dart';
+import '../bookmarks/bookmark_patch.dart';
 import '../bookmarks/bookmark_repository.dart';
 import '../bookmarks/bookmark_source.dart';
 import '../bookmarks/url_normalizer.dart';
@@ -201,7 +202,7 @@ class ImportService {
     final title = p.item.title?.trim();
     final description = p.item.description?.trim();
     return Bookmark(
-      id: _bookmarks.newId(),
+      id: bookmarkIdFor(p.canonicalUrl),
       url: p.uri.toString(),
       canonicalUrl: p.canonicalUrl,
       title: title == null || title.isEmpty

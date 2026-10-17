@@ -3,6 +3,7 @@ import 'package:capsula_core/domain/bookmarks/bookmark.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_repository.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_source.dart';
 import 'package:capsula_core/domain/bookmarks/bookmark_view.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -147,5 +148,76 @@ void main() {
   test('requires a signed-in user', () {
     uid = null;
     expect(() => repo.newId(), throwsStateError);
+  });
+
+  group('concurrent changes', () {
+    DocumentReference<Map<String, Object?>> doc(String id) =>
+        db.collection('users').doc('alice').collection('bookmarks').doc(id);
+
+    test('modify writes only the changed fields', () async {
+      await repo.create(_bookmark('a'));
+      // Another device writes a note straight to the server.
+      await doc('a').update({'note': 'from phone'});
+
+      await repo.modify('a', (b) => b.copyWith(favorite: true));
+
+      final data = (await doc('a').get()).data()!;
+      expect(data['favorite'], isTrue);
+      expect(data['note'], 'from phone');
+    });
+
+    test('label changes merge with changes from elsewhere', () async {
+      await repo.create(_bookmark('a').copyWith(tagIds: ['x']));
+      await doc('a').update({
+        'tagIds': FieldValue.arrayUnion(['theirs']),
+      });
+
+      // This device last saw only "x" and adds "mine".
+      await repo.modify('a', (b) => b.copyWith(tagIds: [...b.tagIds, 'mine']));
+
+      expect((await doc('a').get()).data()!['tagIds'], ['x', 'theirs', 'mine']);
+    });
+
+    test('modify does nothing for a missing bookmark', () async {
+      await repo.modify('missing', (b) => b.copyWith(favorite: true));
+      expect((await doc('missing').get()).exists, isFalse);
+    });
+
+    test('rewrites stored values that are out of date', () async {
+      await repo.create(_bookmark('a', title: 'Biryani recipe'));
+      await doc('a').update({'searchTokens': <String>[]});
+
+      await repo.modifyMany(['a'], (b) => b);
+
+      expect(
+        (await doc('a').get()).data()!['searchTokens'],
+        contains('biryani'),
+      );
+    });
+
+    test('bulk changes and deletes are batched', () async {
+      await repo.createMany([for (var i = 0; i < 20; i++) _bookmark('b$i')]);
+      final progress = <int>[];
+      await repo.modifyMany(
+        [for (var i = 0; i < 20; i++) 'b$i'],
+        (b) => b.copyWith(favorite: true),
+        onProgress: (done, _) => progress.add(done),
+      );
+      expect(progress, [20]);
+      expect((await repo.fetchAll()).every((b) => b.favorite), isTrue);
+
+      await repo.deleteMany([for (var i = 0; i < 20; i++) 'b$i']);
+      expect(await repo.fetchAll(), isEmpty);
+    });
+
+    test('reports writes waiting for the backend', () async {
+      final states = <bool>[];
+      final sub = repo.watchPendingWrites().listen(states.add);
+      await Future<void>.delayed(Duration.zero);
+      await repo.create(_bookmark('a'));
+      await Future<void>.delayed(Duration.zero);
+      await sub.cancel();
+      expect(states, [false, true, false]);
+    });
   });
 }

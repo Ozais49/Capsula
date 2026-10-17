@@ -111,6 +111,32 @@ All user data is under `users/{uid}`. Only the owner can read or write it.
 4. On sign-in, links saved without a real title (for example while offline) are looked up
    again.
 
+## Concurrent changes
+
+Several devices, browser tabs, the share window, the API server and background tasks (title
+lookups, page indexing) can change the same bookmark at once. None of them may undo
+another's change.
+
+- **Edits change only their own fields.** `BookmarkRepository.modify(id, change)` applies
+  `change` to the latest stored copy and writes the difference (`BookmarkPatch`): Firestore
+  `update()` of the changed fields, with tag and collection lists written as
+  `arrayUnion`/`arrayRemove`, so label changes made elsewhere merge. The app reads the
+  latest copy from its cache, so this works offline. The API does the same in a
+  transaction. `update(bookmark)` (writing everything) is only for restores.
+- **Stable IDs.** New bookmarks are stored under an ID derived from the canonical URL
+  (`bookmarkIdFor`), so two devices saving the same link write one bookmark. When the
+  second write reaches the server, the rules refuse it because `createdAt` would change,
+  and the app treats that as already saved.
+- **Bulk writes** (bulk edits, re-indexing) go in batches of 450, one after another.
+  Changes are idempotent, so a run that stopped part way can be repeated.
+- **On-device library in several tabs.** The stored library has a `revision`. Before
+  saving, a tab compares revisions; if another tab saved in between, it merges the stored
+  library with its own unsaved changes (its version wins for items it changed, including
+  deletions). Browser `storage` events, and file watching on Android for the share window,
+  make tabs pick up each other's saves. Each save keeps the previous copy as a backup.
+- **Pending writes.** The library shows a cloud icon while writes made on the device haven't
+  reached Firestore yet.
+
 ## Android share target
 
 - `ShareActivity` (Kotlin) receives `ACTION_SEND` `text/plain` shares and shows a

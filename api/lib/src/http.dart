@@ -4,8 +4,15 @@ import 'package:shelf/shelf.dart';
 
 const _jsonHeaders = {'content-type': 'application/json; charset=utf-8'};
 
-Response jsonResponse(Object? body, {int status = 200}) =>
-    Response(status, body: jsonEncode(body), headers: _jsonHeaders);
+Response jsonResponse(
+  Object? body, {
+  int status = 200,
+  Map<String, String> headers = const {},
+}) => Response(
+  status,
+  body: jsonEncode(body),
+  headers: {..._jsonHeaders, ...headers},
+);
 
 /// Errors look like `{"error": {"code": "not_found", "message": "…"}}`.
 Response errorResponse(int status, String code, String message) =>
