@@ -70,7 +70,7 @@ class CapsulaApp extends StatefulWidget {
   State<CapsulaApp> createState() => _CapsulaAppState();
 }
 
-class _CapsulaAppState extends State<CapsulaApp> {
+class _CapsulaAppState extends State<CapsulaApp> with WidgetsBindingObserver {
   final _session = AuthSession();
   late final _fetcher = HttpContentFetcher(inBrowser: kIsWeb);
   late final ApiSettings _apiSettings =
@@ -106,6 +106,7 @@ class _CapsulaAppState extends State<CapsulaApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.backend.addListener(_attachSessionWhenConnected);
     _attachSessionWhenConnected();
     _session.addListener(_backfillOnceSignedIn);
@@ -126,6 +127,25 @@ class _CapsulaAppState extends State<CapsulaApp> {
         CapsulaApiClient(url, auth.idToken);
     _client = (url, client);
     return client;
+  }
+
+  DateTime? _lastResumeBackfill;
+
+  /// Each time Capsula comes back to the screen, look up titles still
+  /// missing. A link shared while the app was in the background may have
+  /// been saved before Android paused the app, before its title arrived.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final services = widget.backend.services;
+    if (services == null || _session.status != AuthStatus.signedIn) return;
+    final now = DateTime.now();
+    final last = _lastResumeBackfill;
+    if (last != null && now.difference(last) < const Duration(minutes: 1)) {
+      return;
+    }
+    _lastResumeBackfill = now;
+    services.bookmarks.backfillDetails(_pageInfo).ignore();
   }
 
   /// Once per run (and library), fetch real titles for links saved without
@@ -155,6 +175,7 @@ class _CapsulaAppState extends State<CapsulaApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.backend.removeListener(_attachSessionWhenConnected);
     _session.removeListener(_backfillOnceSignedIn);
     _router.dispose();

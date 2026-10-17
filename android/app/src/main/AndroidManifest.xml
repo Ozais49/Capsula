@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Finishing a shared link (title, sync) after the share window hides. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <application
         android:label="Capsula"
         android:name="${applicationName}"
@@ -50,6 +52,12 @@
                 <data android:mimeType="text/plain"/>
             </intent-filter>
         </activity>
+        <!-- Keeps the app awake for a few seconds after sharing (see
+             ShareSyncService.kt). -->
+        <service
+            android:name=".ShareSyncService"
+            android:exported="false"
+            android:foregroundServiceType="shortService"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

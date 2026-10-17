@@ -40,12 +40,26 @@ class ShareActivity : FlutterActivity() {
                     // Flutter keeps running to fetch the title and sync. Flutter
                     // closes the activity when that is done.
                     "moveToBackground" -> {
+                        // Started while the window is still visible, as Android
+                        // requires; it keeps the app from being frozen.
+                        try {
+                            ShareSyncService.start(this)
+                        } catch (e: Exception) {
+                            // Not allowed (e.g. restricted battery mode): the work
+                            // still runs until Android pauses the app, and missing
+                            // titles are fetched when Capsula next opens.
+                        }
                         moveTaskToBack(true)
                         result.success(null)
                     }
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    override fun onDestroy() {
+        ShareSyncService.stop(this)
+        super.onDestroy()
     }
 
     private fun readShare(intent: Intent?): Map<String, String?>? {
